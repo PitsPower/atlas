@@ -243,9 +243,6 @@ impl Renderer {
     }
 
     pub fn zoom(&mut self, zoom: f64, cursor_x: f64, cursor_y: f64) {
-        self.viewport.size.0 *= zoom;
-        self.viewport.size.1 *= zoom;
-        
         let (width, height) = self.get_canvas_size();
 
         let cursor_vec = (
@@ -253,8 +250,11 @@ impl Renderer {
             cursor_y * self.viewport.size.1 / height - self.viewport.size.1 * 0.5,
         );
 
-        self.viewport.position.0 += cursor_vec.0 - cursor_vec.0 * zoom;
-        self.viewport.position.1 += cursor_vec.1 - cursor_vec.1 * zoom;
+        self.viewport.position.0 += cursor_vec.0 * (1.0 - zoom);
+        self.viewport.position.1 += cursor_vec.1 * (1.0 - zoom);
+        
+        self.viewport.size.0 *= zoom;
+        self.viewport.size.1 *= zoom;
     }
 
     pub fn switch_viewport_mode(&mut self) {
