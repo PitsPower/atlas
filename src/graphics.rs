@@ -5,8 +5,17 @@ use crate::core::{Chip, Circuit, Component};
 
 pub trait Drawable {
     fn draw(&self, ctx: &CanvasRenderingContext2d);
+    fn get_pin_positions(&self) -> Vec<(f64, f64)>;
 }
 
+pub enum WireLayoutCommand {
+    AlignHorizontal,
+    AlignVertical,
+    CenterHorizontal,
+    CenterVertical,
+    MoveHorizontal(f64),
+    MoveVertical(f64),
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Viewport {
