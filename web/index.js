@@ -62,8 +62,8 @@ window.addEventListener("keypress", (e) => {
 	}
 });
 
-const circuit = wasm.example1(10);
-// const circuit = wasm.example2();
+// const circuit = wasm.example1(10);
+const circuit = wasm.example2();
 
 function render() {
 	requestAnimationFrame(render);

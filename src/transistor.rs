@@ -20,7 +20,7 @@ impl NTransistor {
 }
 
 impl Drawable for NTransistor {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: Viewport) {
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) {
 		ctx.set_line_width(7.0);
 		ctx.set_line_cap("square");
 		ctx.set_stroke_style(&"#fff".into());
@@ -36,15 +36,15 @@ impl Drawable for NTransistor {
 		ctx.move_to(-WIDTH * 0.5 - 15.0, HEIGHT * 0.5);
 		ctx.line_to(-WIDTH * 0.5 - 15.0, -HEIGHT * 0.5);
 		ctx.stroke();
-    }
+	}
 
-    fn get_pin_positions(&self) -> Vec<(f64, f64)> {
-        vec![
+	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
+		vec![
 			(-WIDTH * 0.5 - 15.0, 0.0),
 			(WIDTH * 0.5, HEIGHT * 0.5),
 			(WIDTH * 0.5, -HEIGHT * 0.5),
 		]
-    }
+	}
 }
 
 impl Component for NTransistor {
@@ -66,7 +66,7 @@ impl PTransistor {
 }
 
 impl Drawable for PTransistor {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: Viewport) {
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) {
 		ctx.set_line_width(7.0);
 		ctx.set_line_cap("square");
 		ctx.set_stroke_style(&"#fff".into());
@@ -86,15 +86,15 @@ impl Drawable for PTransistor {
 		ctx.begin_path();
 		ctx.arc(-WIDTH * 0.5 - 15.0 - RADIUS - 4.0, 0.0, RADIUS, 0.0, 2.0 * PI).unwrap();
 		ctx.stroke();
-    }
+	}
 
-    fn get_pin_positions(&self) -> Vec<(f64, f64)> {
-        vec![
+	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
+		vec![
 			(-WIDTH * 0.5 - 15.0 - RADIUS * 2.0 - 4.0, 0.0),
 			(WIDTH * 0.5, HEIGHT * 0.5),
 			(WIDTH * 0.5, -HEIGHT * 0.5),
 		]
-    }
+	}
 }
 
 impl Component for PTransistor {
