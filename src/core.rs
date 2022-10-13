@@ -13,6 +13,10 @@ pub trait Component: Drawable {
     fn contains(&self, _viewport: &Viewport) -> bool {
         false
     }
+
+    fn intersects(&self, _viewport: &Viewport) -> bool {
+        true
+    }
 }
 
 struct PinConnection {
@@ -64,7 +68,7 @@ impl Circuit {
 }
 
 impl Drawable for Circuit {
-    fn draw(&self, ctx: &CanvasRenderingContext2d) {
+    fn draw(&self, ctx: &CanvasRenderingContext2d, viewport: Viewport) {
         for wire in &self.wires {
             let con1 = &wire.con1;
             let con2 = &wire.con2;
@@ -124,7 +128,7 @@ impl Drawable for Circuit {
             let (x, y) = component.get_position();
             ctx.translate(x, y).unwrap();
 
-            component.draw(ctx);
+            component.draw(ctx, viewport);
             ctx.restore();
         }
     }
@@ -143,7 +147,7 @@ pub struct Chip {
 }
 
 impl Drawable for Chip {
-    fn draw(&self, ctx: &CanvasRenderingContext2d) {
+    fn draw(&self, ctx: &CanvasRenderingContext2d, viewport: Viewport) {
         ctx.set_line_width(10.0);
         
         ctx.set_stroke_style(&"#fff".into());
@@ -155,9 +159,23 @@ impl Drawable for Chip {
         ctx.stroke_rect(-width * 0.5, -height * 0.5, width, height);
         ctx.fill_rect(-width * 0.5, -height * 0.5, width, height);
 
-        ctx.scale(self.inner_scale, self.inner_scale).unwrap();
+        let start_ratio: f64 = 0.3;
+        let end_ratio: f64 = 0.5;
 
-        self.circuit.draw(ctx);
+        let height_ratio = height / viewport.get_size().1;
+        // let height_ratio = end_ratio;
+
+        if self.intersects(&viewport) && height_ratio > start_ratio {
+            ctx.save();
+            ctx.scale(self.inner_scale, self.inner_scale).unwrap();
+            self.circuit.draw(ctx, viewport.transform_in_to_chip(self));
+            ctx.restore();
+
+            let opacity = ((end_ratio - height_ratio) / (end_ratio - start_ratio)).max(0.0);
+
+            ctx.set_fill_style(&format!("rgba(0,0,0,{})", opacity).into());
+            ctx.fill_rect(-width * 0.5, -height * 0.5, width, height);
+        }
     }
 
     fn get_pin_positions(&self) -> Vec<(f64, f64)> {
@@ -176,13 +194,25 @@ impl Component for Chip {
 
     fn contains(&self, viewport: &Viewport) -> bool {
         let contains_x =
-            self.position.0 + self.size.0 * 0.5 >= viewport.position.0 + viewport.size.0 * 0.5 &&
-            self.position.0 - self.size.0 * 0.5 <= viewport.position.0 - viewport.size.0 * 0.5;
+            self.position.0 + self.size.0 * 0.5 >= viewport.get_position().0 + viewport.get_size().0 * 0.5 &&
+            self.position.0 - self.size.0 * 0.5 <= viewport.get_position().0 - viewport.get_size().0 * 0.5;
 
         let contains_y =
-            self.position.1 + self.size.1 * 0.5 >= viewport.position.1 + viewport.size.1 * 0.5 &&
-            self.position.1 - self.size.1 * 0.5 <= viewport.position.1 - viewport.size.1 * 0.5;
+            self.position.1 + self.size.1 * 0.5 >= viewport.get_position().1 + viewport.get_size().1 * 0.5 &&
+            self.position.1 - self.size.1 * 0.5 <= viewport.get_position().1 - viewport.get_size().1 * 0.5;
 
         contains_x && contains_y
+    }
+
+    fn intersects(&self, viewport: &Viewport) -> bool {
+        let intersects_x =
+            self.position.0 + self.size.0 * 0.5 >= viewport.get_position().0 - viewport.get_size().0 * 0.5 &&
+            self.position.0 - self.size.0 * 0.5 <= viewport.get_position().0 + viewport.get_size().0 * 0.5;
+
+        let intersects_y =
+            self.position.1 + self.size.1 * 0.5 >= viewport.get_position().1 - viewport.get_size().1 * 0.5 &&
+            self.position.1 - self.size.1 * 0.5 <= viewport.get_position().1 + viewport.get_size().1 * 0.5;
+
+        intersects_x && intersects_y
     }
 }

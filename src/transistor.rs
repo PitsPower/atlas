@@ -1,6 +1,7 @@
 use std::f64::consts::PI;
 
-use crate::{core::Component, graphics::Drawable};
+use crate::core::Component;
+use crate::graphics::{Drawable, Viewport};
 
 const WIDTH: f64 = 67.0;
 const HEIGHT: f64 = 110.0;
@@ -19,7 +20,7 @@ impl NTransistor {
 }
 
 impl Drawable for NTransistor {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: Viewport) {
 		ctx.set_line_width(7.0);
 		ctx.set_line_cap("square");
 		ctx.set_stroke_style(&"#fff".into());
@@ -65,7 +66,7 @@ impl PTransistor {
 }
 
 impl Drawable for PTransistor {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: Viewport) {
 		ctx.set_line_width(7.0);
 		ctx.set_line_cap("square");
 		ctx.set_stroke_style(&"#fff".into());

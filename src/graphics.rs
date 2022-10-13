@@ -4,7 +4,7 @@ use web_sys::*;
 use crate::core::{Chip, Circuit, Component};
 
 pub trait Drawable {
-    fn draw(&self, ctx: &CanvasRenderingContext2d);
+    fn draw(&self, ctx: &CanvasRenderingContext2d, viewport: Viewport);
     fn get_pin_positions(&self) -> Vec<(f64, f64)>;
 }
 
@@ -17,10 +17,11 @@ pub enum WireLayoutCommand {
     MoveVertical(f64),
 }
 
+#[wasm_bindgen]
 #[derive(Debug, Clone, Copy)]
 pub struct Viewport {
-    pub position: (f64, f64),
-    pub size: (f64, f64),
+    position: (f64, f64),
+    size: (f64, f64),
 }
 
 impl Viewport {
@@ -31,11 +32,19 @@ impl Viewport {
         }
     }
 
+    pub fn get_position(&self) -> (f64, f64) {
+        self.position
+    }
+
+    pub fn get_size(&self) -> (f64, f64) {
+        self.size
+    }
+
     fn scale(&self, ctx: &CanvasRenderingContext2d) -> f64 {
         self.size.0 / ctx.canvas().unwrap().width() as f64
     }
 
-    fn transform_in_to_chip(&self, chip: &Chip) -> Viewport {
+    pub fn transform_in_to_chip(&self, chip: &Chip) -> Viewport {
         let mut result = *self;
 
         let scale = chip.inner_scale;
@@ -208,7 +217,7 @@ impl Renderer {
             // ctx.scale(0.3, 0.3).unwrap();
         }
         
-        circuit.draw(ctx);
+        circuit.draw(ctx, self.viewport);
 
         if self.show_viewport {
             ctx.set_line_width(3.0);
