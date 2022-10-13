@@ -1,4 +1,10 @@
+use std::f64::consts::PI;
+
 use crate::{core::Component, graphics::Drawable};
+
+const WIDTH: f64 = 67.0;
+const HEIGHT: f64 = 110.0;
+const RADIUS: f64 = 11.5;
 
 pub struct NTransistor {
 	position: (f64, f64),
@@ -19,28 +25,78 @@ impl Drawable for NTransistor {
 		ctx.set_stroke_style(&"#fff".into());
 
 		ctx.begin_path();
-		ctx.move_to(50.0, 80.0);
-		ctx.line_to(-50.0, 80.0);
-		ctx.line_to(-50.0, -80.0);
-		ctx.line_to(50.0, -80.0);
+		ctx.move_to(WIDTH * 0.5, HEIGHT * 0.5);
+		ctx.line_to(-WIDTH * 0.5, HEIGHT * 0.5);
+		ctx.line_to(-WIDTH * 0.5, -HEIGHT * 0.5);
+		ctx.line_to(WIDTH * 0.5, -HEIGHT * 0.5);
 		ctx.stroke();
 
 		ctx.begin_path();
-		ctx.move_to(-65.0, 80.0);
-		ctx.line_to(-65.0, -80.0);
+		ctx.move_to(-WIDTH * 0.5 - 15.0, HEIGHT * 0.5);
+		ctx.line_to(-WIDTH * 0.5 - 15.0, -HEIGHT * 0.5);
 		ctx.stroke();
     }
 
     fn get_pin_positions(&self) -> Vec<(f64, f64)> {
         vec![
-			(-65.0, 0.0),
-			(50.0, 80.0),
-			(50.0, -80.0),
+			(-WIDTH * 0.5 - 15.0, 0.0),
+			(WIDTH * 0.5, HEIGHT * 0.5),
+			(WIDTH * 0.5, -HEIGHT * 0.5),
 		]
     }
 }
 
 impl Component for NTransistor {
+	fn get_position(&self) -> (f64, f64) {
+		self.position
+	}
+}
+
+pub struct PTransistor {
+	position: (f64, f64),
+}
+
+impl PTransistor {
+	pub fn new(pos: (f64, f64)) -> Self {
+		Self {
+			position: pos,
+		}
+	}
+}
+
+impl Drawable for PTransistor {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+		ctx.set_line_width(7.0);
+		ctx.set_line_cap("square");
+		ctx.set_stroke_style(&"#fff".into());
+
+		ctx.begin_path();
+		ctx.move_to(WIDTH * 0.5, HEIGHT * 0.5);
+		ctx.line_to(-WIDTH * 0.5, HEIGHT * 0.5);
+		ctx.line_to(-WIDTH * 0.5, -HEIGHT * 0.5);
+		ctx.line_to(WIDTH * 0.5, -HEIGHT * 0.5);
+		ctx.stroke();
+
+		ctx.begin_path();
+		ctx.move_to(-WIDTH * 0.5 - 15.0, HEIGHT * 0.5);
+		ctx.line_to(-WIDTH * 0.5 - 15.0, -HEIGHT * 0.5);
+		ctx.stroke();
+
+		ctx.begin_path();
+		ctx.arc(-WIDTH * 0.5 - 15.0 - RADIUS - 4.0, 0.0, RADIUS, 0.0, 2.0 * PI).unwrap();
+		ctx.stroke();
+    }
+
+    fn get_pin_positions(&self) -> Vec<(f64, f64)> {
+        vec![
+			(-WIDTH * 0.5 - 15.0 - RADIUS * 2.0 - 4.0, 0.0),
+			(WIDTH * 0.5, HEIGHT * 0.5),
+			(WIDTH * 0.5, -HEIGHT * 0.5),
+		]
+    }
+}
+
+impl Component for PTransistor {
 	fn get_position(&self) -> (f64, f64) {
 		self.position
 	}

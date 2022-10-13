@@ -12,7 +12,7 @@ use utils::set_panic_hook;
 
 use crate::core::{Chip, Circuit};
 use crate::graphics::WireLayoutCommand;
-use crate::transistor::{NTransistor};
+use crate::transistor::{NTransistor, PTransistor};
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -73,7 +73,7 @@ pub fn example2() -> Circuit {
     let mut circuit = Circuit::new();
 
     let transistor1 = circuit.add(Box::new(NTransistor::new((-100.0, -200.0))));
-    let transistor2 = circuit.add(Box::new(NTransistor::new((100.0, 200.0))));
+    let transistor2 = circuit.add(Box::new(PTransistor::new((100.0, 200.0))));
 
     circuit.connect((transistor1, 1), (transistor2, 2), vec![
         WireLayoutCommand::CenterVertical,
