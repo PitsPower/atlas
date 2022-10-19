@@ -5,7 +5,7 @@ use web_sys::*;
 
 use crate::graphics::{Drawable, Viewport, WireLayoutCommand};
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PinState {
 	On,
 	Off,
@@ -58,7 +58,7 @@ pub trait Component: Drawable {
 		self.get_pin_positions().len()
 	}
 
-	fn get_pin_state(&self, idx: usize) -> Result<&PinState, GetPinError>;
+	fn get_pin_state(&self, idx: usize) -> Result<PinState, GetPinError>;
 	fn set_pin_state(&mut self, idx: usize, state: PinState) -> Result<(), SetPinError>;
 	fn set_pin_state_external(&mut self, idx: usize, state: PinState) -> Result<(), SetPinError>;
 
@@ -73,12 +73,13 @@ pub trait Component: Drawable {
 	}
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 struct PinConnection {
 	component_idx: usize,
 	pin_idx: usize,
 }
 
+#[derive(Debug)]
 struct Wire {
 	start_con: PinConnection,
 	end_con: PinConnection,
@@ -117,13 +118,13 @@ impl Circuit {
 		wire_commands: Vec<WireLayoutCommand>,
 	) {
 		let start_state = match self.components[comp1_idx].get_pin_state(pin1_idx) {
-			Ok(state) => *state,
+			Ok(state) => state,
 			Err(GetPinError::OutOfRange) => panic!("Pin index {} out of range for component {}", pin1_idx, comp1_idx),
 			Err(GetPinError::Shorted) => todo!(),
 		};
 
 		let end_state = match self.components[comp2_idx].get_pin_state(pin2_idx) {
-			Ok(state) => *state,
+			Ok(state) => state,
 			Err(GetPinError::OutOfRange) => panic!("Pin index {} out of range for component {}", pin1_idx, comp1_idx),
 			Err(GetPinError::Shorted) => todo!(),
 		};
@@ -165,22 +166,23 @@ impl Circuit {
 				continue;
 			}
 
+			let con = PinConnection { component_idx: pin.component_idx, pin_idx: i };
 			let state = component.get_pin_state(i).unwrap();
 
 			if let Some((wire_idx, wire)) = self.wires.iter().enumerate()
-				.find(|(_, w)| w.start_con == *pin || w.end_con == *pin)
+				.find(|(_, w)| w.start_con == con || w.end_con == con)
 			{
-				if wire.start_con == *pin {
-					wire_starts_to_update.push((wire_idx, *state));
+				if wire.start_con == con {
+					wire_starts_to_update.push((wire_idx, state));
 
 					if wire.end_state == PinState::Disconnected {
-						components_to_update.push((wire.end_con, *state));
+						components_to_update.push((wire.end_con, state));
 					}
 				} else {
-					wire_ends_to_update.push((wire_idx, *state));
+					wire_ends_to_update.push((wire_idx, state));
 
 					if wire.start_state == PinState::Disconnected {
-						components_to_update.push((wire.start_con, *state));
+						components_to_update.push((wire.start_con, state));
 					}
 				}
 			}
@@ -201,8 +203,9 @@ impl Circuit {
 #[wasm_bindgen]
 impl Circuit {
 	pub fn toggle_switch(&mut self, idx: usize) {
-		let state = *self.components[idx].get_pin_state(0).unwrap();
+		let state = self.components[idx].get_pin_state(0).unwrap();
 		self.update_component(&PinConnection { component_idx: idx, pin_idx: 0 }, state.toggle(), true);
+		// log!("{:?}", self.wires);
 	}
 }
 
@@ -330,7 +333,7 @@ impl Component for Chip {
 		Some(&self)
 	}
 
-	fn get_pin_state(&self, idx: usize) -> Result<&PinState, GetPinError> {
+	fn get_pin_state(&self, idx: usize) -> Result<PinState, GetPinError> {
 		todo!();
 	}
 
@@ -406,15 +409,15 @@ impl Drawable for Switch {
 }
 
 impl Component for Switch {
-	fn get_pin_state(&self, idx: usize) -> Result<&PinState, GetPinError> {
+	fn get_pin_state(&self, idx: usize) -> Result<PinState, GetPinError> {
 		if idx > 0 {
 			Err(GetPinError::OutOfRange)
 		} else {
-			Ok(&self.state)
+			Ok(self.state)
 		}
 	}
 
-	fn set_pin_state(&mut self, idx: usize, state: PinState) -> Result<(), SetPinError> {
+	fn set_pin_state(&mut self, idx: usize, _state: PinState) -> Result<(), SetPinError> {
 		if idx > 0 {
 			Err(SetPinError::OutOfRange)
 		} else {
@@ -473,11 +476,11 @@ impl Drawable for Bulb {
 }
 
 impl Component for Bulb {
-	fn get_pin_state(&self, idx: usize) -> Result<&PinState, GetPinError> {
+	fn get_pin_state(&self, idx: usize) -> Result<PinState, GetPinError> {
 		if idx > 0 {
 			Err(GetPinError::OutOfRange)
 		} else {
-			Ok(&self.state)
+			Ok(self.state)
 		}
 	}
 
@@ -486,6 +489,75 @@ impl Component for Bulb {
 			Err(SetPinError::OutOfRange)
 		} else {
 			self.state = state;
+			Ok(())
+		}
+	}
+
+	fn set_pin_state_external(&mut self, idx: usize, state: PinState) -> Result<(), SetPinError> {
+		self.set_pin_state(idx, state)
+	}
+
+    fn get_position(&self) -> (f64, f64) {
+        self.position
+    }
+}
+
+pub struct Junction {
+	position: (f64, f64),
+	states: Vec<PinState>,
+}
+
+impl Junction {
+	pub fn new(pos: (f64, f64), pin_count: usize) -> Self {
+		Self {
+			position: pos,
+			states: vec![PinState::Disconnected; pin_count],
+		}
+	}
+
+	fn get_state(&self) -> PinState {
+		*self.states.iter().reduce(|accum, state| accum.combine(state)).unwrap()
+	}
+}
+
+impl Drawable for Junction {
+    fn draw(&self, ctx: &CanvasRenderingContext2d, _viewport: Viewport) {
+        ctx.set_fill_style(&self.get_state().get_colour().into());
+		
+		let radius = 10.0;
+
+		ctx.begin_path();
+		ctx.arc(
+			0.0,
+			0.0,
+			radius,
+			0.0,
+			2.0 * PI,
+		).unwrap();
+		ctx.fill();
+    }
+
+    fn get_pin_positions(&self) -> Vec<(f64, f64)> {
+        vec![(0.0, 0.0); self.states.len()]
+    }
+}
+
+impl Component for Junction {
+	fn get_pin_state(&self, idx: usize) -> Result<PinState, GetPinError> {
+		// log!("{:?}", self.states);
+
+		if idx >= self.states.len() {
+			Err(GetPinError::OutOfRange)
+		} else {
+			Ok(self.get_state())
+		}
+	}
+
+	fn set_pin_state(&mut self, idx: usize, state: PinState) -> Result<(), SetPinError> {
+		if idx >= self.states.len() {
+			Err(SetPinError::OutOfRange)
+		} else {
+			self.states[idx] = state;
 			Ok(())
 		}
 	}

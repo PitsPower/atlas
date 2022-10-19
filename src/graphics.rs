@@ -8,6 +8,7 @@ pub trait Drawable {
 	fn get_pin_positions(&self) -> Vec<(f64, f64)>;
 }
 
+#[derive(Debug)]
 pub enum WireLayoutCommand {
 	AlignHorizontal,
 	AlignVertical,

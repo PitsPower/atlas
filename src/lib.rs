@@ -10,7 +10,7 @@ use web_sys::*;
 
 use utils::set_panic_hook;
 
-use crate::core::{Bulb, Chip, Circuit, Switch};
+use crate::core::{Bulb, Chip, Circuit, Junction, Switch};
 // use crate::graphics::WireLayoutCommand;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
@@ -72,9 +72,13 @@ pub fn example2() -> Circuit {
 	let mut circuit = Circuit::new();
 
 	let switch = circuit.add(Box::new(Switch::new((-200.0, 0.0))));
-	let bulb = circuit.add(Box::new(Bulb::new((200.0, 0.0))));
+	let junction = circuit.add(Box::new(Junction::new((0.0, 0.0), 3)));
+	let bulb1 = circuit.add(Box::new(Bulb::new((200.0, 0.0))));
+	let bulb2 = circuit.add(Box::new(Bulb::new((0.0, -200.0))));
 
-	circuit.connect((switch, 0), (bulb, 0), vec![]);
+	circuit.connect((switch, 0), (junction, 0), vec![]);
+	circuit.connect((junction, 1), (bulb1, 0), vec![]);
+	circuit.connect((junction, 2), (bulb2, 0), vec![]);
 
 	circuit
 }

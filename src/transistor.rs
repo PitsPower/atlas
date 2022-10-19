@@ -48,7 +48,7 @@ impl Drawable for NTransistor {
 }
 
 impl Component for NTransistor {
-	fn get_pin_state(&self, idx: usize) -> Result<&PinState, GetPinError> {
+	fn get_pin_state(&self, idx: usize) -> Result<PinState, GetPinError> {
 		todo!();
 	}
 
@@ -110,7 +110,7 @@ impl Drawable for PTransistor {
 }
 
 impl Component for PTransistor {
-	fn get_pin_state(&self, idx: usize) -> Result<&PinState, GetPinError> {
+	fn get_pin_state(&self, idx: usize) -> Result<PinState, GetPinError> {
 		todo!();
 	}
 
