@@ -1,6 +1,6 @@
 use std::f64::consts::PI;
 
-use crate::core::Component;
+use crate::core::{Component, PinState, GetPinError, SetPinError};
 use crate::graphics::{Drawable, Viewport};
 
 const WIDTH: f64 = 67.0;
@@ -48,6 +48,18 @@ impl Drawable for NTransistor {
 }
 
 impl Component for NTransistor {
+	fn get_pin_state(&self, idx: usize) -> Result<&PinState, GetPinError> {
+		todo!();
+	}
+
+	fn set_pin_state(&mut self, idx: usize, state: PinState) -> Result<(), SetPinError> {
+		todo!();
+	}
+	
+	fn set_pin_state_external(&mut self, idx: usize, state: PinState) -> Result<(), SetPinError> {
+		todo!();
+	}
+
 	fn get_position(&self) -> (f64, f64) {
 		self.position
 	}
@@ -98,6 +110,18 @@ impl Drawable for PTransistor {
 }
 
 impl Component for PTransistor {
+	fn get_pin_state(&self, idx: usize) -> Result<&PinState, GetPinError> {
+		todo!();
+	}
+
+	fn set_pin_state(&mut self, idx: usize, state: PinState) -> Result<(), SetPinError> {
+		todo!();
+	}
+
+	fn set_pin_state_external(&mut self, idx: usize, state: PinState) -> Result<(), SetPinError> {
+		todo!();
+	}
+	
 	fn get_position(&self) -> (f64, f64) {
 		self.position
 	}

@@ -11,7 +11,7 @@ use web_sys::*;
 use utils::set_panic_hook;
 
 use crate::core::{Bulb, Chip, Circuit, Switch};
-use crate::graphics::WireLayoutCommand;
+// use crate::graphics::WireLayoutCommand;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.

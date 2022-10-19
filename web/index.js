@@ -51,19 +51,27 @@ window.addEventListener("wheel", (e) => {
 	renderer.zoom(zoom, e.clientX, e.clientY);
 });
 
+// const circuit = wasm.example1(10);
+const circuit = wasm.example2();
+
 let isZooming = false;
 
 window.addEventListener("keypress", (e) => {
-	if (e.key === 'v') {
-		renderer.switch_viewport_mode();
-	}
-	if (e.key === 'z') {
-		isZooming = !isZooming;
+	switch (e.key) {
+		case 'v': {
+			renderer.switch_viewport_mode();
+			break;
+		}
+		case 'z': {
+			isZooming = !isZooming;
+			break;
+		}
+		case 's': {
+			circuit.toggle_switch(0);
+			break;
+		}
 	}
 });
-
-// const circuit = wasm.example1(10);
-const circuit = wasm.example2();
 
 function render() {
 	requestAnimationFrame(render);
