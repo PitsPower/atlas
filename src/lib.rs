@@ -10,9 +10,8 @@ use web_sys::*;
 
 use utils::set_panic_hook;
 
-use crate::core::{Chip, Circuit};
+use crate::core::{Bulb, Chip, Circuit, Switch};
 use crate::graphics::WireLayoutCommand;
-use crate::transistor::{NTransistor, PTransistor};
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -72,26 +71,10 @@ pub fn example1(n: u32) -> Circuit {
 pub fn example2() -> Circuit {
 	let mut circuit = Circuit::new();
 
-	let transistor1 = circuit.add(Box::new(NTransistor::new((-100.0, -200.0))));
-	let transistor2 = circuit.add(Box::new(PTransistor::new((100.0, 200.0))));
+	let switch = circuit.add(Box::new(Switch::new((-200.0, 0.0))));
+	let bulb = circuit.add(Box::new(Bulb::new((200.0, 0.0))));
 
-	circuit.connect((transistor1, 1), (transistor2, 2), vec![
-		WireLayoutCommand::CenterVertical,
-		WireLayoutCommand::AlignVertical,
-	]);
-
-	circuit.connect((transistor1, 0), (transistor2, 0), vec![
-		WireLayoutCommand::MoveHorizontal(-80.0),
-		WireLayoutCommand::AlignHorizontal,
-	]);
-
-	circuit.connect((transistor1, 2), (transistor2, 1), vec![
-		WireLayoutCommand::MoveVertical(-80.0),
-		WireLayoutCommand::MoveHorizontal(320.0),
-		WireLayoutCommand::AlignHorizontal,
-		WireLayoutCommand::MoveVertical(80.0),
-		WireLayoutCommand::AlignVertical,
-	]);
+	circuit.connect((switch, 0), (bulb, 0), vec![]);
 
 	circuit
 }

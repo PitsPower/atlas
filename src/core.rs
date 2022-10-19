@@ -1,7 +1,25 @@
+use std::f64::consts::PI;
+
 use wasm_bindgen::prelude::*;
 use web_sys::*;
 
 use crate::graphics::{Drawable, Viewport, WireLayoutCommand};
+
+enum PinState {
+	On,
+	Off,
+	Disconnected,
+}
+
+impl PinState {
+    fn get_colour(&self) -> &str {
+        match self {
+            PinState::On => "#fb016e",
+            PinState::Off => "#111",
+            PinState::Disconnected => "#999",
+        }
+    }
+}
 
 pub trait Component: Drawable {
 	fn as_chip(&self) -> Option<&Chip> {
@@ -28,6 +46,7 @@ struct Wire {
 	con1: PinConnection,
 	con2: PinConnection,
 	layout_commands: Vec<WireLayoutCommand>,
+	state: PinState,
 }
 
 #[wasm_bindgen]
@@ -63,6 +82,7 @@ impl Circuit {
 			con1: PinConnection { component_idx: comp1_idx, pin_idx: pin1_idx },
 			con2: PinConnection { component_idx: comp2_idx, pin_idx: pin2_idx },
 			layout_commands: wire_commands,
+			state: PinState::Disconnected,
 		});
 	}
 }
@@ -86,7 +106,7 @@ impl Drawable for Circuit {
 			let end = (c2.0 + p2.0, c2.1 + p2.1);
 
 			ctx.set_line_width(7.0);
-			ctx.set_stroke_style(&"#f00".into());
+			ctx.set_stroke_style(&wire.state.get_colour().into());
 
 			ctx.begin_path();
 			ctx.move_to(start.0, start.1);
@@ -215,4 +235,86 @@ impl Component for Chip {
 
 		intersects_x && intersects_y
 	}
+}
+
+pub struct Switch {
+	position: (f64, f64),
+	state: PinState,
+}
+
+impl Switch {
+	pub fn new(pos: (f64, f64)) -> Self {
+		Self {
+			position: pos,
+			state: PinState::Off,
+		}
+	}
+}
+
+impl Drawable for Switch {
+    fn draw(&self, ctx: &CanvasRenderingContext2d, _viewport: Viewport) {
+        ctx.set_fill_style(&self.state.get_colour().into());
+
+		let width = 100.0;
+		let height = 100.0;
+
+		ctx.fill_rect(
+			-width * 0.5,
+			-height * 0.5,
+			width,
+			height,
+		);
+    }
+
+    fn get_pin_positions(&self) -> Vec<(f64, f64)> {
+        vec![(0.0, 0.0)]
+    }
+}
+
+impl Component for Switch {
+    fn get_position(&self) -> (f64, f64) {
+        self.position
+    }
+}
+
+pub struct Bulb {
+	position: (f64, f64),
+	state: PinState,
+}
+
+impl Bulb {
+	pub fn new(pos: (f64, f64)) -> Self {
+		Self {
+			position: pos,
+			state: PinState::Disconnected,
+		}
+	}
+}
+
+impl Drawable for Bulb {
+    fn draw(&self, ctx: &CanvasRenderingContext2d, _viewport: Viewport) {
+        ctx.set_fill_style(&self.state.get_colour().into());
+		
+		let radius = 50.0;
+
+		ctx.begin_path();
+		ctx.arc(
+			0.0,
+			0.0,
+			radius,
+			0.0,
+			2.0 * PI,
+		).unwrap();
+		ctx.fill();
+    }
+
+    fn get_pin_positions(&self) -> Vec<(f64, f64)> {
+        vec![(0.0, 0.0)]
+    }
+}
+
+impl Component for Bulb {
+    fn get_position(&self) -> (f64, f64) {
+        self.position
+    }
 }
