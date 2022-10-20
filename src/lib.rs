@@ -1,4 +1,7 @@
+#![feature(test)]
 #[allow(dead_code)]
+
+extern crate test;
 
 mod core;
 mod graphics;
@@ -6,12 +9,12 @@ mod transistor;
 mod utils;
 
 use wasm_bindgen::prelude::*;
-use web_sys::*;
 
 use utils::set_panic_hook;
 
 use crate::core::{Bulb, Chip, Circuit, Junction, Switch};
 // use crate::graphics::WireLayoutCommand;
+use crate::transistor::{NTransistor, PTransistor};
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -22,7 +25,14 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 #[macro_export]
 macro_rules! log {
 	($($arg:tt)*) => {
-		console::log_1(&format!($($arg)*).into());
+		web_sys::console::log_1(&format!($($arg)*).into());
+	};
+}
+
+#[macro_export]
+macro_rules! add {
+	($circ:ident, $type:ident, $($arg:tt)*) => {
+		$circ.add(Box::new($type::new($($arg)*)))
 	};
 }
 
@@ -83,8 +93,99 @@ pub fn example2() -> Circuit {
 	circuit
 }
 
+#[wasm_bindgen]
+pub fn transistor_example() -> Circuit {
+	let mut circuit = Circuit::new();
+
+	let transistor = circuit.add(Box::new(NTransistor::new((0.0, 0.0))));
+	
+	let gate = circuit.add(Box::new(Switch::new((-200.0, 0.0))));
+
+	let offset = circuit.get_components()[transistor].get_pin_positions()[1].0;
+
+	let source = circuit.add(Box::new(Switch::new((offset, 200.0))));
+	let drain = circuit.add(Box::new(Bulb::new((offset, -200.0))));
+
+	circuit.connect((gate, 0), (transistor, 0), vec![]);
+	circuit.connect((source, 0), (transistor, 1), vec![]);
+	circuit.connect((transistor, 2), (drain, 0), vec![]);
+
+	circuit
+}
+
+#[wasm_bindgen]
+pub fn transistor_example2() -> Circuit {
+	let mut circuit = Circuit::new();
+
+	let transistor = circuit.add(Box::new(PTransistor::new((0.0, 0.0))));
+	
+	let gate = circuit.add(Box::new(Switch::new((-200.0, 0.0))));
+
+	let offset = circuit.get_components()[transistor].get_pin_positions()[1].0;
+
+	let source = circuit.add(Box::new(Switch::new((offset, -200.0))));
+	let drain = circuit.add(Box::new(Bulb::new((offset, 200.0))));
+
+	circuit.connect((gate, 0), (transistor, 0), vec![]);
+	circuit.connect((source, 0), (transistor, 1), vec![]);
+	circuit.connect((transistor, 2), (drain, 0), vec![]);
+
+	circuit
+}
+
+#[wasm_bindgen]
+pub fn bidirectional_example() -> Circuit {
+	let mut circuit = Circuit::new();
+
+	let transistor1 = add!(circuit, NTransistor, (-400.0, 200.0));
+	let transistor2 = add!(circuit, NTransistor, (400.0, 200.0));
+
+	let switch1 = add!(circuit, Switch, (-600.0, 200.0));
+	let switch2 = add!(circuit, Switch, (200.0, 200.0));
+
+	let offset = circuit.get_components()[transistor1].get_pin_positions()[1].0;
+
+	let source1 = add!(circuit, Switch, (-400.0 + offset, 400.0));
+	let source2 = add!(circuit, Switch, (400.0 + offset, 400.0));
+
+	circuit.toggle_switch(2);
+	circuit.toggle_switch(3);
+
+	let junction1 = add!(circuit, Junction, (-400.0 + offset, 0.0), 3);
+	let junction2 = add!(circuit, Junction, (400.0 + offset, 0.0), 3);
+
+	let bulb1 = add!(circuit, Bulb, (-400.0 + offset, -200.0));
+	let bulb2 = add!(circuit, Bulb, (400.0 + offset, -200.0));
+
+	circuit.connect((switch1, 0), (transistor1, 0), vec![]);
+	circuit.connect((source1, 0), (transistor1, 1), vec![]);
+	circuit.connect((transistor1, 2), (junction1, 0), vec![]);
+	circuit.connect((junction1, 1), (bulb1, 0), vec![]);
+
+	circuit.connect((switch2, 0), (transistor2, 0), vec![]);
+	circuit.connect((source2, 0), (transistor2, 1), vec![]);
+	circuit.connect((transistor2, 2), (junction2, 0), vec![]);
+	circuit.connect((junction2, 1), (bulb2, 0), vec![]);
+	
+	circuit.connect((junction1, 2), (junction2, 2), vec![]);
+
+	circuit
+}
+
 #[wasm_bindgen(start)]
 pub fn start() {
 	log!("Stuff has started!");
 	set_panic_hook();
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use test::Bencher;
+
+	#[bench]
+	fn bench_simple_switch_circuit(b: &mut Bencher) {
+		let mut circuit = example2();
+		b.iter(|| circuit.toggle_switch(0));
+	}
 }

@@ -52,7 +52,10 @@ window.addEventListener("wheel", (e) => {
 });
 
 // const circuit = wasm.example1(10);
-const circuit = wasm.example2();
+// const circuit = wasm.example2();
+// const circuit = wasm.transistor_example();
+// const circuit = wasm.transistor_example2();
+const circuit = wasm.bidirectional_example();
 
 let isZooming = false;
 
@@ -68,6 +71,10 @@ window.addEventListener("keypress", (e) => {
 		}
 		case 's': {
 			circuit.toggle_switch(0);
+			break;
+		}
+		case 'd': {
+			circuit.toggle_switch(1);
 			break;
 		}
 	}
