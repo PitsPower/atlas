@@ -55,8 +55,8 @@ impl Drawable for NTransistor {
 impl Component for NTransistor {
 	fn get_pin_state(&self, idx: usize) -> Result<PinState, GetPinError> {
 		match idx {
-			0 => Ok(self.gate_state),
-			1 => Ok(self.source_state),
+			0 => Ok(PinState::Disconnected),
+			1 => Ok(PinState::Disconnected),
 			2 => {
 				if self.gate_state == PinState::On {
 					Ok(self.source_state)
@@ -133,8 +133,8 @@ impl Drawable for PTransistor {
 impl Component for PTransistor {
 	fn get_pin_state(&self, idx: usize) -> Result<PinState, GetPinError> {
 		match idx {
-			0 => Ok(self.gate_state),
-			1 => Ok(self.source_state),
+			0 => Ok(PinState::Disconnected),
+			1 => Ok(PinState::Disconnected),
 			2 => {
 				if self.gate_state != PinState::On {
 					Ok(self.source_state)

@@ -161,6 +161,10 @@ impl Circuit {
 
 		let component = &mut self.components[pin.component_idx];
 
+		let old_pin_states: Vec<_> = (0..component.get_pin_count())
+			.map(|i| component.get_pin_state(i).unwrap())
+			.collect();
+
 		if set_manually {
 			component.set_pin_state_external(pin.pin_idx, state).unwrap();
 		} else {
@@ -185,14 +189,20 @@ impl Circuit {
 				// log!("{:?}", wire);
 
 				if wire.start_con == con {
+					wire_starts_to_update.push((wire_idx, state));
+
 					if wire.end_state == PinState::Disconnected {
-						wire_starts_to_update.push((wire_idx, state));
 						components_to_update.push((wire.end_con, state));
+					} else if state == PinState::Disconnected && old_pin_states[i] != PinState::Disconnected {
+						components_to_update.push((wire.start_con, wire.end_state));
 					}
 				} else {
+					wire_ends_to_update.push((wire_idx, state));
+					
 					if wire.start_state == PinState::Disconnected {
-						wire_ends_to_update.push((wire_idx, state));
 						components_to_update.push((wire.start_con, state));
+					} else if state == PinState::Disconnected && old_pin_states[i] != PinState::Disconnected {
+						components_to_update.push((wire.end_con, wire.start_state));
 					}
 				}
 			}
