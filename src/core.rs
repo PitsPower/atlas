@@ -33,7 +33,7 @@ impl PinState {
     fn get_colour(&self) -> &str {
         match self {
             PinState::On => "#fb016e",
-            PinState::Off => "#111",
+            PinState::Off => "#333",
             PinState::Disconnected => "#999",
         }
     }
