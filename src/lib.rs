@@ -224,4 +224,10 @@ mod tests {
 		let mut circuit = example2();
 		b.iter(|| circuit.toggle_switch(0));
 	}
+
+	#[bench]
+	fn bench_not_gate(b: &mut Bencher) {
+		let mut circuit = not_gate_example();
+		b.iter(|| circuit.toggle_switch(0));
+	}
 }
