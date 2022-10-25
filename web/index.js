@@ -51,12 +51,12 @@ window.addEventListener("wheel", (e) => {
 	renderer.zoom(zoom, e.clientX, e.clientY);
 });
 
-// const circuit = wasm.example1(10);
+const circuit = wasm.example1(10);
 // const circuit = wasm.example2();
 // const circuit = wasm.transistor_example();
 // const circuit = wasm.transistor_example2();
 // const circuit = wasm.bidirectional_example();
-const circuit = wasm.not_gate_example();
+// const circuit = wasm.not_gate_example();
 
 let isZooming = false;
 

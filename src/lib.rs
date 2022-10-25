@@ -13,7 +13,7 @@ use wasm_bindgen::prelude::*;
 
 use utils::set_panic_hook;
 
-use crate::core::{Bulb, Chip, Circuit, Junction, Switch};
+use crate::core::{Bulb, RectangleChip, ChipInternals, Circuit, Junction, Switch};
 // use crate::graphics::WireLayoutCommand;
 use crate::transistor::{NTransistor, PTransistor};
 
@@ -43,19 +43,23 @@ pub fn example1(n: u32) -> Circuit {
 		let mut result = Circuit::new();
 		
 		if n > 0 {
-			let chip1 = Chip {
-				circuit: iter(n-1),
+			let chip1 = RectangleChip {
+				internals: ChipInternals {
+					circuit: iter(n-1),
+					inner_scale: 0.4,
+				},
 		
 				position: (-180.0, 0.0),
 				size: (300.0, 300.0),
-				inner_scale: 0.4,
 			};
-			let chip2 = Chip {
-				circuit: iter(n-1),
+			let chip2 = RectangleChip {
+				internals: ChipInternals {
+					circuit: iter(n-1),
+					inner_scale: 0.4,
+				},
 		
 				position: (180.0, 0.0),
 				size: (300.0, 300.0),
-				inner_scale: 0.4,
 			};
 
 			result.add(Box::new(chip1));
@@ -65,12 +69,14 @@ pub fn example1(n: u32) -> Circuit {
 		result
 	}
 
-	let chip = Chip {
-		circuit: iter(n),
+	let chip = RectangleChip {
+		internals: ChipInternals {
+			circuit: iter(n),
+			inner_scale: 1.0,
+		},
 
 		position: (0.0, 10.0),
 		size: (850.0, 500.0),
-		inner_scale: 1.0,
 	};
 
 	let mut circuit = Circuit::new();

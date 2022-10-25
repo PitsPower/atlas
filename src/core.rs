@@ -51,7 +51,7 @@ pub enum SetPinError {
 }
 
 pub trait Component: Drawable {
-	fn as_chip(&self) -> Option<&Chip> {
+	fn get_internals(&self) -> Option<&ChipInternals> {
 		None
 	}
 
@@ -71,6 +71,9 @@ pub trait Component: Drawable {
 	}
 
 	fn get_position(&self) -> (f64, f64);
+	fn get_size(&self) -> (f64, f64) {
+		(0.0, 0.0)
+	}
 
 	fn contains(&self, _viewport: &Viewport) -> bool {
 		false
@@ -308,54 +311,92 @@ impl Drawable for Circuit {
 	}
 }
 
-pub struct Chip {
+pub struct ChipInternals {
 	pub circuit: Circuit,
-
-	pub position: (f64, f64),
-	pub size: (f64, f64),
 	pub inner_scale: f64,
 }
 
-impl Drawable for Chip {
-	fn draw(&self, ctx: &CanvasRenderingContext2d, viewport: Viewport) {
-		ctx.set_line_width(10.0);
-		
-		ctx.set_stroke_style(&"#fff".into());
-		ctx.set_fill_style(&"#000".into());
+impl ChipInternals {
+	fn draw(&self, ctx: &CanvasRenderingContext2d, viewport: &Viewport, position: (f64, f64)) {
+		ctx.save();
+		ctx.scale(self.inner_scale, self.inner_scale).unwrap();
 
-		let width = self.size.0;
-		let height = self.size.1;
+		let new_viewport = viewport.transform_in_to_chip(position, &self);
+		self.circuit.draw(ctx, new_viewport);
 
-		ctx.stroke_rect(-width * 0.5, -height * 0.5, width, height);
-		ctx.fill_rect(-width * 0.5, -height * 0.5, width, height);
+		ctx.restore();
+	}
+}
+
+trait Chip {
+	fn draw_front(&self, ctx: &CanvasRenderingContext2d);
+	fn draw_back(&self, ctx: &CanvasRenderingContext2d);
+}
+
+impl<T> Drawable for T where T: Chip + Component {
+    fn draw(&self, ctx: &CanvasRenderingContext2d, viewport: Viewport) {
+		self.draw_back(ctx);
 
 		let start_ratio: f64 = 0.3;
 		let end_ratio: f64 = 0.5;
 
+		let height = self.get_size().1;
+
 		let height_ratio = height / viewport.get_size().1;
-		// let height_ratio = end_ratio;
 
 		if self.intersects(&viewport) && height_ratio > start_ratio {
-			ctx.save();
-			ctx.scale(self.inner_scale, self.inner_scale).unwrap();
-			self.circuit.draw(ctx, viewport.transform_in_to_chip(self));
-			ctx.restore();
+			self.get_internals().unwrap().draw(ctx, &viewport, self.get_position());
 
 			let opacity = ((end_ratio - height_ratio) / (end_ratio - start_ratio)).max(0.0);
-
-			ctx.set_fill_style(&format!("rgba(0,0,0,{})", opacity).into());
-			ctx.fill_rect(-width * 0.5, -height * 0.5, width, height);
+			ctx.set_global_alpha(opacity);
+			
+			self.draw_front(ctx);
 		}
-	}
+    }
 
-	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
-		vec![]
-	}
+    fn get_pin_positions(&self) -> Vec<(f64, f64)> {
+        todo!()
+    }
 }
 
-impl Component for Chip {
-	fn as_chip(&self) -> Option<&Chip> {
-		Some(&self)
+pub struct RectangleChip {
+	pub internals: ChipInternals,
+	pub position: (f64, f64),
+	pub size: (f64, f64),
+}
+
+impl Chip for RectangleChip {
+    fn draw_front(&self, ctx: &CanvasRenderingContext2d) {
+		ctx.set_fill_style(&"#000".into());
+		
+		let width = self.size.0;
+		let height = self.size.1;
+
+		ctx.begin_path();
+		ctx.rect(-width * 0.5, -height * 0.5, width, height);
+		ctx.fill();
+	}
+
+    fn draw_back(&self, ctx: &CanvasRenderingContext2d) {
+		ctx.set_line_width(10.0);
+
+		ctx.set_stroke_style(&"#fff".into());
+		ctx.set_fill_style(&"#000".into());
+		
+		let width = self.size.0;
+		let height = self.size.1;
+
+		ctx.begin_path();
+		ctx.rect(-width * 0.5, -height * 0.5, width, height);
+
+		ctx.stroke();
+		ctx.fill();
+    }
+}
+
+impl Component for RectangleChip {
+	fn get_internals(&self) -> Option<&ChipInternals> {
+		Some(&self.internals)
 	}
 
 	fn get_pin_state(&self, idx: usize) -> Result<PinState, GetPinError> {
@@ -368,6 +409,10 @@ impl Component for Chip {
 
 	fn get_position(&self) -> (f64, f64) {
 		self.position
+	}
+	
+	fn get_size(&self) -> (f64, f64) {
+		self.size
 	}
 
 	fn contains(&self, viewport: &Viewport) -> bool {
