@@ -5,6 +5,154 @@ use crate::core::{Chip, ChipInternals, Circuit, Pin, Junction, Switch};
 use crate::graphics::{Viewport, WireLayoutCommand};
 use crate::transistor::{NTransistor, PTransistor};
 
+pub struct NorGate {
+	internals: ChipInternals,
+	position: (f64, f64),
+}
+
+impl NorGate {
+	pub fn new(pos: (f64, f64)) -> Self {
+		let mut circuit = Circuit::new();
+
+		let input_1 = add!(circuit, Pin, (-630.0, -400.0));
+		let input_2 = add!(circuit, Pin, (-630.0, 400.0));
+
+		let input_junction_1 = add!(circuit, Junction, (-400.0, -400.0), 3);
+		let input_junction_2 = add!(circuit, Junction, (-300.0, 400.0), 3);
+
+		let n_transistor_1 = add!(circuit, NTransistor, (-200.0, 200.0));
+		let n_transistor_2 = add!(circuit, NTransistor, (200.0, 200.0));
+		
+		let p_transistor_1 = add!(circuit, PTransistor, (0.0, -400.0));
+		let p_transistor_2 = add!(circuit, PTransistor, (0.0, -200.0));
+
+		let offset = circuit.get_components()[p_transistor_1].get_pin_positions()[1].0;
+
+		let on_source = add!(circuit, Switch, (offset, -600.0));
+		let off_source = add!(circuit, Switch, (offset, 500.0));
+
+		circuit.toggle_switch(0);
+
+		let off_junction = add!(circuit, Junction, (offset, 350.0), 3);
+		let junction_1 = add!(circuit, Junction, (offset, 0.0), 3);
+		let junction_2 = add!(circuit, Junction, (offset + 200.0, 0.0), 3);
+
+		let output = add!(circuit, Pin, (790.0, 0.0));
+
+		circuit.connect((input_1, 0), (input_junction_1, 0), vec![]);
+		circuit.connect((input_junction_1, 1), (n_transistor_1, 0), vec![WireLayoutCommand::AlignHorizontal]);
+		circuit.connect((input_junction_1, 2), (p_transistor_1, 0), vec![]);
+		
+		circuit.connect((input_2, 0), (input_junction_2, 0), vec![]);
+		circuit.connect((input_junction_2, 1), (n_transistor_2, 0), vec![
+			WireLayoutCommand::MoveHorizontal(200.0),
+			WireLayoutCommand::AlignHorizontal,
+		]);
+		circuit.connect((input_junction_2, 2), (p_transistor_2, 0), vec![
+			WireLayoutCommand::AlignHorizontal,
+		]);
+
+		circuit.connect((on_source, 0), (p_transistor_1, 1), vec![]);
+		circuit.connect((p_transistor_1, 2), (p_transistor_2, 1), vec![]);
+		circuit.connect((p_transistor_2, 2), (junction_1, 0), vec![]);
+
+		circuit.connect((off_source, 0), (off_junction, 0), vec![]);
+		circuit.connect((off_junction, 1), (n_transistor_1, 1), vec![WireLayoutCommand::AlignVertical]);
+		circuit.connect((off_junction, 2), (n_transistor_2, 1), vec![WireLayoutCommand::AlignVertical]);
+		circuit.connect((n_transistor_1, 2), (junction_1, 1), vec![WireLayoutCommand::AlignHorizontal]);
+		circuit.connect((n_transistor_2, 2), (junction_2, 1), vec![]);
+
+		circuit.connect((junction_1, 2), (junction_2, 0), vec![]);
+		circuit.connect((junction_2, 2), (output, 0), vec![]);
+
+		Self {
+			internals: ChipInternals {
+				circuit,
+				inner_scale: 0.07,
+			},
+			position: pos,
+		}
+	}
+}
+
+impl Chip for NorGate {
+    fn get_chip_internals(&self) -> &ChipInternals {
+        &self.internals
+    }
+
+    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+        &mut self.internals
+    }
+
+    fn get_chip_position(&self) -> (f64, f64) {
+		self.position
+    }
+
+    fn get_chip_size(&self) -> (f64, f64) {
+        (110.0, 110.0)
+    }
+
+    fn contains_chip(&self, viewport: &Viewport) -> bool {
+        // TODO: Implement
+		false
+    }
+
+    fn intersects_chip(&self, viewport: &Viewport) -> bool {
+		let size = self.get_chip_size();
+
+		let intersects_x =
+			self.position.0 + size.0 * 0.5 >= viewport.get_position().0 - viewport.get_size().0 * 0.5 &&
+			self.position.0 - size.0 * 0.5 <= viewport.get_position().0 + viewport.get_size().0 * 0.5;
+
+		let intersects_y =
+			self.position.1 + size.1 * 0.5 >= viewport.get_position().1 - viewport.get_size().1 * 0.5 &&
+			self.position.1 - size.1 * 0.5 <= viewport.get_position().1 + viewport.get_size().1 * 0.5;
+
+		intersects_x && intersects_y
+    }
+
+    fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+		ctx.set_fill_style(&"#000".into());
+		
+		let width = self.get_chip_size().0;
+		let height = self.get_chip_size().1;
+
+		ctx.begin_path();
+		ctx.move_to(-0.5 * width, 0.5 * height);
+		ctx.bezier_curve_to(-0.33 * width, 0.25 * height, -0.33 * width, -0.25 * height, -0.5 * width, -0.5 * height);
+		ctx.bezier_curve_to(0.0 * width, -0.5 * height, 0.25 * width, -0.5 * height, 0.5 * width, 0.0 * height);
+		ctx.bezier_curve_to(0.25 * width, 0.5 * height, 0.0 * width, 0.5 * height, -0.5 * width, 0.5 * height);
+		ctx.close_path();
+
+		ctx.fill();
+    }
+
+    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+		ctx.set_line_width(10.0);
+
+		ctx.set_stroke_style(&"#fff".into());
+		ctx.set_fill_style(&"#000".into());
+		
+		let width = self.get_chip_size().0;
+		let height = self.get_chip_size().1;
+
+		ctx.begin_path();
+		ctx.move_to(-0.5 * width, 0.5 * height);
+		ctx.bezier_curve_to(-0.33 * width, 0.25 * height, -0.33 * width, -0.25 * height, -0.5 * width, -0.5 * height);
+		ctx.bezier_curve_to(0.0 * width, -0.5 * height, 0.25 * width, -0.5 * height, 0.5 * width, 0.0 * height);
+		ctx.bezier_curve_to(0.25 * width, 0.5 * height, 0.0 * width, 0.5 * height, -0.5 * width, 0.5 * height);
+		ctx.close_path();
+
+		ctx.stroke();
+		ctx.fill();
+
+		ctx.begin_path();
+		ctx.arc(width * 0.5 + 15.0, 0.0, 7.0, 0.0, 2.0 * PI).unwrap();
+		ctx.stroke();
+		ctx.fill();
+    }
+}
+
 pub struct NotGate {
 	internals: ChipInternals,
 	position: (f64, f64),
@@ -44,7 +192,7 @@ impl NotGate {
 		
 		circuit.connect((output_junc, 0), (output, 0), vec![]);
 
-		NotGate {
+		Self {
 			internals: ChipInternals {
 				circuit,
 				inner_scale: 0.07,

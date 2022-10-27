@@ -69,6 +69,9 @@ pub trait Component: Drawable {
 	fn get_pin_state(&self, idx: usize) -> Result<PinState, GetPinError>;
 	fn set_pin_state(&mut self, idx: usize, state: PinState) -> Result<(), SetPinError>;
 
+	fn get_pin_state_external(&self, idx: usize) -> Result<PinState, GetPinError> {
+		self.get_pin_state(idx)
+	}
 	fn set_pin_state_external(&mut self, idx: usize, state: PinState) -> Result<(), SetPinError> {
 		self.set_pin_state(idx, state)
 	}
@@ -163,7 +166,7 @@ impl Circuit {
 	}
 	
 	fn update_component(&mut self, pin: &PinConnection, state: PinState, set_manually: bool) {
-		// log!("{:?}", pin);
+		// crate::log!("{:?}", pin);
 
 		let component = &mut self.components[pin.component_idx];
 
@@ -197,7 +200,7 @@ impl Circuit {
 				if wire.start_con == con {
 					wire_starts_to_update.push((wire_idx, state));
 
-					if wire.end_state == PinState::Disconnected {
+					if wire.end_state == PinState::Disconnected && wire.start_state != state {
 						components_to_update.push((wire.end_con, state));
 					} else if state == PinState::Disconnected && old_pin_states[i] != PinState::Disconnected {
 						components_to_update.push((wire.start_con, wire.end_state));
@@ -205,7 +208,7 @@ impl Circuit {
 				} else {
 					wire_ends_to_update.push((wire_idx, state));
 					
-					if wire.start_state == PinState::Disconnected {
+					if wire.start_state == PinState::Disconnected && wire.end_state != state {
 						components_to_update.push((wire.start_con, state));
 					} else if state == PinState::Disconnected && old_pin_states[i] != PinState::Disconnected {
 						components_to_update.push((wire.end_con, wire.start_state));
@@ -221,7 +224,21 @@ impl Circuit {
 			self.wires[idx].end_state = state;
 		}
 		for (con, state) in components_to_update {
-			self.update_component(&con, state, false);
+			let mut true_state = state;
+
+			if state == PinState::Disconnected {
+				if let Some(wire) = self.wires.iter()
+					.find(|w| w.start_con == con || w.end_con == con)
+				{
+					if wire.start_con == con {
+						true_state = wire.end_state;
+					} else {
+						true_state = wire.start_state;
+					}
+				}
+			}
+
+			self.update_component(&con, true_state, false);
 		}
 	}
 }
@@ -392,7 +409,7 @@ impl<T> Component for T where T: Chip {
 
 		match maybe_pin_component {
 			Some(pin_component) => {
-				pin_component.get_pin_state(0)
+				pin_component.get_pin_state_external(0)
 			},
 			None => Err(GetPinError::OutOfRange),
 		}
@@ -512,14 +529,16 @@ impl Chip for RectangleChip {
 
 pub struct Pin {
 	position: (f64, f64),
-	state: PinState,
+	inner_state: PinState,
+	outer_state: PinState,
 }
 
 impl Pin {
 	pub fn new(pos: (f64, f64)) -> Self {
 		Self {
 			position: pos,
-			state: PinState::Disconnected,
+			inner_state: PinState::Disconnected,
+			outer_state: PinState::Disconnected,
 		}
 	}
 }
@@ -543,7 +562,7 @@ impl Component for Pin {
 		if idx > 0 {
 			Err(GetPinError::OutOfRange)
 		} else {
-			Ok(self.state)
+			Ok(self.inner_state)
 		}
 	}
 
@@ -551,7 +570,24 @@ impl Component for Pin {
 		if idx > 0 {
 			Err(SetPinError::OutOfRange)
 		} else {
-			self.state = state;
+			self.outer_state = state;
+			Ok(())
+		}
+	}
+
+	fn get_pin_state_external(&self, idx: usize) -> Result<PinState, GetPinError> {
+		if idx > 0 {
+			Err(GetPinError::OutOfRange)
+		} else {
+			Ok(self.outer_state)
+		}
+	}
+
+	fn set_pin_state_external(&mut self, idx: usize, state: PinState) -> Result<(), SetPinError> {
+		if idx > 0 {
+			Err(SetPinError::OutOfRange)
+		} else {
+			self.inner_state = state;
 			Ok(())
 		}
 	}
@@ -736,7 +772,11 @@ impl Component for Junction {
 		if idx >= self.states.len() {
 			Err(GetPinError::OutOfRange)
 		} else {
-			Ok(self.get_state())
+			if self.states[idx] == PinState::Disconnected {
+				Ok(self.get_state())
+			} else {
+				Ok(PinState::Disconnected)
+			}
 		}
 	}
 

@@ -14,7 +14,7 @@ use wasm_bindgen::prelude::*;
 use utils::set_panic_hook;
 
 use crate::core::{Bulb, RectangleChip, ChipInternals, Circuit, Junction, Switch};
-use crate::gates::NotGate;
+use crate::gates::{NorGate, NotGate};
 use crate::graphics::WireLayoutCommand;
 use crate::transistor::{NTransistor, PTransistor};
 
@@ -205,6 +205,28 @@ pub fn not_gate_example() -> Circuit {
 	circuit
 }
 
+#[wasm_bindgen]
+pub fn nor_gate_example() -> Circuit {
+	let mut circuit = Circuit::new();
+
+	let input1 = add!(circuit, Switch, (-300.0, -100.0));
+	let input2 = add!(circuit, Switch, (-300.0, 100.0));
+	let gate = add!(circuit, NorGate, (0.0, 0.0));
+	let output = add!(circuit, Bulb, (300.0, 0.0));
+
+	circuit.connect((input1, 0), (gate, 0), vec![
+		WireLayoutCommand::CenterHorizontal,
+		WireLayoutCommand::AlignHorizontal,
+	]);
+	circuit.connect((input2, 0), (gate, 1), vec![
+		WireLayoutCommand::CenterHorizontal,
+		WireLayoutCommand::AlignHorizontal,
+	]);
+	circuit.connect((gate, 2), (output, 0), vec![]);
+
+	circuit
+}
+
 #[wasm_bindgen(start)]
 pub fn start() {
 	log!("Stuff has started!");
@@ -215,6 +237,14 @@ pub fn start() {
 mod tests {
 	use super::*;
 	use test::Bencher;
+
+	#[test]
+	fn test() {
+		let mut circuit = bidirectional_example();
+		circuit.toggle_switch(0);
+		circuit.toggle_switch(1);
+		circuit.toggle_switch(0);
+	}
 
 	#[bench]
 	fn bench_simple_switch_circuit(b: &mut Bencher) {
