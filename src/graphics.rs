@@ -16,6 +16,7 @@ pub enum WireLayoutCommand {
 	CenterVertical,
 	MoveHorizontal(f64),
 	MoveVertical(f64),
+	Move((f64, f64)),
 }
 
 #[wasm_bindgen]

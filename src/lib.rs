@@ -227,6 +227,51 @@ pub fn nor_gate_example() -> Circuit {
 	circuit
 }
 
+#[wasm_bindgen]
+pub fn nor_latch_example() -> Circuit {
+	let mut circuit = Circuit::new();
+
+	let input1 = add!(circuit, Switch, (-300.0, -100.0));
+	let input2 = add!(circuit, Switch, (-300.0, 100.0));
+	
+	let nor1 = add!(circuit, NorGate, (0.0, -100.0));
+	let nor2 = add!(circuit, NorGate, (0.0, 100.0));
+
+	let junction1 = add!(circuit, Junction, (150.0, -100.0), 3);
+	let junction2 = add!(circuit, Junction, (150.0, 100.0), 3);
+
+	let output1 = add!(circuit, Bulb, (300.0, -100.0));
+	let output2 = add!(circuit, Bulb, (300.0, 100.0));
+
+	circuit.connect((input1, 0), (nor1, 0), vec![
+		WireLayoutCommand::CenterHorizontal,
+		WireLayoutCommand::AlignHorizontal,
+	]);
+	circuit.connect((input2, 0), (nor2, 1), vec![
+		WireLayoutCommand::CenterHorizontal,
+		WireLayoutCommand::AlignHorizontal,
+	]);
+	
+	circuit.connect((nor1, 2), (junction1, 0), vec![]);
+	circuit.connect((junction1, 1), (output1, 0), vec![]);
+	
+	circuit.connect((nor2, 2), (junction2, 0), vec![]);
+	circuit.connect((junction2, 1), (output2, 0), vec![]);
+
+	circuit.connect((junction1, 2), (nor2, 0), vec![
+		WireLayoutCommand::MoveVertical(35.0),
+		WireLayoutCommand::Move((-250.0, 100.0)),
+		WireLayoutCommand::AlignHorizontal,
+	]);
+	circuit.connect((junction2, 2), (nor1, 1), vec![
+		WireLayoutCommand::MoveVertical(-35.0),
+		WireLayoutCommand::Move((-250.0, -100.0)),
+		WireLayoutCommand::AlignHorizontal,
+	]);
+
+	circuit
+}
+
 #[wasm_bindgen(start)]
 pub fn start() {
 	log!("Stuff has started!");

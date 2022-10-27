@@ -306,6 +306,10 @@ impl Drawable for Circuit {
 					WireLayoutCommand::MoveVertical(amount) => {
 						current_pos.1 += amount;
 					},
+					WireLayoutCommand::Move((x, y)) => {
+						current_pos.0 += x;
+						current_pos.1 += y;
+					},
 				}
 
 				ctx.line_to(current_pos.0, current_pos.1);
