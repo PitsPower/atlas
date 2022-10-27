@@ -275,12 +275,6 @@ impl Drawable for Circuit {
 			let start = (c1.0 + p1.0, c1.1 + p1.1);
 			let end = (c2.0 + p2.0, c2.1 + p2.1);
 
-			ctx.set_line_width(7.0);
-
-			let wire_state = wire.start_state.combine(&wire.end_state);
-
-			ctx.set_stroke_style(&wire_state.get_colour().into());
-
 			ctx.begin_path();
 			ctx.move_to(start.0, start.1);
 
@@ -316,6 +310,14 @@ impl Drawable for Circuit {
 			}
 
 			ctx.line_to(end.0, end.1);
+
+			ctx.set_line_width(15.0);
+			ctx.set_stroke_style(&"#000".into());
+			ctx.stroke();
+
+			ctx.set_line_width(7.0);
+			let wire_state = wire.start_state.combine(&wire.end_state);
+			ctx.set_stroke_style(&wire_state.get_colour().into());
 			ctx.stroke();
 		}
 
