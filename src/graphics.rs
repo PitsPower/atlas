@@ -1,7 +1,7 @@
 use wasm_bindgen::prelude::*;
 use web_sys::*;
 
-use crate::core::{RectangleChip, ChipInternals, Circuit, Component};
+use crate::core::{ChipInternals, Circuit, Component};
 
 pub trait Drawable {
 	fn draw(&self, ctx: &CanvasRenderingContext2d, viewport: Viewport);

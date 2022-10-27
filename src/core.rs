@@ -4,7 +4,6 @@ use wasm_bindgen::prelude::*;
 use web_sys::*;
 
 use crate::graphics::{Drawable, Viewport, WireLayoutCommand};
-use crate::log;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PinState {
@@ -56,6 +55,10 @@ pub trait Component: Drawable {
 	}
 
 	fn is_switch(&self) -> bool {
+		false
+	}
+
+	fn is_pin(&self) -> bool {
 		false
 	}
 
@@ -158,7 +161,7 @@ impl Circuit {
 			end_state,
 		});
 	}
-
+	
 	fn update_component(&mut self, pin: &PinConnection, state: PinState, set_manually: bool) {
 		// log!("{:?}", pin);
 
@@ -307,7 +310,10 @@ impl Drawable for Circuit {
 	}
 
 	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
-		vec![]
+		self.components.iter()
+			.filter(|c| c.is_pin())
+			.map(|c| c.get_position())
+			.collect()
 	}
 }
 
@@ -328,12 +334,21 @@ impl ChipInternals {
 	}
 }
 
-trait Chip {
+pub trait Chip {
+	fn get_chip_internals(&self) -> &ChipInternals;
+	fn get_chip_internals_mut(&mut self) -> &mut ChipInternals;
+
+	fn get_chip_position(&self) -> (f64, f64);
+	fn get_chip_size(&self) -> (f64, f64);
+
+	fn contains_chip(&self, viewport: &Viewport) -> bool;
+	fn intersects_chip(&self, viewport: &Viewport) -> bool;
+
 	fn draw_front(&self, ctx: &CanvasRenderingContext2d);
 	fn draw_back(&self, ctx: &CanvasRenderingContext2d);
 }
 
-impl<T> Drawable for T where T: Chip + Component {
+impl<T> Drawable for T where T: Chip {
     fn draw(&self, ctx: &CanvasRenderingContext2d, viewport: Viewport) {
 		self.draw_back(ctx);
 
@@ -345,7 +360,7 @@ impl<T> Drawable for T where T: Chip + Component {
 		let height_ratio = height / viewport.get_size().1;
 
 		if self.intersects(&viewport) && height_ratio > start_ratio {
-			self.get_internals().unwrap().draw(ctx, &viewport, self.get_position());
+			self.get_chip_internals().draw(ctx, &viewport, self.get_position());
 
 			let opacity = ((end_ratio - height_ratio) / (end_ratio - start_ratio)).max(0.0);
 			ctx.set_global_alpha(opacity);
@@ -355,8 +370,69 @@ impl<T> Drawable for T where T: Chip + Component {
     }
 
     fn get_pin_positions(&self) -> Vec<(f64, f64)> {
-        todo!()
+        self.get_chip_internals().circuit.get_pin_positions()
+			.iter()
+			.map(|p| {
+				let scale = self.get_chip_internals().inner_scale;
+				(p.0 * scale, p.1 * scale)
+			})
+			.collect()
     }
+}
+
+impl<T> Component for T where T: Chip {
+	fn get_internals(&self) -> Option<&ChipInternals> {
+		Some(self.get_chip_internals())
+	}
+
+    fn get_pin_state(&self, idx: usize) -> Result<PinState, GetPinError> {
+		let maybe_pin_component = self.get_chip_internals().circuit.components.iter()
+			.filter(|c| c.is_pin())
+			.nth(idx);
+
+		match maybe_pin_component {
+			Some(pin_component) => {
+				pin_component.get_pin_state(0)
+			},
+			None => Err(GetPinError::OutOfRange),
+		}
+    }
+
+    fn set_pin_state(&mut self, idx: usize, state: PinState) -> Result<(), SetPinError> {
+		let maybe_component_idx = self.get_chip_internals_mut().circuit.components.iter_mut()
+			.enumerate()
+			.filter(|(_, c)| c.is_pin())
+			.nth(idx)
+			.map(|(i, _)| i);
+
+		match maybe_component_idx {
+			Some(component_idx) => {
+				let connection = PinConnection {
+					component_idx,
+					pin_idx: 0,
+				};
+				self.get_chip_internals_mut().circuit.update_component(&connection, state, true);
+				Ok(())
+			},
+			None => Err(SetPinError::OutOfRange),
+		}
+    }
+
+    fn get_position(&self) -> (f64, f64) {
+        self.get_chip_position()
+    }
+
+	fn get_size(&self) -> (f64, f64) {
+		self.get_chip_size()
+	}
+
+	fn contains(&self, viewport: &Viewport) -> bool {
+		self.contains_chip(viewport)
+	}
+
+	fn intersects(&self, viewport: &Viewport) -> bool {
+		self.intersects_chip(viewport)
+	}
 }
 
 pub struct RectangleChip {
@@ -366,6 +442,46 @@ pub struct RectangleChip {
 }
 
 impl Chip for RectangleChip {
+	fn get_chip_internals(&self) -> &ChipInternals {
+		&self.internals
+	}
+	
+	fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+		&mut self.internals
+	}
+
+	fn get_chip_position(&self) -> (f64, f64) {
+		self.position
+	}
+
+	fn get_chip_size(&self) -> (f64, f64) {
+		self.size
+	}
+
+	fn contains_chip(&self, viewport: &Viewport) -> bool {
+		let contains_x =
+			self.position.0 + self.size.0 * 0.5 >= viewport.get_position().0 + viewport.get_size().0 * 0.5 &&
+			self.position.0 - self.size.0 * 0.5 <= viewport.get_position().0 - viewport.get_size().0 * 0.5;
+
+		let contains_y =
+			self.position.1 + self.size.1 * 0.5 >= viewport.get_position().1 + viewport.get_size().1 * 0.5 &&
+			self.position.1 - self.size.1 * 0.5 <= viewport.get_position().1 - viewport.get_size().1 * 0.5;
+
+		contains_x && contains_y
+	}
+
+	fn intersects_chip(&self, viewport: &Viewport) -> bool {
+		let intersects_x =
+			self.position.0 + self.size.0 * 0.5 >= viewport.get_position().0 - viewport.get_size().0 * 0.5 &&
+			self.position.0 - self.size.0 * 0.5 <= viewport.get_position().0 + viewport.get_size().0 * 0.5;
+
+		let intersects_y =
+			self.position.1 + self.size.1 * 0.5 >= viewport.get_position().1 - viewport.get_size().1 * 0.5 &&
+			self.position.1 - self.size.1 * 0.5 <= viewport.get_position().1 + viewport.get_size().1 * 0.5;
+
+		intersects_x && intersects_y
+	}
+
     fn draw_front(&self, ctx: &CanvasRenderingContext2d) {
 		ctx.set_fill_style(&"#000".into());
 		
@@ -394,50 +510,55 @@ impl Chip for RectangleChip {
     }
 }
 
-impl Component for RectangleChip {
-	fn get_internals(&self) -> Option<&ChipInternals> {
-		Some(&self.internals)
+pub struct Pin {
+	position: (f64, f64),
+	state: PinState,
+}
+
+impl Pin {
+	pub fn new(pos: (f64, f64)) -> Self {
+		Self {
+			position: pos,
+			state: PinState::Disconnected,
+		}
+	}
+}
+
+impl Drawable for Pin {
+    fn draw(&self, ctx: &CanvasRenderingContext2d, _viewport: Viewport) {
+		
+	}
+
+    fn get_pin_positions(&self) -> Vec<(f64, f64)> {
+        vec![(0.0, 0.0)]
+    }
+}
+
+impl Component for Pin {
+	fn is_pin(&self) -> bool {
+		true
 	}
 
 	fn get_pin_state(&self, idx: usize) -> Result<PinState, GetPinError> {
-		todo!();
+		if idx > 0 {
+			Err(GetPinError::OutOfRange)
+		} else {
+			Ok(self.state)
+		}
 	}
 
 	fn set_pin_state(&mut self, idx: usize, state: PinState) -> Result<(), SetPinError> {
-		todo!();
-	}
-
-	fn get_position(&self) -> (f64, f64) {
-		self.position
+		if idx > 0 {
+			Err(SetPinError::OutOfRange)
+		} else {
+			self.state = state;
+			Ok(())
+		}
 	}
 	
-	fn get_size(&self) -> (f64, f64) {
-		self.size
-	}
-
-	fn contains(&self, viewport: &Viewport) -> bool {
-		let contains_x =
-			self.position.0 + self.size.0 * 0.5 >= viewport.get_position().0 + viewport.get_size().0 * 0.5 &&
-			self.position.0 - self.size.0 * 0.5 <= viewport.get_position().0 - viewport.get_size().0 * 0.5;
-
-		let contains_y =
-			self.position.1 + self.size.1 * 0.5 >= viewport.get_position().1 + viewport.get_size().1 * 0.5 &&
-			self.position.1 - self.size.1 * 0.5 <= viewport.get_position().1 - viewport.get_size().1 * 0.5;
-
-		contains_x && contains_y
-	}
-
-	fn intersects(&self, viewport: &Viewport) -> bool {
-		let intersects_x =
-			self.position.0 + self.size.0 * 0.5 >= viewport.get_position().0 - viewport.get_size().0 * 0.5 &&
-			self.position.0 - self.size.0 * 0.5 <= viewport.get_position().0 + viewport.get_size().0 * 0.5;
-
-		let intersects_y =
-			self.position.1 + self.size.1 * 0.5 >= viewport.get_position().1 - viewport.get_size().1 * 0.5 &&
-			self.position.1 - self.size.1 * 0.5 <= viewport.get_position().1 + viewport.get_size().1 * 0.5;
-
-		intersects_x && intersects_y
-	}
+    fn get_position(&self) -> (f64, f64) {
+        self.position
+    }
 }
 
 pub struct Switch {

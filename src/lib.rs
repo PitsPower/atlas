@@ -4,17 +4,18 @@
 extern crate test;
 
 mod core;
+mod gates;
 mod graphics;
 mod transistor;
 mod utils;
 
-use graphics::WireLayoutCommand;
 use wasm_bindgen::prelude::*;
 
 use utils::set_panic_hook;
 
 use crate::core::{Bulb, RectangleChip, ChipInternals, Circuit, Junction, Switch};
-// use crate::graphics::WireLayoutCommand;
+use crate::gates::NotGate;
+use crate::graphics::WireLayoutCommand;
 use crate::transistor::{NTransistor, PTransistor};
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
@@ -183,33 +184,23 @@ pub fn bidirectional_example() -> Circuit {
 pub fn not_gate_example() -> Circuit {
 	let mut circuit = Circuit::new();
 	
-	let input = add!(circuit, Switch, (-400.0, 0.0));
-	let input_junc = add!(circuit, Junction, (-230.0, 0.0), 3);
+	let input = add!(circuit, Switch, (-300.0, 0.0));
+	let not_gate_1 = add!(circuit, NotGate, (0.0, -150.0));
+	let not_gate_2 = add!(circuit, NotGate, (0.0, 150.0));
+	let output = add!(circuit, Bulb, (300.0, 0.0));
 
-	let n_transistor = add!(circuit, NTransistor, (0.0, 200.0));
-	let p_transistor = add!(circuit, PTransistor, (0.0, -200.0));
-
-	let offset = circuit.get_components()[n_transistor].get_pin_positions()[1].0;
-
-	let on_source = add!(circuit, Switch, (offset, -400.0));
-	let off_source = add!(circuit, Switch, (offset, 400.0));
-
-	circuit.toggle_switch(1);
-	
-	let output_junc = add!(circuit, Junction, (230.0, 0.0), 3);
-	let output = add!(circuit, Bulb, (400.0, 0.0));
-
-	circuit.connect((input, 0), (input_junc, 0), vec![]);
-	circuit.connect((input_junc, 1), (n_transistor, 0), vec![WireLayoutCommand::AlignHorizontal]);
-	circuit.connect((input_junc, 2), (p_transistor, 0), vec![WireLayoutCommand::AlignHorizontal]);
-
-	circuit.connect((on_source, 0), (p_transistor, 1), vec![]);
-	circuit.connect((off_source, 0), (n_transistor, 1), vec![]);
-
-	circuit.connect((n_transistor, 2), (output_junc, 1), vec![WireLayoutCommand::AlignVertical]);
-	circuit.connect((p_transistor, 2), (output_junc, 2), vec![WireLayoutCommand::AlignVertical]);
-	
-	circuit.connect((output_junc, 0), (output, 0), vec![]);
+	circuit.connect((input, 0), (not_gate_1, 0), vec![
+		WireLayoutCommand::AlignHorizontal,
+	]);
+	circuit.connect((not_gate_1, 1), (not_gate_2, 0), vec![
+		WireLayoutCommand::MoveHorizontal(100.0),
+		WireLayoutCommand::CenterVertical,
+		WireLayoutCommand::MoveHorizontal(-300.0),
+		WireLayoutCommand::AlignHorizontal,
+	]);
+	circuit.connect((not_gate_2, 1), (output, 0), vec![
+		WireLayoutCommand::AlignVertical,
+	]);
 
 	circuit
 }

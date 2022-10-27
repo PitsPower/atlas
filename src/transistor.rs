@@ -2,7 +2,6 @@ use std::f64::consts::PI;
 
 use crate::core::{Component, PinState, GetPinError, SetPinError};
 use crate::graphics::{Drawable, Viewport};
-use crate::log;
 
 const WIDTH: f64 = 67.0;
 const HEIGHT: f64 = 110.0;
