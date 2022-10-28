@@ -14,8 +14,8 @@ impl AndGate {
 	pub fn new(pos: (f64, f64)) -> Self {
 		let mut circuit = Circuit::new();
 
-		let input1 = add!(circuit, Pin, (-370.0, -100.0));
-		let input2 = add!(circuit, Pin, (-370.0, 100.0));
+		let input1 = add!(circuit, Pin, (-370.0, -200.0));
+		let input2 = add!(circuit, Pin, (-370.0, 200.0));
 
 		let nand_gate = add!(circuit, NandGate, (-100.0, 0.0));
 		let not_gate = add!(circuit, NotGate, (100.0, 0.0));
@@ -127,8 +127,8 @@ impl NandGate {
 	pub fn new(pos: (f64, f64)) -> Self {
 		let mut circuit = Circuit::new();
 
-		let input_1 = add!(circuit, Pin, (-800.0, -400.0));
-		let input_2 = add!(circuit, Pin, (-800.0, 400.0));
+		let input1 = add!(circuit, Pin, (-800.0, -400.0));
+		let input2 = add!(circuit, Pin, (-800.0, 400.0));
 
 		let input_junction_1 = add!(circuit, Junction, (-400.0, -200.0), 3);
 		let input_junction_2 = add!(circuit, Junction, (-300.0, 400.0), 3);
@@ -152,11 +152,11 @@ impl NandGate {
 
 		let output = add!(circuit, Pin, (790.0, 0.0));
 
-		circuit.connect((input_1, 0), (input_junction_1, 0), vec![WireLayoutCommand::AlignVertical]);
+		circuit.connect((input1, 0), (input_junction_1, 0), vec![WireLayoutCommand::AlignVertical]);
 		circuit.connect((input_junction_1, 1), (n_transistor_2, 0), vec![WireLayoutCommand::AlignHorizontal]);
 		circuit.connect((input_junction_1, 2), (p_transistor_1, 0), vec![]);
 		
-		circuit.connect((input_2, 0), (input_junction_2, 0), vec![]);
+		circuit.connect((input2, 0), (input_junction_2, 0), vec![]);
 		circuit.connect((input_junction_2, 1), (n_transistor_1, 0), vec![]);
 		circuit.connect((input_junction_2, 2), (p_transistor_2, 0), vec![
 			WireLayoutCommand::MoveVertical(-350.0),
@@ -276,8 +276,8 @@ impl NorGate {
 	pub fn new(pos: (f64, f64)) -> Self {
 		let mut circuit = Circuit::new();
 
-		let input_1 = add!(circuit, Pin, (-630.0, -400.0));
-		let input_2 = add!(circuit, Pin, (-630.0, 400.0));
+		let input1 = add!(circuit, Pin, (-630.0, -400.0));
+		let input2 = add!(circuit, Pin, (-630.0, 400.0));
 
 		let input_junction_1 = add!(circuit, Junction, (-400.0, -400.0), 3);
 		let input_junction_2 = add!(circuit, Junction, (-300.0, 400.0), 3);
@@ -301,11 +301,11 @@ impl NorGate {
 
 		let output = add!(circuit, Pin, (790.0, 0.0));
 
-		circuit.connect((input_1, 0), (input_junction_1, 0), vec![]);
+		circuit.connect((input1, 0), (input_junction_1, 0), vec![]);
 		circuit.connect((input_junction_1, 1), (n_transistor_1, 0), vec![WireLayoutCommand::AlignHorizontal]);
 		circuit.connect((input_junction_1, 2), (p_transistor_1, 0), vec![]);
 		
-		circuit.connect((input_2, 0), (input_junction_2, 0), vec![]);
+		circuit.connect((input2, 0), (input_junction_2, 0), vec![]);
 		circuit.connect((input_junction_2, 1), (n_transistor_2, 0), vec![
 			WireLayoutCommand::MoveHorizontal(200.0),
 			WireLayoutCommand::AlignHorizontal,
@@ -549,8 +549,8 @@ impl OrGate {
 	pub fn new(pos: (f64, f64)) -> Self {
 		let mut circuit = Circuit::new();
 
-		let input1 = add!(circuit, Pin, (-280.0, -100.0));
-		let input2 = add!(circuit, Pin, (-280.0, 100.0));
+		let input1 = add!(circuit, Pin, (-300.0, -200.0));
+		let input2 = add!(circuit, Pin, (-300.0, 200.0));
 
 		let nor_gate = add!(circuit, NorGate, (-100.0, 0.0));
 		let not_gate = add!(circuit, NotGate, (100.0, 0.0));
@@ -660,11 +660,11 @@ impl XorGate {
 	pub fn new(pos: (f64, f64)) -> Self {
 		let mut circuit = Circuit::new();
 
-		let input1 = add!(circuit, Pin, (-280.0, -100.0));
-		let input2 = add!(circuit, Pin, (-280.0, 100.0));
+		let input1 = add!(circuit, Pin, (-300.0, -200.0));
+		let input2 = add!(circuit, Pin, (-300.0, 200.0));
 
-		let junction1 = add!(circuit, Junction, (-220.0, -100.0), 3);
-		let junction2 = add!(circuit, Junction, (-190.0, 100.0), 3);
+		let junction1 = add!(circuit, Junction, (-220.0, -200.0), 3);
+		let junction2 = add!(circuit, Junction, (-190.0, 200.0), 3);
 
 		let or_gate = add!(circuit, OrGate, (-100.0, -150.0));
 		let nand_gate = add!(circuit, NandGate, (-100.0, 150.0));
@@ -674,6 +674,7 @@ impl XorGate {
 		
 		circuit.connect((input1, 0), (junction1, 0), vec![]);
 		circuit.connect((junction1, 1), (or_gate, 0), vec![
+			WireLayoutCommand::CenterHorizontal,
 			WireLayoutCommand::AlignHorizontal,
 		]);
 		circuit.connect((junction1, 2), (nand_gate, 0), vec![
@@ -685,6 +686,7 @@ impl XorGate {
 			WireLayoutCommand::AlignHorizontal,
 		]);
 		circuit.connect((junction2, 2), (nand_gate, 1), vec![
+			WireLayoutCommand::CenterHorizontal,
 			WireLayoutCommand::AlignHorizontal,
 		]);
 
