@@ -5,6 +5,268 @@ use crate::core::{Chip, ChipInternals, Circuit, Pin, Junction, Switch};
 use crate::graphics::{Viewport, WireLayoutCommand};
 use crate::transistor::{NTransistor, PTransistor};
 
+pub struct AndGate {
+	internals: ChipInternals,
+	position: (f64, f64),
+}
+
+impl AndGate {
+	pub fn new(pos: (f64, f64)) -> Self {
+		let mut circuit = Circuit::new();
+
+		let input1 = add!(circuit, Pin, (-370.0, -100.0));
+		let input2 = add!(circuit, Pin, (-370.0, 100.0));
+
+		let nand_gate = add!(circuit, NandGate, (-100.0, 0.0));
+		let not_gate = add!(circuit, NotGate, (100.0, 0.0));
+
+		let output = add!(circuit, Pin, (370.0, 0.0));
+
+		circuit.connect((input1, 0), (nand_gate, 0), vec![
+			WireLayoutCommand::CenterHorizontal,
+			WireLayoutCommand::AlignHorizontal,
+		]);
+		circuit.connect((input2, 0), (nand_gate, 1), vec![
+			WireLayoutCommand::CenterHorizontal,
+			WireLayoutCommand::AlignHorizontal,
+		]);
+		circuit.connect((nand_gate, 2), (not_gate, 0), vec![]);
+		circuit.connect((not_gate, 1), (output, 0), vec![]);
+
+		Self {
+			internals: ChipInternals {
+				circuit,
+				inner_scale: 0.15,
+			},
+			position: pos,
+		}
+	}
+}
+
+impl Chip for AndGate {
+    fn get_chip_internals(&self) -> &ChipInternals {
+        &self.internals
+    }
+
+    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+        &mut self.internals
+    }
+
+    fn get_chip_position(&self) -> (f64, f64) {
+		self.position
+    }
+
+    fn get_chip_size(&self) -> (f64, f64) {
+        (110.0, 110.0)
+    }
+
+    fn contains_chip(&self, viewport: &Viewport) -> bool {
+        // TODO: Implement
+		false
+    }
+
+    fn intersects_chip(&self, viewport: &Viewport) -> bool {
+		let size = self.get_chip_size();
+
+		let intersects_x =
+			self.position.0 + size.0 * 0.5 >= viewport.get_position().0 - viewport.get_size().0 * 0.5 &&
+			self.position.0 - size.0 * 0.5 <= viewport.get_position().0 + viewport.get_size().0 * 0.5;
+
+		let intersects_y =
+			self.position.1 + size.1 * 0.5 >= viewport.get_position().1 - viewport.get_size().1 * 0.5 &&
+			self.position.1 - size.1 * 0.5 <= viewport.get_position().1 + viewport.get_size().1 * 0.5;
+
+		intersects_x && intersects_y
+    }
+
+    fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+		ctx.set_fill_style(&"#000".into());
+		
+		let width = self.get_chip_size().0;
+		let height = self.get_chip_size().1;
+
+		ctx.begin_path();
+		ctx.move_to(-0.5 * width, 0.5 * height);
+		ctx.line_to(0.0 * width, 0.5 * height);
+		ctx.arc(0.0, 0.0, width * 0.5, -PI * 0.5, PI * 0.5).unwrap();
+		ctx.line_to(0.0, -0.5 * height);
+		ctx.line_to(-0.5 * width, -0.5 * height);
+		ctx.close_path();
+
+		ctx.fill();
+    }
+
+    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+		ctx.set_line_width(10.0);
+
+		ctx.set_stroke_style(&"#fff".into());
+		ctx.set_fill_style(&"#000".into());
+		
+		let width = self.get_chip_size().0;
+		let height = self.get_chip_size().1;
+
+		ctx.begin_path();
+		ctx.move_to(-0.5 * width, 0.5 * height);
+		ctx.line_to(0.0 * width, 0.5 * height);
+		ctx.arc(0.0, 0.0, width * 0.5, -PI * 0.5, PI * 0.5).unwrap();
+		ctx.line_to(0.0, -0.5 * height);
+		ctx.line_to(-0.5 * width, -0.5 * height);
+		ctx.close_path();
+
+		ctx.stroke();
+		ctx.fill();
+    }
+}
+
+pub struct NandGate {
+	internals: ChipInternals,
+	position: (f64, f64),
+}
+
+impl NandGate {
+	pub fn new(pos: (f64, f64)) -> Self {
+		let mut circuit = Circuit::new();
+
+		let input_1 = add!(circuit, Pin, (-800.0, -400.0));
+		let input_2 = add!(circuit, Pin, (-800.0, 400.0));
+
+		let input_junction_1 = add!(circuit, Junction, (-400.0, -200.0), 3);
+		let input_junction_2 = add!(circuit, Junction, (-300.0, 400.0), 3);
+		
+		let n_transistor_1 = add!(circuit, NTransistor, (0.0, 400.0));
+		let n_transistor_2 = add!(circuit, NTransistor, (0.0, 200.0));
+
+		let p_transistor_1 = add!(circuit, PTransistor, (-200.0, -200.0));
+		let p_transistor_2 = add!(circuit, PTransistor, (200.0, -200.0));
+
+		let offset = circuit.get_components()[p_transistor_1].get_pin_positions()[1].0;
+
+		let on_source = add!(circuit, Switch, (offset, -500.0));
+		let off_source = add!(circuit, Switch, (offset, 600.0));
+
+		circuit.toggle_switch(0);
+
+		let on_junction = add!(circuit, Junction, (offset, -350.0), 3);
+		let junction_1 = add!(circuit, Junction, (offset + 200.0, 0.0), 3);
+		let junction_2 = add!(circuit, Junction, (offset, 0.0), 3);
+
+		let output = add!(circuit, Pin, (790.0, 0.0));
+
+		circuit.connect((input_1, 0), (input_junction_1, 0), vec![WireLayoutCommand::AlignVertical]);
+		circuit.connect((input_junction_1, 1), (n_transistor_2, 0), vec![WireLayoutCommand::AlignHorizontal]);
+		circuit.connect((input_junction_1, 2), (p_transistor_1, 0), vec![]);
+		
+		circuit.connect((input_2, 0), (input_junction_2, 0), vec![]);
+		circuit.connect((input_junction_2, 1), (n_transistor_1, 0), vec![]);
+		circuit.connect((input_junction_2, 2), (p_transistor_2, 0), vec![
+			WireLayoutCommand::MoveVertical(-350.0),
+			WireLayoutCommand::MoveHorizontal(200.0),
+			WireLayoutCommand::AlignHorizontal,
+		]);
+
+		circuit.connect((on_source, 0), (on_junction, 0), vec![]);
+		circuit.connect((on_junction, 1), (p_transistor_1, 1), vec![WireLayoutCommand::AlignVertical]);
+		circuit.connect((on_junction, 2), (p_transistor_2, 1), vec![WireLayoutCommand::AlignVertical]);
+		circuit.connect((p_transistor_1, 2), (junction_2, 1), vec![WireLayoutCommand::AlignHorizontal]);
+		circuit.connect((p_transistor_2, 2), (junction_1, 1), vec![]);
+
+		circuit.connect((off_source, 0), (n_transistor_1, 1), vec![]);
+		circuit.connect((n_transistor_1, 2), (n_transistor_2, 1), vec![]);
+		circuit.connect((n_transistor_2, 2), (junction_2, 0), vec![]);
+
+		circuit.connect((junction_2, 2), (junction_1, 0), vec![]);
+		circuit.connect((junction_1, 2), (output, 0), vec![]);
+
+		Self {
+			internals: ChipInternals {
+				circuit,
+				inner_scale: 0.07,
+			},
+			position: pos,
+		}
+	}
+}
+
+impl Chip for NandGate {
+    fn get_chip_internals(&self) -> &ChipInternals {
+        &self.internals
+    }
+
+    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+        &mut self.internals
+    }
+
+    fn get_chip_position(&self) -> (f64, f64) {
+		self.position
+    }
+
+    fn get_chip_size(&self) -> (f64, f64) {
+        (110.0, 110.0)
+    }
+
+    fn contains_chip(&self, viewport: &Viewport) -> bool {
+        // TODO: Implement
+		false
+    }
+
+    fn intersects_chip(&self, viewport: &Viewport) -> bool {
+		let size = self.get_chip_size();
+
+		let intersects_x =
+			self.position.0 + size.0 * 0.5 >= viewport.get_position().0 - viewport.get_size().0 * 0.5 &&
+			self.position.0 - size.0 * 0.5 <= viewport.get_position().0 + viewport.get_size().0 * 0.5;
+
+		let intersects_y =
+			self.position.1 + size.1 * 0.5 >= viewport.get_position().1 - viewport.get_size().1 * 0.5 &&
+			self.position.1 - size.1 * 0.5 <= viewport.get_position().1 + viewport.get_size().1 * 0.5;
+
+		intersects_x && intersects_y
+    }
+
+    fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+		ctx.set_fill_style(&"#000".into());
+		
+		let width = self.get_chip_size().0;
+		let height = self.get_chip_size().1;
+
+		ctx.begin_path();
+		ctx.move_to(-0.5 * width, 0.5 * height);
+		ctx.line_to(0.0 * width, 0.5 * height);
+		ctx.arc(0.0, 0.0, width * 0.5, -PI * 0.5, PI * 0.5).unwrap();
+		ctx.line_to(0.0, -0.5 * height);
+		ctx.line_to(-0.5 * width, -0.5 * height);
+		ctx.close_path();
+
+		ctx.fill();
+    }
+
+    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+		ctx.set_line_width(10.0);
+
+		ctx.set_stroke_style(&"#fff".into());
+		ctx.set_fill_style(&"#000".into());
+		
+		let width = self.get_chip_size().0;
+		let height = self.get_chip_size().1;
+
+		ctx.begin_path();
+		ctx.move_to(-0.5 * width, 0.5 * height);
+		ctx.line_to(0.0 * width, 0.5 * height);
+		ctx.arc(0.0, 0.0, width * 0.5, -PI * 0.5, PI * 0.5).unwrap();
+		ctx.line_to(0.0, -0.5 * height);
+		ctx.line_to(-0.5 * width, -0.5 * height);
+		ctx.close_path();
+
+		ctx.stroke();
+		ctx.fill();
+
+		ctx.begin_path();
+		ctx.arc(width * 0.5 + 15.0, 0.0, 7.0, 0.0, 2.0 * PI).unwrap();
+		ctx.stroke();
+		ctx.fill();
+    }
+}
+
 pub struct NorGate {
 	internals: ChipInternals,
 	position: (f64, f64),
