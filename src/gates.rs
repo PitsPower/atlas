@@ -650,3 +650,151 @@ impl Chip for OrGate {
 		ctx.fill();
     }
 }
+
+pub struct XorGate {
+	internals: ChipInternals,
+	position: (f64, f64),
+}
+
+impl XorGate {
+	pub fn new(pos: (f64, f64)) -> Self {
+		let mut circuit = Circuit::new();
+
+		let input1 = add!(circuit, Pin, (-280.0, -100.0));
+		let input2 = add!(circuit, Pin, (-280.0, 100.0));
+
+		let junction1 = add!(circuit, Junction, (-220.0, -100.0), 3);
+		let junction2 = add!(circuit, Junction, (-190.0, 100.0), 3);
+
+		let or_gate = add!(circuit, OrGate, (-100.0, -150.0));
+		let nand_gate = add!(circuit, NandGate, (-100.0, 150.0));
+		let and_gate = add!(circuit, AndGate, (100.0, 0.0));
+
+		let output = add!(circuit, Pin, (370.0, 0.0));
+		
+		circuit.connect((input1, 0), (junction1, 0), vec![]);
+		circuit.connect((junction1, 1), (or_gate, 0), vec![
+			WireLayoutCommand::AlignHorizontal,
+		]);
+		circuit.connect((junction1, 2), (nand_gate, 0), vec![
+			WireLayoutCommand::AlignHorizontal,
+		]);
+
+		circuit.connect((input2, 0), (junction2, 0), vec![]);
+		circuit.connect((junction2, 1), (or_gate, 1), vec![
+			WireLayoutCommand::AlignHorizontal,
+		]);
+		circuit.connect((junction2, 2), (nand_gate, 1), vec![
+			WireLayoutCommand::AlignHorizontal,
+		]);
+
+		circuit.connect((or_gate, 2), (and_gate, 0), vec![
+			WireLayoutCommand::CenterHorizontal,
+			WireLayoutCommand::AlignHorizontal,
+		]);
+		circuit.connect((nand_gate, 2), (and_gate, 1), vec![
+			WireLayoutCommand::CenterHorizontal,
+			WireLayoutCommand::AlignHorizontal,
+		]);
+		
+		circuit.connect((and_gate, 2), (output, 0), vec![]);
+
+		Self {
+			internals: ChipInternals {
+				circuit,
+				inner_scale: 0.15,
+			},
+			position: pos,
+		}
+	}
+}
+
+impl Chip for XorGate {
+    fn get_chip_internals(&self) -> &ChipInternals {
+        &self.internals
+    }
+
+    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+        &mut self.internals
+    }
+
+    fn get_chip_position(&self) -> (f64, f64) {
+		self.position
+    }
+
+    fn get_chip_size(&self) -> (f64, f64) {
+        (110.0, 110.0)
+    }
+
+    fn contains_chip(&self, viewport: &Viewport) -> bool {
+        // TODO: Implement
+		false
+    }
+
+    fn intersects_chip(&self, viewport: &Viewport) -> bool {
+		let size = self.get_chip_size();
+
+		let intersects_x =
+			self.position.0 + size.0 * 0.5 >= viewport.get_position().0 - viewport.get_size().0 * 0.5 &&
+			self.position.0 - size.0 * 0.5 <= viewport.get_position().0 + viewport.get_size().0 * 0.5;
+
+		let intersects_y =
+			self.position.1 + size.1 * 0.5 >= viewport.get_position().1 - viewport.get_size().1 * 0.5 &&
+			self.position.1 - size.1 * 0.5 <= viewport.get_position().1 + viewport.get_size().1 * 0.5;
+
+		intersects_x && intersects_y
+    }
+
+    fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+		ctx.set_fill_style(&"#000".into());
+		
+		let width = self.get_chip_size().0;
+		let height = self.get_chip_size().1;
+
+		ctx.begin_path();
+		ctx.move_to(-0.5 * width, 0.5 * height);
+		ctx.bezier_curve_to(-0.33 * width, 0.25 * height, -0.33 * width, -0.25 * height, -0.5 * width, -0.5 * height);
+		ctx.bezier_curve_to(0.0 * width, -0.5 * height, 0.25 * width, -0.5 * height, 0.5 * width, 0.0 * height);
+		ctx.bezier_curve_to(0.25 * width, 0.5 * height, 0.0 * width, 0.5 * height, -0.5 * width, 0.5 * height);
+		ctx.close_path();
+
+		ctx.fill();
+    }
+
+    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+		ctx.set_line_width(10.0);
+
+		ctx.set_stroke_style(&"#fff".into());
+		ctx.set_fill_style(&"#000".into());
+		
+		let width = self.get_chip_size().0;
+		let height = self.get_chip_size().1;
+
+		ctx.begin_path();
+		ctx.move_to(-0.5 * width, 0.5 * height);
+		ctx.bezier_curve_to(-0.33 * width, 0.25 * height, -0.33 * width, -0.25 * height, -0.5 * width, -0.5 * height);
+		ctx.bezier_curve_to(0.0 * width, -0.5 * height, 0.25 * width, -0.5 * height, 0.5 * width, 0.0 * height);
+		ctx.bezier_curve_to(0.25 * width, 0.5 * height, 0.0 * width, 0.5 * height, -0.5 * width, 0.5 * height);
+		ctx.close_path();
+
+		ctx.stroke();
+		ctx.fill();
+
+		let xor_line_offset = 25.0;
+		
+		ctx.set_line_width(5.0);
+
+		ctx.begin_path();
+		ctx.move_to(-0.5 * width - xor_line_offset, 0.5 * height);
+		ctx.bezier_curve_to(
+			-0.33 * width - xor_line_offset,
+			0.25 * height,
+			-0.33 * width - xor_line_offset,
+			-0.25 * height,
+			-0.5 * width - xor_line_offset,
+			-0.5 * height,
+		);
+
+		ctx.stroke();
+    }
+}
