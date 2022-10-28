@@ -384,12 +384,12 @@ impl<T> Drawable for T where T: Chip {
 
 		if self.intersects(&viewport) && height_ratio > start_ratio {
 			self.get_chip_internals().draw(ctx, &viewport, self.get_position());
-
-			let opacity = ((end_ratio - height_ratio) / (end_ratio - start_ratio)).max(0.0);
-			ctx.set_global_alpha(opacity);
-			
-			self.draw_front(ctx);
 		}
+
+		let opacity = ((end_ratio - height_ratio) / (end_ratio - start_ratio)).max(0.0);
+		ctx.set_global_alpha(opacity);
+		
+		self.draw_front(ctx);
     }
 
     fn get_pin_positions(&self) -> Vec<(f64, f64)> {
@@ -458,10 +458,16 @@ impl<T> Component for T where T: Chip {
 	}
 }
 
+pub struct TextInfo {
+	pub text: String,
+	pub size: u32,
+}
+
 pub struct RectangleChip {
 	pub internals: ChipInternals,
 	pub position: (f64, f64),
 	pub size: (f64, f64),
+	pub text: Option<TextInfo>,
 }
 
 impl Chip for RectangleChip {
@@ -514,6 +520,15 @@ impl Chip for RectangleChip {
 		ctx.begin_path();
 		ctx.rect(-width * 0.5, -height * 0.5, width, height);
 		ctx.fill();
+
+		if let Some(info) = &self.text {
+			ctx.set_fill_style(&"#fff".into());
+			ctx.set_font(format!("bold {}px monospace", info.size).as_str());
+			ctx.set_text_align("center");
+			ctx.set_text_baseline("middle");
+
+			ctx.fill_text(info.text.as_str(), 0.0, 0.0).unwrap();
+		}
 	}
 
     fn draw_back(&self, ctx: &CanvasRenderingContext2d) {

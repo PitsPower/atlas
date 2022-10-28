@@ -61,8 +61,9 @@ window.addEventListener("wheel", (e) => {
 // const circuit = wasm.or_gate_example();
 // const circuit = wasm.nand_gate_example();
 // const circuit = wasm.and_gate_example();
-const circuit = wasm.xor_gate_example();
+// const circuit = wasm.xor_gate_example();
 // const circuit = wasm.nor_latch_example();
+const circuit = wasm.test_example();
 
 let isZooming = false;
 
@@ -82,6 +83,10 @@ window.addEventListener("keypress", (e) => {
 		}
 		case 'd': {
 			circuit.toggle_switch(1);
+			break;
+		}
+		case 'f': {
+			circuit.toggle_switch(2);
 			break;
 		}
 	}

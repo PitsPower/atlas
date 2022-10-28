@@ -3,6 +3,7 @@
 
 extern crate test;
 
+mod adder;
 mod core;
 mod gates;
 mod graphics;
@@ -13,6 +14,7 @@ use wasm_bindgen::prelude::*;
 
 use utils::set_panic_hook;
 
+use crate::adder::{FullAdder, HalfAdder};
 use crate::core::{Bulb, RectangleChip, ChipInternals, Circuit, Junction, Switch};
 use crate::gates::{AndGate, NandGate, NorGate, NotGate, OrGate, XorGate};
 use crate::graphics::WireLayoutCommand;
@@ -49,18 +51,18 @@ pub fn example1(n: u32) -> Circuit {
 					circuit: iter(n-1),
 					inner_scale: 0.4,
 				},
-		
 				position: (-180.0, 0.0),
 				size: (300.0, 300.0),
+				text: None,
 			};
 			let chip2 = RectangleChip {
 				internals: ChipInternals {
 					circuit: iter(n-1),
 					inner_scale: 0.4,
 				},
-		
 				position: (180.0, 0.0),
 				size: (300.0, 300.0),
+				text: None,
 			};
 
 			result.add(Box::new(chip1));
@@ -75,9 +77,9 @@ pub fn example1(n: u32) -> Circuit {
 			circuit: iter(n),
 			inner_scale: 1.0,
 		},
-
 		position: (0.0, 10.0),
 		size: (850.0, 500.0),
+		text: None,
 	};
 
 	let mut circuit = Circuit::new();
@@ -356,6 +358,34 @@ pub fn nor_latch_example() -> Circuit {
 		WireLayoutCommand::Move((-250.0, -100.0)),
 		WireLayoutCommand::AlignHorizontal,
 	]);
+
+	circuit
+}
+
+#[wasm_bindgen]
+pub fn test_example() -> Circuit {
+	let mut circuit = Circuit::new();
+
+	let input1 = add!(circuit, Switch, (-500.0, -100.0));
+	let input2 = add!(circuit, Switch, (-500.0, 100.0));
+	let carry_in = add!(circuit, Switch, (0.0, 300.0));
+
+	let full_adder = add!(circuit, FullAdder, (0.0, 0.0));
+
+	let output = add!(circuit, Bulb, (500.0, 0.0));
+	let carry_out = add!(circuit, Bulb, (0.0, -300.0));
+
+	circuit.connect((input1, 0), (full_adder, 0), vec![
+		WireLayoutCommand::CenterHorizontal,
+		WireLayoutCommand::AlignHorizontal,
+	]);
+	circuit.connect((input2, 0), (full_adder, 1), vec![
+		WireLayoutCommand::CenterHorizontal,
+		WireLayoutCommand::AlignHorizontal,
+	]);
+	circuit.connect((carry_in, 0), (full_adder, 2), vec![]);
+	circuit.connect((full_adder, 3), (output, 0), vec![]);
+	circuit.connect((full_adder, 4), (carry_out, 0), vec![]);
 
 	circuit
 }
