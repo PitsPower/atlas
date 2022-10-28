@@ -58,7 +58,8 @@ window.addEventListener("wheel", (e) => {
 // const circuit = wasm.bidirectional_example();
 // const circuit = wasm.not_gate_example();
 // const circuit = wasm.nor_gate_example();
-const circuit = wasm.nor_latch_example();
+const circuit = wasm.or_gate_example();
+// const circuit = wasm.nor_latch_example();
 
 let isZooming = false;
 

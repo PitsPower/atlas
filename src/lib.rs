@@ -14,7 +14,7 @@ use wasm_bindgen::prelude::*;
 use utils::set_panic_hook;
 
 use crate::core::{Bulb, RectangleChip, ChipInternals, Circuit, Junction, Switch};
-use crate::gates::{NorGate, NotGate};
+use crate::gates::{NorGate, NotGate, OrGate};
 use crate::graphics::WireLayoutCommand;
 use crate::transistor::{NTransistor, PTransistor};
 
@@ -212,6 +212,28 @@ pub fn nor_gate_example() -> Circuit {
 	let input1 = add!(circuit, Switch, (-300.0, -100.0));
 	let input2 = add!(circuit, Switch, (-300.0, 100.0));
 	let gate = add!(circuit, NorGate, (0.0, 0.0));
+	let output = add!(circuit, Bulb, (300.0, 0.0));
+
+	circuit.connect((input1, 0), (gate, 0), vec![
+		WireLayoutCommand::CenterHorizontal,
+		WireLayoutCommand::AlignHorizontal,
+	]);
+	circuit.connect((input2, 0), (gate, 1), vec![
+		WireLayoutCommand::CenterHorizontal,
+		WireLayoutCommand::AlignHorizontal,
+	]);
+	circuit.connect((gate, 2), (output, 0), vec![]);
+
+	circuit
+}
+
+#[wasm_bindgen]
+pub fn or_gate_example() -> Circuit {
+	let mut circuit = Circuit::new();
+
+	let input1 = add!(circuit, Switch, (-300.0, -100.0));
+	let input2 = add!(circuit, Switch, (-300.0, 100.0));
+	let gate = add!(circuit, OrGate, (0.0, 0.0));
 	let output = add!(circuit, Bulb, (300.0, 0.0));
 
 	circuit.connect((input1, 0), (gate, 0), vec![
