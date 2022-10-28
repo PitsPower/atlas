@@ -65,28 +65,17 @@ window.addEventListener("wheel", (e) => {
 // const circuit = wasm.nor_latch_example();
 const circuit = wasm.test_example();
 
-let isZooming = false;
+const keys = 'asdfghjkzxcvbnm,';
 
 window.addEventListener("keypress", (e) => {
+	if (keys.includes(e.key)) {
+		const index = keys.indexOf(e.key);
+		circuit.toggle_switch(index);
+	}
+
 	switch (e.key) {
-		case 'v': {
+		case 'p': {
 			renderer.switch_viewport_mode();
-			break;
-		}
-		case 'z': {
-			isZooming = !isZooming;
-			break;
-		}
-		case 's': {
-			circuit.toggle_switch(0);
-			break;
-		}
-		case 'd': {
-			circuit.toggle_switch(1);
-			break;
-		}
-		case 'f': {
-			circuit.toggle_switch(2);
 			break;
 		}
 	}
@@ -97,10 +86,6 @@ function render() {
 
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	renderer.render(circuit);
-
-	if (isZooming) {
-		renderer.zoom(0.95, canvas.width / 2, canvas.height / 2);
-	}
 }
 
 render();

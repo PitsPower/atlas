@@ -137,3 +137,62 @@ impl FullAdder {
 		}
 	}
 }
+
+pub struct Adder;
+
+impl Adder {
+	pub fn new(pos: (f64, f64), size: u32) -> RectangleChip {
+		let mut circuit = Circuit::new();
+
+		let adders: Vec<_> = (0..size)
+			.map(|i| add!(circuit, FullAdder, (100.0, -(i as f64 - (size as f64) * 0.5) * 300.0 - 150.0)))
+			.collect();
+
+		let input_group_1: Vec<_> = (0..size)
+			.map(|i| add!(circuit, Pin, (-666.0, -600.0 - (i as f64 * 50.0))))
+			.collect();
+
+		let input_group_2: Vec<_> = (0..size)
+			.map(|i| add!(circuit, Pin, (-666.0, 600.0 + size as f64 * 50.0 - (i as f64 * 50.0))))
+			.collect();
+			
+		let output_group: Vec<_> = (0..size)
+			.map(|i| add!(circuit, Pin, (666.0, -(i as f64 - (size as f64) * 0.5) * 50.0 - 25.0)))
+			.collect();
+
+		for i in 0..size {
+			circuit.connect((input_group_1[i as usize], 0), (adders[i as usize], 0), vec![
+				WireLayoutCommand::CenterHorizontal,
+				WireLayoutCommand::MoveHorizontal(i as f64 * 30.0),
+				WireLayoutCommand::AlignHorizontal,
+			]);
+			circuit.connect((input_group_2[i as usize], 0), (adders[i as usize], 1), vec![
+				WireLayoutCommand::MoveHorizontal(10.0),
+				WireLayoutCommand::MoveHorizontal((size as f64 - i as f64) * 30.0),
+				WireLayoutCommand::AlignHorizontal,
+			]);
+			circuit.connect((adders[i as usize], 3), (output_group[i as usize], 0), vec![
+				WireLayoutCommand::MoveHorizontal(30.0),
+				WireLayoutCommand::MoveHorizontal(((i as f64 - size as f64 * 0.5) * 30.0 + 15.0).abs()),
+				WireLayoutCommand::AlignHorizontal,
+			]);
+		}
+
+		for i in 0..size-1 {
+			circuit.connect((adders[i as usize], 4), (adders[(i+1) as usize], 2), vec![]);
+		}
+
+		RectangleChip {
+			internals: ChipInternals {
+				circuit,
+				inner_scale: 0.3,
+			},
+			position: pos,
+			size: (400.0, size as f64 * 100.0),
+			text: Some(TextInfo {
+				text: format!("{}-bit Adder", size),
+				size: 50,
+			}),
+		}
+	}
+}

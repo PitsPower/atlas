@@ -375,8 +375,11 @@ impl<T> Drawable for T where T: Chip {
     fn draw(&self, ctx: &CanvasRenderingContext2d, viewport: Viewport) {
 		self.draw_back(ctx);
 
-		let start_ratio: f64 = 0.3;
-		let end_ratio: f64 = 0.5;
+		let start_ratio = 0.3;
+		let end_ratio = 0.5;
+
+		// let start_ratio = 0.0;
+		// let end_ratio = 0.0;
 
 		let height = self.get_size().1;
 

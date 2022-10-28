@@ -14,7 +14,7 @@ use wasm_bindgen::prelude::*;
 
 use utils::set_panic_hook;
 
-use crate::adder::{FullAdder, HalfAdder};
+use crate::adder::{Adder, FullAdder, HalfAdder};
 use crate::core::{Bulb, RectangleChip, ChipInternals, Circuit, Junction, Switch};
 use crate::gates::{AndGate, NandGate, NorGate, NotGate, OrGate, XorGate};
 use crate::graphics::WireLayoutCommand;
@@ -366,26 +366,39 @@ pub fn nor_latch_example() -> Circuit {
 pub fn test_example() -> Circuit {
 	let mut circuit = Circuit::new();
 
-	let input1 = add!(circuit, Switch, (-500.0, -100.0));
-	let input2 = add!(circuit, Switch, (-500.0, 100.0));
-	let carry_in = add!(circuit, Switch, (0.0, 300.0));
+	let size = 8u32;
+	
+	let input_group_1: Vec<_> = (0..size)
+		.map(|i| add!(circuit, Switch, (-1000.0, -600.0 - (i as f64 * 150.0))))
+		.collect();
+	
+	let input_group_2: Vec<_> = (0..size)
+		.map(|i| add!(circuit, Switch, (-1000.0, 450.0 + 150.0 * size as f64 - (i as f64 * 150.0))))
+		.collect();
 
-	let full_adder = add!(circuit, FullAdder, (0.0, 0.0));
+	let adder = add!(circuit, Adder, (0.0, 0.0), size);
 
-	let output = add!(circuit, Bulb, (500.0, 0.0));
-	let carry_out = add!(circuit, Bulb, (0.0, -300.0));
+	let output_group: Vec<_> = (0..size)
+		.map(|i| add!(circuit, Bulb, (1000.0, (size as f64 * 0.5 - i as f64 - 0.5) * 150.0)))
+		.collect();
 
-	circuit.connect((input1, 0), (full_adder, 0), vec![
-		WireLayoutCommand::CenterHorizontal,
-		WireLayoutCommand::AlignHorizontal,
-	]);
-	circuit.connect((input2, 0), (full_adder, 1), vec![
-		WireLayoutCommand::CenterHorizontal,
-		WireLayoutCommand::AlignHorizontal,
-	]);
-	circuit.connect((carry_in, 0), (full_adder, 2), vec![]);
-	circuit.connect((full_adder, 3), (output, 0), vec![]);
-	circuit.connect((full_adder, 4), (carry_out, 0), vec![]);
+	for i in 0..size {
+		circuit.connect((input_group_1[i as usize], 0), (adder, i as usize), vec![
+			WireLayoutCommand::CenterHorizontal,
+			WireLayoutCommand::MoveHorizontal(i as f64 * 30.0),
+			WireLayoutCommand::AlignHorizontal,
+		]);
+		circuit.connect((input_group_2[i as usize], 0), (adder, 8 + i as usize), vec![
+			WireLayoutCommand::CenterHorizontal,
+			WireLayoutCommand::MoveHorizontal((size - i) as f64 * 30.0),
+			WireLayoutCommand::AlignHorizontal,
+		]);
+		circuit.connect((adder, 16 + i as usize), (output_group[i as usize], 0), vec![
+			WireLayoutCommand::MoveHorizontal(30.0),
+			WireLayoutCommand::MoveHorizontal((size as f64 - ((i as f64) - size as f64 * 0.5).abs()) * 50.0),
+			WireLayoutCommand::AlignHorizontal,
+		]);
+	}
 
 	circuit
 }
