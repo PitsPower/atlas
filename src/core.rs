@@ -755,7 +755,9 @@ impl Drawable for MultiSwitch {
 
 		for i in 0..size {
 			ctx.set_fill_style(&self.states[i].get_colour().into());
-			ctx.fill_rect((i as f64 - size as f64 * 0.5) * 50.0, height * 0.5 - 50.0, 50.0, 50.0);
+
+			let extra_width = if i == size-1 { 0.0 } else { 1.0 };
+			ctx.fill_rect((i as f64 - size as f64 * 0.5) * 50.0, height * 0.5 - 50.0, 50.0 + extra_width, 50.0);
 		}
     }
 
