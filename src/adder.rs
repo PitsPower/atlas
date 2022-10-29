@@ -141,7 +141,7 @@ impl FullAdder {
 pub struct Adder;
 
 impl Adder {
-	pub fn new(pos: (f64, f64), size: u32) -> RectangleChip {
+	pub fn new(pos: (f64, f64), size: usize) -> RectangleChip {
 		let mut circuit = Circuit::new();
 
 		let adders: Vec<_> = (0..size)

@@ -15,7 +15,7 @@ use wasm_bindgen::prelude::*;
 use utils::set_panic_hook;
 
 use crate::adder::{Adder, FullAdder, HalfAdder};
-use crate::core::{Bulb, RectangleChip, ChipInternals, Circuit, Junction, Switch};
+use crate::core::{Bulb, ChipInternals, Circuit, Junction, MultiBulb, MultiSwitch, PinState, RectangleChip, Switch};
 use crate::gates::{AndGate, NandGate, NorGate, NotGate, OrGate, XorGate};
 use crate::graphics::WireLayoutCommand;
 use crate::transistor::{NTransistor, PTransistor};
@@ -366,37 +366,41 @@ pub fn nor_latch_example() -> Circuit {
 pub fn test_example() -> Circuit {
 	let mut circuit = Circuit::new();
 
-	let size = 8u32;
+	let size = 8;
 	
-	let input_group_1: Vec<_> = (0..size)
-		.map(|i| add!(circuit, Switch, (-1000.0, -600.0 - (i as f64 * 150.0))))
-		.collect();
-	
-	let input_group_2: Vec<_> = (0..size)
-		.map(|i| add!(circuit, Switch, (-1000.0, 450.0 + 150.0 * size as f64 - (i as f64 * 150.0))))
-		.collect();
+	let input1 = add!(circuit, MultiSwitch, (-600.0, -500.0), size);
+	let input2 = add!(circuit, MultiSwitch, (-600.0, 0.0), size);
 
 	let adder = add!(circuit, Adder, (0.0, 0.0), size);
 
-	let output_group: Vec<_> = (0..size)
-		.map(|i| add!(circuit, Bulb, (1000.0, (size as f64 * 0.5 - i as f64 - 0.5) * 150.0)))
-		.collect();
+	let output = add!(circuit, MultiBulb, (600.0, -200.0), size);
 
 	for i in 0..size {
-		circuit.connect((input_group_1[i as usize], 0), (adder, i as usize), vec![
-			WireLayoutCommand::CenterHorizontal,
-			WireLayoutCommand::MoveHorizontal(i as f64 * 30.0),
+		circuit.connect((input1, i), (adder, size - i - 1), vec![
 			WireLayoutCommand::AlignHorizontal,
 		]);
-		circuit.connect((input_group_2[i as usize], 0), (adder, 8 + i as usize), vec![
-			WireLayoutCommand::CenterHorizontal,
-			WireLayoutCommand::MoveHorizontal((size - i) as f64 * 30.0),
+		circuit.connect((input2, i), (adder, size + (size - i - 1)), vec![
 			WireLayoutCommand::AlignHorizontal,
 		]);
-		circuit.connect((adder, 16 + i as usize), (output_group[i as usize], 0), vec![
-			WireLayoutCommand::MoveHorizontal(30.0),
-			WireLayoutCommand::MoveHorizontal((size as f64 - ((i as f64) - size as f64 * 0.5).abs()) * 50.0),
-			WireLayoutCommand::AlignHorizontal,
+		circuit.connect((adder, 2 * (size as usize) + (size - i - 1) as usize), (output, i), vec![
+			WireLayoutCommand::AlignVertical,
+		]);
+	}
+
+	circuit
+}
+
+#[wasm_bindgen]
+pub fn bus_example() -> Circuit {
+	let mut circuit = Circuit::new();
+
+	let input = add!(circuit, MultiSwitch, (-300.0, 0.0), 8);
+	let output = add!(circuit, MultiBulb, (300.0, 0.0), 8);
+
+	for i in 0..8 {
+		circuit.connect((input, i), (output, i), vec![
+			WireLayoutCommand::MoveVertical(i as f64 * 50.0 + 50.0),
+			WireLayoutCommand::AlignVertical,
 		]);
 	}
 

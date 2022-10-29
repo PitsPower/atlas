@@ -64,6 +64,7 @@ window.addEventListener("wheel", (e) => {
 // const circuit = wasm.xor_gate_example();
 // const circuit = wasm.nor_latch_example();
 const circuit = wasm.test_example();
+// const circuit = wasm.bus_example();
 
 const keys = 'asdfghjkzxcvbnm,';
 

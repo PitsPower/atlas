@@ -38,6 +38,19 @@ impl PinState {
     }
 }
 
+fn states_to_num(states: &Vec<PinState>) -> u32 {
+	let mut result = 0;
+
+	for state in states {
+		result *= 2;
+		if *state == PinState::On {
+			result += 1;
+		}
+	}
+
+	result
+}
+
 #[derive(Debug)]
 pub enum GetPinError {
 	OutOfRange,
@@ -53,9 +66,9 @@ pub trait Component: Drawable {
 	fn get_internals(&self) -> Option<&ChipInternals> {
 		None
 	}
-
-	fn is_switch(&self) -> bool {
-		false
+	
+	fn get_switch_count(&self) -> usize {
+		0
 	}
 
 	fn is_pin(&self) -> bool {
@@ -121,6 +134,10 @@ impl Circuit {
 
 	pub fn get_components(&self) -> &Vec<Box<dyn Component>> {
 		&self.components
+	}
+
+	pub fn get_components_mut(&mut self) -> &mut Vec<Box<dyn Component>> {
+		&mut self.components
 	}
 
 	pub fn add(&mut self, component: Box<dyn Component>) -> usize {
@@ -246,14 +263,22 @@ impl Circuit {
 #[wasm_bindgen]
 impl Circuit {
 	pub fn toggle_switch(&mut self, idx: usize) {
-		let true_idx = self.components.iter()
-			.enumerate()
-			.filter(|(_, c)| c.is_switch())
-			.nth(idx)
-			.unwrap().0;
+		let mut component_idx = 0;
+		let mut pin_idx = idx;
 
-		let state = self.components[true_idx].get_pin_state(0).unwrap();
-		self.update_component(&PinConnection { component_idx: true_idx, pin_idx: 0 }, state.toggle(), true);
+		loop {
+			let switch_count = self.components[component_idx].get_switch_count();
+			
+			if pin_idx < switch_count {
+				break;
+			}
+
+			pin_idx -= switch_count;
+			component_idx += 1;
+		}
+
+		let state = self.components[component_idx].get_pin_state(pin_idx).unwrap();
+		self.update_component(&PinConnection { component_idx: component_idx, pin_idx: pin_idx }, state.toggle(), true);
 	}
 }
 
@@ -656,8 +681,8 @@ impl Drawable for Switch {
 }
 
 impl Component for Switch {
-	fn is_switch(&self) -> bool {
-		true
+	fn get_switch_count(&self) -> usize {
+		1
 	}
 
 	fn get_pin_state(&self, idx: usize) -> Result<PinState, GetPinError> {
@@ -681,6 +706,96 @@ impl Component for Switch {
 			Err(SetPinError::OutOfRange)
 		} else {
 			self.state = state;
+			Ok(())
+		}
+	}
+	
+    fn get_position(&self) -> (f64, f64) {
+        self.position
+    }
+}
+
+pub struct MultiSwitch {
+	position: (f64, f64),
+	states: Vec<PinState>,
+}
+
+impl MultiSwitch {
+	pub fn new(pos: (f64, f64), size: usize) -> Self {
+		Self {
+			position: pos,
+			states: vec![PinState::Off; size],
+		}
+	}
+}
+
+impl Drawable for MultiSwitch {
+    fn draw(&self, ctx: &CanvasRenderingContext2d, _viewport: Viewport) {
+		ctx.set_line_width(10.0);
+
+		ctx.set_stroke_style(&"#fff".into());
+		ctx.set_fill_style(&"#000".into());
+
+		let size = self.states.len();
+
+		let width = 50.0 * size as f64;
+		let height = 200.0;
+
+		ctx.stroke_rect(-width * 0.5, -height * 0.5, width, height);
+		ctx.fill_rect(-width * 0.5, -height * 0.5, width, height);
+		
+		ctx.set_fill_style(&"#fff".into());
+		ctx.set_font("bold 70px monospace");
+		ctx.set_text_align("center");
+		ctx.set_text_baseline("middle");
+		
+		let num = states_to_num(&self.states);
+
+		ctx.fill_text(format!("{}", num).as_str(), 0.0, -height * 0.1).unwrap();
+
+		for i in 0..size {
+			ctx.set_fill_style(&self.states[i].get_colour().into());
+			ctx.fill_rect((i as f64 - size as f64 * 0.5) * 50.0, height * 0.5 - 50.0, 50.0, 50.0);
+		}
+    }
+
+    fn get_pin_positions(&self) -> Vec<(f64, f64)> {
+		let spacing = 50.0;
+		let size = self.states.len();
+
+		(0..size)
+			.map(|i| (i as f64 - size as f64 * 0.5 + 0.5) * spacing)
+			.map(|x| (x, 100.0))
+			.collect()
+    }
+}
+
+impl Component for MultiSwitch {
+	fn get_switch_count(&self) -> usize {
+		self.states.len()
+	}
+	
+	fn get_pin_state(&self, idx: usize) -> Result<PinState, GetPinError> {
+		if idx >= self.states.len() {
+			Err(GetPinError::OutOfRange)
+		} else {
+			Ok(self.states[idx])
+		}
+	}
+
+	fn set_pin_state(&mut self, idx: usize, _state: PinState) -> Result<(), SetPinError> {
+		if idx >= self.states.len() {
+			Err(SetPinError::OutOfRange)
+		} else {
+			Ok(())
+		}
+	}
+
+	fn set_pin_state_external(&mut self, idx: usize, state: PinState) -> Result<(), SetPinError> {
+		if idx >= self.states.len() {
+			Err(SetPinError::OutOfRange)
+		} else {
+			self.states[idx] = state;
 			Ok(())
 		}
 	}
@@ -731,7 +846,7 @@ impl Component for Bulb {
 		if idx > 0 {
 			Err(GetPinError::OutOfRange)
 		} else {
-			Ok(self.state)
+			Ok(PinState::Disconnected)
 		}
 	}
 
@@ -740,6 +855,87 @@ impl Component for Bulb {
 			Err(SetPinError::OutOfRange)
 		} else {
 			self.state = state;
+			Ok(())
+		}
+	}
+
+    fn get_position(&self) -> (f64, f64) {
+        self.position
+    }
+}
+
+pub struct MultiBulb {
+	position: (f64, f64),
+	states: Vec<PinState>,
+}
+
+impl MultiBulb {
+	pub fn new(pos: (f64, f64), size: usize) -> Self {
+		Self {
+			position: pos,
+			states: vec![PinState::Disconnected; size],
+		}
+	}
+}
+
+impl Drawable for MultiBulb {
+    fn draw(&self, ctx: &CanvasRenderingContext2d, _viewport: Viewport) {
+		ctx.set_line_width(10.0);
+
+		ctx.set_stroke_style(&"#fff".into());
+		ctx.set_fill_style(&"#000".into());
+
+		let size = self.states.len();
+
+		let width = 50.0 * size as f64;
+		let height = 200.0;
+
+		ctx.stroke_rect(-width * 0.5, -height * 0.5, width, height);
+		ctx.fill_rect(-width * 0.5, -height * 0.5, width, height);
+		
+		ctx.set_fill_style(&"#fff".into());
+		ctx.set_font("bold 70px monospace");
+		ctx.set_text_align("center");
+		ctx.set_text_baseline("middle");
+		
+		let num = states_to_num(&self.states);
+
+		ctx.fill_text(format!("{}", num).as_str(), 0.0, -height * 0.1).unwrap();
+
+		for i in 0..size {
+			ctx.set_fill_style(&self.states[i].get_colour().into());
+
+			ctx.begin_path();
+			ctx.arc((i as f64 - size as f64 * 0.5) * 50.0 + 25.0, height * 0.5 - 25.0, 20.0, 0.0, 2.0 * PI).unwrap();
+			ctx.fill();
+		}
+    }
+
+    fn get_pin_positions(&self) -> Vec<(f64, f64)> {
+		let spacing = 50.0;
+		let size = self.states.len();
+
+		(0..size)
+			.map(|i| (i as f64 - size as f64 * 0.5 + 0.5) * spacing)
+			.map(|x| (x, 100.0))
+			.collect()
+    }
+}
+
+impl Component for MultiBulb {
+	fn get_pin_state(&self, idx: usize) -> Result<PinState, GetPinError> {
+		if idx >= self.states.len() {
+			Err(GetPinError::OutOfRange)
+		} else {
+			Ok(PinState::Disconnected)
+		}
+	}
+
+	fn set_pin_state(&mut self, idx: usize, state: PinState) -> Result<(), SetPinError> {
+		if idx >= self.states.len() {
+			Err(SetPinError::OutOfRange)
+		} else {
+			self.states[idx] = state;
 			Ok(())
 		}
 	}
