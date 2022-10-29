@@ -1,3 +1,5 @@
+//! Adder components.
+
 use crate::add;
 use crate::core::{ChipInternals, Circuit, Junction, Pin, RectangleChip, TextInfo};
 use crate::gates::{AndGate, OrGate, XorGate};

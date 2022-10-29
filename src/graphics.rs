@@ -1,3 +1,7 @@
+//! The graphics subsystem.
+//! 
+//! Provides data structures for rendering circuits onto a canvas.
+
 use wasm_bindgen::prelude::*;
 
 use crate::core::{ChipInternals, Circuit, Component};

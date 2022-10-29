@@ -1,3 +1,5 @@
+//! Transistor components.
+
 use std::f64::consts::PI;
 
 use crate::core::{Component, PinError, PinState};

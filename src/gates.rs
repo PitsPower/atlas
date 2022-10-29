@@ -1,3 +1,5 @@
+//! Various logic gate components.
+
 use std::f64::consts::PI;
 
 use crate::add;
