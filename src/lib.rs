@@ -3,19 +3,19 @@
 
 extern crate test;
 
-mod adder;
-mod core;
-mod gates;
-mod graphics;
-mod transistor;
-mod utils;
+pub mod adder;
+pub mod core;
+pub mod gates;
+pub mod graphics;
+pub mod transistor;
+pub mod utils;
 
 use wasm_bindgen::prelude::*;
 
 use utils::set_panic_hook;
 
-use crate::adder::{Adder, FullAdder, HalfAdder};
-use crate::core::{Bulb, ChipInternals, Circuit, Junction, MultiBulb, MultiSwitch, PinState, RectangleChip, Switch};
+use crate::adder::{Adder};
+use crate::core::{Bulb, ChipInternals, Circuit, Junction, MultiBulb, MultiSwitch, RectangleChip, Switch};
 use crate::gates::{AndGate, NandGate, NorGate, NotGate, OrGate, XorGate};
 use crate::graphics::WireLayoutCommand;
 use crate::transistor::{NTransistor, PTransistor};

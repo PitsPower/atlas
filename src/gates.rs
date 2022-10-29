@@ -60,8 +60,7 @@ impl Chip for AndGate {
         (110.0, 110.0)
     }
 
-    fn contains_chip(&self, viewport: &Viewport) -> bool {
-        // TODO: Implement
+    fn contains_chip(&self, _viewport: &Viewport) -> bool {
 		false
     }
 
@@ -204,8 +203,7 @@ impl Chip for NandGate {
         (110.0, 110.0)
     }
 
-    fn contains_chip(&self, viewport: &Viewport) -> bool {
-        // TODO: Implement
+    fn contains_chip(&self, _viewport: &Viewport) -> bool {
 		false
     }
 
@@ -354,8 +352,7 @@ impl Chip for NorGate {
         (110.0, 110.0)
     }
 
-    fn contains_chip(&self, viewport: &Viewport) -> bool {
-        // TODO: Implement
+    fn contains_chip(&self, _viewport: &Viewport) -> bool {
 		false
     }
 
@@ -481,8 +478,7 @@ impl Chip for NotGate {
         (110.0, 110.0)
     }
 
-    fn contains_chip(&self, viewport: &Viewport) -> bool {
-        // TODO: Implement
+    fn contains_chip(&self, _viewport: &Viewport) -> bool {
 		false
     }
 
@@ -595,8 +591,7 @@ impl Chip for OrGate {
         (110.0, 110.0)
     }
 
-    fn contains_chip(&self, viewport: &Viewport) -> bool {
-        // TODO: Implement
+    fn contains_chip(&self, _viewport: &Viewport) -> bool {
 		false
     }
 
@@ -728,8 +723,7 @@ impl Chip for XorGate {
         (110.0, 110.0)
     }
 
-    fn contains_chip(&self, viewport: &Viewport) -> bool {
-        // TODO: Implement
+    fn contains_chip(&self, _viewport: &Viewport) -> bool {
 		false
     }
 

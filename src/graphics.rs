@@ -1,32 +1,43 @@
 use wasm_bindgen::prelude::*;
-use web_sys::*;
 
 use crate::core::{ChipInternals, Circuit, Component};
 
+/// A thing that can be drawn on the screen.
 pub trait Drawable {
-	fn draw(&self, ctx: &CanvasRenderingContext2d, viewport: Viewport);
-	fn get_pin_positions(&self) -> Vec<(f64, f64)>;
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: Viewport);
 }
 
+/// A command used to control how a wire looks.
 #[derive(Debug)]
 pub enum WireLayoutCommand {
+	/// Moves the wire up or down to be aligned with the end pin.
 	AlignHorizontal,
+	/// Moves the wire left or right to be aligned with the end pin.
 	AlignVertical,
+	/// Moves the wire in-between the start and end pins horizontally.
 	CenterHorizontal,
+	/// Moves the wire in-between the start and end pins vertically.
 	CenterVertical,
+	/// Moves the wire horizontally.
 	MoveHorizontal(f64),
+	/// Moves the wire vertically.
 	MoveVertical(f64),
+	/// Moves the wire horizontally and vertically at the same time.
 	Move((f64, f64)),
 }
 
+/// A rectangle representing what the user can see.
 #[wasm_bindgen]
 #[derive(Debug, Clone, Copy)]
 pub struct Viewport {
+	/// The position of the viewport.
 	position: (f64, f64),
+	/// The width and height of the viewport.
 	size: (f64, f64),
 }
 
 impl Viewport {
+	/// Returns a new viewport.
 	fn new(width: f64, height: f64) -> Self {
 		Self {
 			position: (0.0, 0.0),
@@ -34,18 +45,23 @@ impl Viewport {
 		}
 	}
 
+	// Returns the viewport's position.
 	pub fn get_position(&self) -> (f64, f64) {
 		self.position
 	}
 
+	// Returns the viewport's size.
 	pub fn get_size(&self) -> (f64, f64) {
 		self.size
 	}
 
-	fn scale(&self, ctx: &CanvasRenderingContext2d) -> f64 {
+	/// Returns the scale of the viewport relative to the screen.
+	fn scale(&self, ctx: &web_sys::CanvasRenderingContext2d) -> f64 {
 		self.size.0 / ctx.canvas().unwrap().width() as f64
 	}
 
+	/// Returns a new viewport that sees the same thing as the old one when the given chip internals
+	/// are scaled to full size.
 	pub fn transform_in_to_chip(&self, position: (f64, f64), internals: &ChipInternals) -> Viewport {
 		let mut result = *self;
 
@@ -62,6 +78,8 @@ impl Viewport {
 		result
 	}
 	
+	/// Returns a new viewport that sees the same thing as the old one when the given chip internals
+	/// are scaled back down to regular size.
 	fn transform_out_of_chip(&self, position: (f64, f64), internals: &ChipInternals) -> Viewport {
 		let mut result = *self;
 
@@ -79,18 +97,26 @@ impl Viewport {
 	}
 }
 
+/// The renderer. This handles drawing every [`Component`] and [`Wire`] on the screen, as well
+/// as handling infinite zoom.
 #[wasm_bindgen]
 pub struct Renderer {
-	ctx: CanvasRenderingContext2d,
+	/// The canvas context.
+	ctx: web_sys::CanvasRenderingContext2d,
+	/// The viewport that the user sees through.
 	viewport: Viewport,
+	/// If true, nothing will be scaled or translated. Instead, the viewport will be rendered
+	/// using a yellow box.
 	show_viewport: bool,
+	/// The stack of [`Chip`] indices that are being zoomed into. Used for infinite zoom.
 	chip_stack: Vec<usize>,
 }
 
 #[wasm_bindgen]
 impl Renderer {
+	/// Returns a new renderer.
 	#[wasm_bindgen(constructor)]
-	pub fn new(ctx: CanvasRenderingContext2d) -> Self {
+	pub fn new(ctx: web_sys::CanvasRenderingContext2d) -> Self {
 		let width = ctx.canvas().unwrap().width() as f64;
 		let height = ctx.canvas().unwrap().height() as f64;
 
@@ -105,6 +131,7 @@ impl Renderer {
 		}
 	}
 
+	/// Returns the size of the canvas.
 	fn get_canvas_size(&self) -> (f64, f64) {
 		let width = self.ctx.canvas().unwrap().width() as f64;
 		let height = self.ctx.canvas().unwrap().height() as f64;
@@ -112,6 +139,7 @@ impl Renderer {
 		(width, height)
 	}
 
+	/// Updates the viewport to match the new canvas size.
 	pub fn update_size(&mut self) {
 		let (width, height) = self.get_canvas_size();
 
@@ -121,11 +149,13 @@ impl Renderer {
 		);
 	}
 
+	/// Translates the viewport.
 	pub fn pan(&mut self, x_diff: f64, y_diff: f64) {
 		self.viewport.position.0 -= x_diff * self.viewport.scale(&self.ctx);
 		self.viewport.position.1 -= y_diff * self.viewport.scale(&self.ctx);
 	}
 
+	/// Scales the viewport.
 	pub fn zoom(&mut self, zoom: f64, cursor_x: f64, cursor_y: f64) {
 		let (width, height) = self.get_canvas_size();
 
@@ -141,10 +171,13 @@ impl Renderer {
 		self.viewport.size.1 *= zoom;
 	}
 
+	/// Switches between "yellow box" mode and regular mode.
 	pub fn switch_viewport_mode(&mut self) {
 		self.show_viewport = !self.show_viewport;
 	}
 
+	/// Returns the [`Circuit`] that is currently being rendered. If the viewport is in a [`Chip`],
+	/// the [`Circuit`] in that [`Chip`] will be returned.
 	fn get_current_circuit<'a>(&self, circuit: &'a Circuit) -> &'a Circuit {
 		let mut result = circuit;
 
@@ -155,6 +188,8 @@ impl Renderer {
 		result
 	}
 
+	/// Returns the [`Chip`] that houses the current [`Circuit`], unless the current [`Circuit`]
+	/// is at the top level.
 	fn get_parent_chip<'a>(&self, circuit: &'a Circuit) -> Option<&'a Box<dyn Component>> {
 		if self.chip_stack.len() == 0 {
 			return None;
@@ -170,6 +205,7 @@ impl Renderer {
 		Some(result)
 	}
 
+	/// Renders the given [`Circuit`].
 	pub fn render(&mut self, root_circuit: &Circuit) {
 		let ctx = &self.ctx;
 		let mut circuit = self.get_current_circuit(root_circuit);
