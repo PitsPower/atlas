@@ -7,6 +7,7 @@ pub mod adder;
 pub mod core;
 pub mod gates;
 pub mod graphics;
+pub mod latches;
 pub mod transistor;
 pub mod utils;
 
@@ -14,10 +15,11 @@ use wasm_bindgen::prelude::*;
 
 use utils::set_panic_hook;
 
-use crate::adder::{Adder};
+use crate::adder::Adder;
 use crate::core::{Bulb, ChipInternals, Circuit, Junction, MultiBulb, MultiSwitch, RectangleChip, Switch};
 use crate::gates::{AndGate, NandGate, NorGate, NotGate, OrGate, XorGate};
 use crate::graphics::WireLayoutCommand;
+use crate::latches::MultiDFlipFlop;
 use crate::transistor::{NTransistor, PTransistor};
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
@@ -401,6 +403,64 @@ pub fn bus_example() -> Circuit {
 		circuit.connect((input, i), (output, i), vec![
 			WireLayoutCommand::MoveVertical(i as f64 * 50.0 + 50.0),
 			WireLayoutCommand::AlignVertical,
+		]);
+	}
+
+	circuit
+}
+
+#[wasm_bindgen]
+pub fn latch_example() -> Circuit {
+	let mut circuit = Circuit::new();
+
+	let size = 8;
+
+	let clock = add!(circuit, Switch, (-600.0, 550.0));
+	let increment = add!(circuit, MultiSwitch, (0.0, -700.0), size);
+
+	circuit.toggle_switch(size);
+
+	let dff = add!(circuit, MultiDFlipFlop, (-600.0, 0.0), size);
+	let adder = add!(circuit, Adder, (600.0, 0.0), size);
+	
+	let juncs: Vec<_> = (0..size)
+		.map(|i| add!(circuit, Junction, (1100.0 + i as f64 * 30.0, (-(size as f64) * 0.5 + i as f64 + 0.5) * 30.0), 3))
+		.collect();
+
+	let output = add!(circuit, MultiBulb, (1800.0, -500.0), 8);
+
+	circuit.connect((clock, 0), (dff, size), vec![]);
+
+	let fsize = size as f64;
+
+	for i in 0..size {
+		let fi = i as f64;
+
+		circuit.connect((increment, size - i - 1), (adder, i), vec![
+			WireLayoutCommand::MoveVertical((if i < size/2 { fsize * 0.5 - 1.0 - fi } else { fi - fsize * 0.5 }) * 30.0 + 30.0),
+			WireLayoutCommand::MoveHorizontal((if i < size/2 { -(fsize * 0.5 - 1.0 - fi + 0.5) } else { fi - fsize * 0.5 + 0.5 }) * 30.0),
+			WireLayoutCommand::AlignHorizontal,
+		]);
+
+		circuit.connect((dff, size+1 + i), (adder, size + i), vec![
+			WireLayoutCommand::MoveHorizontal(50.0),
+			WireLayoutCommand::MoveHorizontal(200.0 - (fsize - fi - 1.0) * 15.0),
+			WireLayoutCommand::AlignHorizontal,
+		]);
+
+		circuit.connect((adder, 2*size + i), (juncs[size - i - 1], 0), vec![
+			WireLayoutCommand::MoveHorizontal((if i < size/2 { -(fsize * 0.5 - 1.0 - fi) } else { -(fi - fsize * 0.5) }) * 30.0 + 120.0),
+			WireLayoutCommand::AlignHorizontal,
+		]);
+
+		circuit.connect((juncs[i], 2), (output, i), vec![
+			WireLayoutCommand::AlignVertical,
+		]);
+
+		circuit.connect((juncs[i], 1), (dff, size - i - 1), vec![
+			WireLayoutCommand::MoveVertical(900.0),
+			WireLayoutCommand::MoveHorizontal(-2300.0),
+			WireLayoutCommand::AlignHorizontal,
 		]);
 	}
 

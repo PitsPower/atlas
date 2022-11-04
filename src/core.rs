@@ -322,7 +322,10 @@ impl Circuit {
 		let mut pin_idx = idx;
 
 		loop {
-			let switch_count = self.components[component_idx].get_switch_count();
+			let switch_count = match self.components.get(component_idx) {
+				Some(c) => c.get_switch_count(),
+				None => return,
+			};
 			
 			if pin_idx < switch_count {
 				break;
