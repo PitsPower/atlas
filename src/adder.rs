@@ -1,7 +1,7 @@
 //! Adder components.
 
 use crate::add;
-use crate::core::{ChipInternals, Circuit, Junction, Pin, PinError, PinState, RectangleChip, SimulationMode, TextInfo};
+use crate::core::{ChipInternals, Circuit, Junction, Pin, PinError, PinState, RectangleChip, SimulationMode, TextInfo, ExternalPin};
 use crate::gates::{AndGate, OrGate, XorGate};
 use crate::graphics::WireLayoutCommand;
 
@@ -98,6 +98,24 @@ impl RectangleChip for HalfAdder {
 	}
 
     fn set_mode(&mut self, mode: SimulationMode) {
+		match (self.sim_mode, mode) {
+			(SimulationMode::HighLevel, SimulationMode::Circuit) => {
+				self.internals.circuit.update_component(&ExternalPin {
+					component_idx: 0,
+					pin_idx: 0,
+				}, self.input1, true);
+				self.internals.circuit.update_component(&ExternalPin {
+					component_idx: 1,
+					pin_idx: 0,
+				}, self.input2, true);
+			},
+			(SimulationMode::Circuit, SimulationMode::HighLevel) => {
+				self.input1 = self.internals.circuit.get_components()[0].as_ref().get_pin_state(0).unwrap();
+				self.input2 = self.internals.circuit.get_components()[1].as_ref().get_pin_state(0).unwrap();
+			},
+			_ => { },
+		}
+		
 		self.sim_mode = mode;
     }
 
@@ -224,7 +242,7 @@ impl RectangleChip for FullAdder {
 	}
 
     fn set_mode(&mut self, mode: SimulationMode) {
-        todo!()
+        // todo!()
     }
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
@@ -326,7 +344,7 @@ impl RectangleChip for Adder {
 	}
 
     fn set_mode(&mut self, mode: SimulationMode) {
-        todo!()
+        // todo!()
     }
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {

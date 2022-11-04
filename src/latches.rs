@@ -90,7 +90,7 @@ impl RectangleChip for SRLatch {
 	}
 
     fn set_mode(&mut self, mode: SimulationMode) {
-        todo!()
+        // todo!()
     }
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
@@ -205,7 +205,7 @@ impl RectangleChip for DLatch {
 	}
 
     fn set_mode(&mut self, mode: SimulationMode) {
-        todo!()
+        // todo!()
     }
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
@@ -314,7 +314,7 @@ impl RectangleChip for DFlipFlop {
 	}
 
     fn set_mode(&mut self, mode: SimulationMode) {
-        todo!()
+        // todo!()
     }
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
@@ -431,7 +431,7 @@ impl RectangleChip for MultiDFlipFlop {
 	}
 
     fn set_mode(&mut self, mode: SimulationMode) {
-        todo!()
+        // todo!()
     }
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {

@@ -71,7 +71,7 @@ impl Chip for AndGate {
 	}
 
     fn set_mode(&mut self, mode: SimulationMode) {
-        todo!()
+        // todo!()
     }
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
@@ -82,11 +82,11 @@ impl Chip for AndGate {
 		todo!()
 	}
 
-    fn contains_chip(&self, _viewport: &Viewport) -> bool {
+    fn contains(&self, _viewport: &Viewport) -> bool {
 		false
     }
 
-    fn intersects_chip(&self, viewport: &Viewport) -> bool {
+    fn intersects(&self, viewport: &Viewport) -> bool {
 		let size = self.get_chip_size();
 
 		let intersects_x =
@@ -99,6 +99,10 @@ impl Chip for AndGate {
 
 		intersects_x && intersects_y
     }
+
+	fn are_internals_visible(&self, viewport: &Viewport) -> bool {
+		true
+	}
 
     fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_fill_style(&"#000".into());
@@ -234,7 +238,7 @@ impl Chip for NandGate {
 	}
 
     fn set_mode(&mut self, mode: SimulationMode) {
-        todo!()
+        // todo!()
     }
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
@@ -245,11 +249,11 @@ impl Chip for NandGate {
 		todo!()
 	}
 
-    fn contains_chip(&self, _viewport: &Viewport) -> bool {
+    fn contains(&self, _viewport: &Viewport) -> bool {
 		false
     }
 
-    fn intersects_chip(&self, viewport: &Viewport) -> bool {
+    fn intersects(&self, viewport: &Viewport) -> bool {
 		let size = self.get_chip_size();
 
 		let intersects_x =
@@ -262,6 +266,10 @@ impl Chip for NandGate {
 
 		intersects_x && intersects_y
     }
+
+	fn are_internals_visible(&self, viewport: &Viewport) -> bool {
+		true
+	}
 
     fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_fill_style(&"#000".into());
@@ -403,7 +411,7 @@ impl Chip for NorGate {
 	}
 
     fn set_mode(&mut self, mode: SimulationMode) {
-        todo!()
+        // todo!()
     }
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
@@ -414,11 +422,11 @@ impl Chip for NorGate {
 		todo!()
 	}
 
-    fn contains_chip(&self, _viewport: &Viewport) -> bool {
+    fn contains(&self, _viewport: &Viewport) -> bool {
 		false
     }
 
-    fn intersects_chip(&self, viewport: &Viewport) -> bool {
+    fn intersects(&self, viewport: &Viewport) -> bool {
 		let size = self.get_chip_size();
 
 		let intersects_x =
@@ -431,6 +439,10 @@ impl Chip for NorGate {
 
 		intersects_x && intersects_y
     }
+
+	fn are_internals_visible(&self, viewport: &Viewport) -> bool {
+		true
+	}
 
     fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_fill_style(&"#000".into());
@@ -549,7 +561,7 @@ impl Chip for NotGate {
 	}
 
     fn set_mode(&mut self, mode: SimulationMode) {
-        todo!()
+        // todo!()
     }
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
@@ -560,11 +572,11 @@ impl Chip for NotGate {
 		todo!()
 	}
 
-    fn contains_chip(&self, _viewport: &Viewport) -> bool {
+    fn contains(&self, _viewport: &Viewport) -> bool {
 		false
     }
 
-    fn intersects_chip(&self, viewport: &Viewport) -> bool {
+    fn intersects(&self, viewport: &Viewport) -> bool {
 		let size = self.get_chip_size();
 
 		let intersects_x =
@@ -577,6 +589,10 @@ impl Chip for NotGate {
 
 		intersects_x && intersects_y
     }
+
+	fn are_internals_visible(&self, viewport: &Viewport) -> bool {
+		true
+	}
 
     fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_fill_style(&"#000".into());
@@ -682,7 +698,7 @@ impl Chip for OrGate {
 	}
 
     fn set_mode(&mut self, mode: SimulationMode) {
-        todo!()
+        // todo!()
     }
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
@@ -693,11 +709,11 @@ impl Chip for OrGate {
 		todo!()
 	}
 
-    fn contains_chip(&self, _viewport: &Viewport) -> bool {
+    fn contains(&self, _viewport: &Viewport) -> bool {
 		false
     }
 
-    fn intersects_chip(&self, viewport: &Viewport) -> bool {
+    fn intersects(&self, viewport: &Viewport) -> bool {
 		let size = self.get_chip_size();
 
 		let intersects_x =
@@ -710,6 +726,10 @@ impl Chip for OrGate {
 
 		intersects_x && intersects_y
     }
+
+	fn are_internals_visible(&self, viewport: &Viewport) -> bool {
+		true
+	}
 
     fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_fill_style(&"#000".into());
@@ -834,7 +854,7 @@ impl Chip for XorGate {
 	}
 
     fn set_mode(&mut self, mode: SimulationMode) {
-        todo!()
+        // todo!()
     }
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
@@ -845,11 +865,11 @@ impl Chip for XorGate {
 		todo!()
 	}
 
-    fn contains_chip(&self, _viewport: &Viewport) -> bool {
+    fn contains(&self, _viewport: &Viewport) -> bool {
 		false
     }
 
-    fn intersects_chip(&self, viewport: &Viewport) -> bool {
+    fn intersects(&self, viewport: &Viewport) -> bool {
 		let size = self.get_chip_size();
 
 		let intersects_x =
@@ -862,6 +882,10 @@ impl Chip for XorGate {
 
 		intersects_x && intersects_y
     }
+
+	fn are_internals_visible(&self, viewport: &Viewport) -> bool {
+		true
+	}
 
     fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_fill_style(&"#000".into());

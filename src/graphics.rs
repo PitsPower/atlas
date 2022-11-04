@@ -10,11 +10,11 @@ use crate::core::{ChipInternals, Circuit, Component, SimulationMode};
 pub trait Drawable {
 	/// Draws something and returns a simulation mode. The simulation mode is used to
 	/// decide how to simulate something based on how zoomed in the viewport is.
-	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: Viewport) -> SimulationMode;
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: Viewport);
 }
 
 /// A command used to control how a wire looks.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum WireLayoutCommand {
 	/// Moves the wire up or down to be aligned with the end pin.
 	AlignHorizontal,
@@ -194,6 +194,17 @@ impl Renderer {
 		result
 	}
 
+	/// Returns the [`Circuit`] that is currently being rendered as mutable.
+	fn get_current_circuit_mut<'a>(&self, circuit: &'a mut Circuit) -> &'a mut Circuit {
+		let mut result = circuit;
+
+		for index in &self.chip_stack {
+			result = &mut result.get_components_mut()[*index].get_internals_mut().unwrap().circuit;
+		}
+		
+		result
+	}
+
 	/// Returns the [`Chip`] that houses the current [`Circuit`], unless the current [`Circuit`]
 	/// is at the top level.
 	fn get_parent_chip<'a>(&self, circuit: &'a Circuit) -> Option<&'a Box<dyn Component>> {
@@ -209,6 +220,36 @@ impl Renderer {
 		}
 		
 		Some(result)
+	}
+
+	fn update_sim_modes_with_viewport(&mut self, circuit: &mut Circuit, viewport: Viewport) {
+		for component in circuit.get_components_mut() {
+			if component.are_internals_visible(&viewport) {
+				component.set_mode(SimulationMode::Circuit);
+				
+				let pos = component.get_position();
+
+				match component.get_internals_mut() {
+					Some(internals) => {
+						let new_viewport = viewport.transform_in_to_chip(
+							pos,
+							&internals,
+						);
+
+						self.update_sim_modes_with_viewport(&mut internals.circuit, new_viewport);
+					},
+					None => {},
+				}
+			} else {
+				component.set_mode(SimulationMode::HighLevel);
+			}
+		}
+	}
+
+	/// Updates the simulation modes for a given circuit.
+	pub fn update_sim_modes(&mut self, root_circuit: &mut Circuit) {
+		let circuit = self.get_current_circuit_mut(root_circuit);
+		self.update_sim_modes_with_viewport(circuit, self.viewport);
 	}
 
 	/// Renders the given [`Circuit`].
