@@ -2,7 +2,7 @@
 
 use std::f64::consts::PI;
 
-use crate::core::{Component, PinError, PinState};
+use crate::core::{Component, PinError, PinState, SimulationMode};
 use crate::graphics::{Drawable, Viewport};
 
 const WIDTH: f64 = 67.0;
@@ -28,7 +28,7 @@ impl NTransistor {
 }
 
 impl Drawable for NTransistor {
-	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) {
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) -> SimulationMode {
 		ctx.set_line_width(7.0);
 		ctx.set_line_cap("square");
 		ctx.set_stroke_style(&"#fff".into());
@@ -44,6 +44,8 @@ impl Drawable for NTransistor {
 		ctx.move_to(-WIDTH * 0.5 - 15.0, HEIGHT * 0.5);
 		ctx.line_to(-WIDTH * 0.5 - 15.0, -HEIGHT * 0.5);
 		ctx.stroke();
+
+		SimulationMode::None
 	}
 }
 
@@ -104,7 +106,7 @@ impl PTransistor {
 }
 
 impl Drawable for PTransistor {
-	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) {
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) -> SimulationMode {
 		ctx.set_line_width(7.0);
 		ctx.set_line_cap("square");
 		ctx.set_stroke_style(&"#fff".into());
@@ -124,6 +126,8 @@ impl Drawable for PTransistor {
 		ctx.begin_path();
 		ctx.arc(-WIDTH * 0.5 - 15.0 - RADIUS - 4.0, 0.0, RADIUS, 0.0, 2.0 * PI).unwrap();
 		ctx.stroke();
+		
+		SimulationMode::None
 	}
 }
 

@@ -4,11 +4,13 @@
 
 use wasm_bindgen::prelude::*;
 
-use crate::core::{ChipInternals, Circuit, Component};
+use crate::core::{ChipInternals, Circuit, Component, SimulationMode};
 
 /// A thing that can be drawn on the screen.
 pub trait Drawable {
-	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: Viewport);
+	/// Draws something and returns a simulation mode. The simulation mode is used to
+	/// decide how to simulate something based on how zoomed in the viewport is.
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: Viewport) -> SimulationMode;
 }
 
 /// A command used to control how a wire looks.

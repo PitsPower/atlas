@@ -1,14 +1,18 @@
 //! Latch and flip-flop components.
 
 use crate::add;
-use crate::core::{ChipInternals, Circuit, Junction, Pin, RectangleChip, TextInfo};
+use crate::core::{ChipInternals, Circuit, Junction, Pin, PinError, PinState, RectangleChip, SimulationMode, TextInfo};
 use crate::gates::{AndGate, NorGate, NotGate};
 use crate::graphics::WireLayoutCommand;
 
-pub struct SRLatch;
+pub struct SRLatch {
+	internals: ChipInternals,
+	position: (f64, f64),
+	text: Option<TextInfo>,
+}
 
 impl SRLatch {
-	pub fn new(pos: (f64, f64)) -> RectangleChip {
+	pub fn new(pos: (f64, f64)) -> SRLatch {
 		let mut circuit = Circuit::new();
 
 		let input1 = add!(circuit, Pin, (-250.0, -100.0));
@@ -50,13 +54,12 @@ impl SRLatch {
 			WireLayoutCommand::AlignHorizontal,
 		]);
 
-		RectangleChip {
+		SRLatch {
 			internals: ChipInternals {
 				circuit,
 				inner_scale: 0.8,
 			},
 			position: pos,
-			size: (400.0, 400.0),
 			text: Some(TextInfo {
 				text: String::from("SR Latch"),
 				size: 70,
@@ -65,10 +68,52 @@ impl SRLatch {
 	}
 }
 
-pub struct DLatch;
+impl RectangleChip for SRLatch {
+    fn get_chip_internals(&self) -> &ChipInternals {
+        &self.internals
+    }
+
+    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+		&mut self.internals
+    }
+
+    fn get_chip_position(&self) -> (f64, f64) {
+		self.position
+    }
+
+    fn get_chip_size(&self) -> (f64, f64) {
+		(400.0, 400.0)
+    }
+	
+	fn get_mode(&self) -> SimulationMode {
+		SimulationMode::Circuit
+	}
+
+    fn set_mode(&mut self, mode: SimulationMode) {
+        todo!()
+    }
+
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		todo!()
+	}
+
+	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		todo!()
+	}
+
+    fn get_text_info(&self) -> Option<&TextInfo> {
+		self.text.as_ref()
+    }
+}
+
+pub struct DLatch {
+	internals: ChipInternals,
+	position: (f64, f64),
+	text: Option<TextInfo>,
+}
 
 impl DLatch {
-	pub fn new(pos: (f64, f64)) -> RectangleChip {
+	pub fn new(pos: (f64, f64)) -> DLatch {
 		let mut circuit = Circuit::new();
 
 		let offset = 200.0;
@@ -124,13 +169,12 @@ impl DLatch {
 			WireLayoutCommand::AlignHorizontal,
 		]);
 
-		RectangleChip {
+		DLatch {
 			internals: ChipInternals {
 				circuit,
 				inner_scale: 0.5,
 			},
 			position: pos,
-			size: (600.0, 400.0),
 			text: Some(TextInfo {
 				text: String::from("D Latch"),
 				size: 70,
@@ -139,10 +183,52 @@ impl DLatch {
 	}
 }
 
-pub struct DFlipFlop;
+impl RectangleChip for DLatch {
+    fn get_chip_internals(&self) -> &ChipInternals {
+        &self.internals
+    }
+
+    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+		&mut self.internals
+    }
+
+    fn get_chip_position(&self) -> (f64, f64) {
+		self.position
+    }
+
+    fn get_chip_size(&self) -> (f64, f64) {
+		(600.0, 400.0)
+    }
+	
+	fn get_mode(&self) -> SimulationMode {
+		SimulationMode::Circuit
+	}
+
+    fn set_mode(&mut self, mode: SimulationMode) {
+        todo!()
+    }
+
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		todo!()
+	}
+
+	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		todo!()
+	}
+
+    fn get_text_info(&self) -> Option<&TextInfo> {
+		self.text.as_ref()
+    }
+}
+
+pub struct DFlipFlop {
+	internals: ChipInternals,
+	position: (f64, f64),
+	text: Option<TextInfo>,
+}
 
 impl DFlipFlop {
-	pub fn new(pos: (f64, f64)) -> RectangleChip {
+	pub fn new(pos: (f64, f64)) -> DFlipFlop {
 		let mut circuit = Circuit::new();
 		
 		let offset = 100.0;
@@ -192,13 +278,12 @@ impl DFlipFlop {
 			WireLayoutCommand::AlignHorizontal,
 		]);
 
-		RectangleChip {
+		DFlipFlop {
 			internals: ChipInternals {
 				circuit,
 				inner_scale: 0.3,
 			},
 			position: pos,
-			size: (600.0, 400.0),
 			text: Some(TextInfo {
 				text: String::from("D Flip-Flop"),
 				size: 70,
@@ -207,10 +292,53 @@ impl DFlipFlop {
 	}
 }
 
-pub struct MultiDFlipFlop;
+impl RectangleChip for DFlipFlop {
+    fn get_chip_internals(&self) -> &ChipInternals {
+        &self.internals
+    }
+
+    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+		&mut self.internals
+    }
+
+    fn get_chip_position(&self) -> (f64, f64) {
+		self.position
+    }
+
+    fn get_chip_size(&self) -> (f64, f64) {
+		(600.0, 400.0)
+    }
+	
+	fn get_mode(&self) -> SimulationMode {
+		SimulationMode::Circuit
+	}
+
+    fn set_mode(&mut self, mode: SimulationMode) {
+        todo!()
+    }
+
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		todo!()
+	}
+
+	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		todo!()
+	}
+
+    fn get_text_info(&self) -> Option<&TextInfo> {
+		self.text.as_ref()
+    }
+}
+
+pub struct MultiDFlipFlop {
+	internals: ChipInternals,
+	position: (f64, f64),
+	size: usize,
+	text: Option<TextInfo>,
+}
 
 impl MultiDFlipFlop {
-	pub fn new(pos: (f64, f64), size: usize) -> RectangleChip {
+	pub fn new(pos: (f64, f64), size: usize) -> MultiDFlipFlop {
 		let mut circuit = Circuit::new();
 
 		let scale = 0.19;
@@ -266,17 +394,55 @@ impl MultiDFlipFlop {
 			circuit.connect((clock_juncs[i], 1), (clock_juncs[i+1], 0), vec![]);
 		}
 
-		RectangleChip {
+		MultiDFlipFlop {
 			internals: ChipInternals {
 				circuit,
 				inner_scale: 0.19,
 			},
 			position: pos,
-			size: (400.0, size as f64 * 100.0),
+			size,
 			text: Some(TextInfo {
 				text: format!("{}-bit D Flip-Flop", size),
 				size: 40,
 			}),
 		}
 	}
+}
+
+impl RectangleChip for MultiDFlipFlop {
+    fn get_chip_internals(&self) -> &ChipInternals {
+        &self.internals
+    }
+
+    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+		&mut self.internals
+    }
+
+    fn get_chip_position(&self) -> (f64, f64) {
+		self.position
+    }
+
+    fn get_chip_size(&self) -> (f64, f64) {
+		(400.0, self.size as f64 * 100.0)
+    }
+	
+	fn get_mode(&self) -> SimulationMode {
+		SimulationMode::Circuit
+	}
+
+    fn set_mode(&mut self, mode: SimulationMode) {
+        todo!()
+    }
+
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		todo!()
+	}
+
+	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		todo!()
+	}
+
+    fn get_text_info(&self) -> Option<&TextInfo> {
+		self.text.as_ref()
+    }
 }

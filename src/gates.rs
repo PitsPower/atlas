@@ -3,7 +3,7 @@
 use std::f64::consts::PI;
 
 use crate::add;
-use crate::core::{Chip, ChipInternals, Circuit, Pin, Junction, Switch};
+use crate::core::{Chip, ChipInternals, Circuit, Pin, PinError, PinState, Junction, SimulationMode, Switch, TextInfo};
 use crate::graphics::{Viewport, WireLayoutCommand};
 use crate::transistor::{NTransistor, PTransistor};
 
@@ -61,6 +61,26 @@ impl Chip for AndGate {
     fn get_chip_size(&self) -> (f64, f64) {
         (110.0, 110.0)
     }
+
+    fn get_text_info(&self) -> Option<&TextInfo> {
+        todo!()
+    }
+	
+	fn get_mode(&self) -> SimulationMode {
+		SimulationMode::Circuit
+	}
+
+    fn set_mode(&mut self, mode: SimulationMode) {
+        todo!()
+    }
+
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		todo!()
+	}
+
+	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		todo!()
+	}
 
     fn contains_chip(&self, _viewport: &Viewport) -> bool {
 		false
@@ -204,6 +224,26 @@ impl Chip for NandGate {
     fn get_chip_size(&self) -> (f64, f64) {
         (110.0, 110.0)
     }
+
+    fn get_text_info(&self) -> Option<&TextInfo> {
+        todo!()
+    }
+	
+	fn get_mode(&self) -> SimulationMode {
+		SimulationMode::Circuit
+	}
+
+    fn set_mode(&mut self, mode: SimulationMode) {
+        todo!()
+    }
+
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		todo!()
+	}
+
+	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		todo!()
+	}
 
     fn contains_chip(&self, _viewport: &Viewport) -> bool {
 		false
@@ -354,6 +394,26 @@ impl Chip for NorGate {
         (110.0, 110.0)
     }
 
+    fn get_text_info(&self) -> Option<&TextInfo> {
+        todo!()
+    }
+	
+	fn get_mode(&self) -> SimulationMode {
+		SimulationMode::Circuit
+	}
+
+    fn set_mode(&mut self, mode: SimulationMode) {
+        todo!()
+    }
+
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		todo!()
+	}
+
+	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		todo!()
+	}
+
     fn contains_chip(&self, _viewport: &Viewport) -> bool {
 		false
     }
@@ -480,6 +540,26 @@ impl Chip for NotGate {
         (110.0, 110.0)
     }
 
+    fn get_text_info(&self) -> Option<&TextInfo> {
+        todo!()
+    }
+	
+	fn get_mode(&self) -> SimulationMode {
+		SimulationMode::Circuit
+	}
+
+    fn set_mode(&mut self, mode: SimulationMode) {
+        todo!()
+    }
+
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		todo!()
+	}
+
+	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		todo!()
+	}
+
     fn contains_chip(&self, _viewport: &Viewport) -> bool {
 		false
     }
@@ -592,6 +672,26 @@ impl Chip for OrGate {
     fn get_chip_size(&self) -> (f64, f64) {
         (110.0, 110.0)
     }
+
+    fn get_text_info(&self) -> Option<&TextInfo> {
+        todo!()
+    }
+	
+	fn get_mode(&self) -> SimulationMode {
+		SimulationMode::Circuit
+	}
+
+    fn set_mode(&mut self, mode: SimulationMode) {
+        todo!()
+    }
+
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		todo!()
+	}
+
+	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		todo!()
+	}
 
     fn contains_chip(&self, _viewport: &Viewport) -> bool {
 		false
@@ -724,6 +824,26 @@ impl Chip for XorGate {
     fn get_chip_size(&self) -> (f64, f64) {
         (110.0, 110.0)
     }
+
+    fn get_text_info(&self) -> Option<&TextInfo> {
+        todo!()
+    }
+	
+	fn get_mode(&self) -> SimulationMode {
+		SimulationMode::Circuit
+	}
+
+    fn set_mode(&mut self, mode: SimulationMode) {
+        todo!()
+    }
+
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		todo!()
+	}
+
+	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		todo!()
+	}
 
     fn contains_chip(&self, _viewport: &Viewport) -> bool {
 		false

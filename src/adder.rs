@@ -1,14 +1,22 @@
 //! Adder components.
 
 use crate::add;
-use crate::core::{ChipInternals, Circuit, Junction, Pin, RectangleChip, TextInfo};
+use crate::core::{ChipInternals, Circuit, Junction, Pin, PinError, PinState, RectangleChip, SimulationMode, TextInfo};
 use crate::gates::{AndGate, OrGate, XorGate};
 use crate::graphics::WireLayoutCommand;
 
-pub struct HalfAdder;
+pub struct HalfAdder {
+	internals: ChipInternals,
+	sim_mode: SimulationMode,
+	position: (f64, f64),
+	text: Option<TextInfo>,
+
+	input1: PinState,
+	input2: PinState,
+}
 
 impl HalfAdder {
-	pub fn new(pos: (f64, f64)) -> RectangleChip {
+	pub fn new(pos: (f64, f64)) -> HalfAdder {
 		let mut circuit = Circuit::new();
 		
 		let input1 = add!(circuit, Pin, (-250.0, -150.0));
@@ -50,25 +58,80 @@ impl HalfAdder {
 			WireLayoutCommand::AlignHorizontal,
 		]);
 
-		RectangleChip {
+		HalfAdder {
 			internals: ChipInternals {
 				circuit,
 				inner_scale: 0.4,
 			},
+			sim_mode: SimulationMode::HighLevel,
 			position: pos,
-			size: (200.0, 200.0),
 			text: Some(TextInfo {
 				text: String::from("Half Adder"),
 				size: 27,
 			}),
+
+			input1: PinState::Disconnected,
+			input2: PinState::Disconnected,
 		}
 	}
 }
 
-pub struct FullAdder;
+impl RectangleChip for HalfAdder {
+    fn get_chip_internals(&self) -> &ChipInternals {
+        &self.internals
+    }
+
+    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+		&mut self.internals
+    }
+
+    fn get_chip_position(&self) -> (f64, f64) {
+		self.position
+    }
+
+    fn get_chip_size(&self) -> (f64, f64) {
+		(200.0, 200.0)
+    }
+	
+	fn get_mode(&self) -> SimulationMode {
+		self.sim_mode
+	}
+
+    fn set_mode(&mut self, mode: SimulationMode) {
+		self.sim_mode = mode;
+    }
+
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		match idx {
+			0 | 1 => Ok(PinState::Disconnected),
+			2 => Ok(PinState::from_binary(self.input1.to_binary() && self.input2.to_binary())),
+			3 => Ok(self.input1.xor(self.input2)),
+			_ => Err(PinError::OutOfRange),
+		}
+	}
+
+	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		match idx {
+			0 => { self.input1 = state; Ok(()) },
+			1 => { self.input2 = state; Ok(()) },
+			2 | 3 => Ok(()),
+			_ => Err(PinError::OutOfRange),
+		}
+	}
+
+    fn get_text_info(&self) -> Option<&TextInfo> {
+		self.text.as_ref()
+    }
+}
+
+pub struct FullAdder {
+	internals: ChipInternals,
+	position: (f64, f64),
+	text: Option<TextInfo>,
+}
 
 impl FullAdder {
-	pub fn new(pos: (f64, f64)) -> RectangleChip {
+	pub fn new(pos: (f64, f64)) -> FullAdder {
 		let mut circuit = Circuit::new();
 		
 		let half_adder_1 = add!(circuit, HalfAdder, (-200.0, 100.0));
@@ -125,13 +188,12 @@ impl FullAdder {
 			WireLayoutCommand::AlignVertical,
 		]);
 
-		RectangleChip {
+		FullAdder {
 			internals: ChipInternals {
 				circuit,
 				inner_scale: 0.4,
 			},
 			position: pos,
-			size: (400.0, 200.0),
 			text: Some(TextInfo {
 				text: String::from("Full Adder"),
 				size: 50,
@@ -140,10 +202,53 @@ impl FullAdder {
 	}
 }
 
-pub struct Adder;
+impl RectangleChip for FullAdder {
+    fn get_chip_internals(&self) -> &ChipInternals {
+        &self.internals
+    }
+
+    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+		&mut self.internals
+    }
+
+    fn get_chip_position(&self) -> (f64, f64) {
+		self.position
+    }
+
+    fn get_chip_size(&self) -> (f64, f64) {
+		(400.0, 200.0)
+    }
+	
+	fn get_mode(&self) -> SimulationMode {
+		SimulationMode::Circuit
+	}
+
+    fn set_mode(&mut self, mode: SimulationMode) {
+        todo!()
+    }
+
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		todo!()
+	}
+
+	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		todo!()
+	}
+
+    fn get_text_info(&self) -> Option<&TextInfo> {
+		self.text.as_ref()
+    }
+}
+
+pub struct Adder {
+	internals: ChipInternals,
+	size: usize,
+	position: (f64, f64),
+	text: Option<TextInfo>,
+}
 
 impl Adder {
-	pub fn new(pos: (f64, f64), size: usize) -> RectangleChip {
+	pub fn new(pos: (f64, f64), size: usize) -> Adder {
 		let mut circuit = Circuit::new();
 
 		let adders: Vec<_> = (0..size)
@@ -184,17 +289,55 @@ impl Adder {
 			circuit.connect((adders[i as usize], 4), (adders[(i+1) as usize], 2), vec![]);
 		}
 
-		RectangleChip {
+		Adder {
 			internals: ChipInternals {
 				circuit,
 				inner_scale: 0.3,
 			},
 			position: pos,
-			size: (400.0, size as f64 * 100.0),
+			size,
 			text: Some(TextInfo {
 				text: format!("{}-bit Adder", size),
 				size: 50,
 			}),
 		}
 	}
+}
+
+impl RectangleChip for Adder {
+    fn get_chip_internals(&self) -> &ChipInternals {
+        &self.internals
+    }
+
+    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+		&mut self.internals
+    }
+
+    fn get_chip_position(&self) -> (f64, f64) {
+		self.position
+    }
+
+    fn get_chip_size(&self) -> (f64, f64) {
+		(400.0, self.size as f64 * 100.0)
+    }
+	
+	fn get_mode(&self) -> SimulationMode {
+		SimulationMode::Circuit
+	}
+
+    fn set_mode(&mut self, mode: SimulationMode) {
+        todo!()
+    }
+
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		todo!()
+	}
+
+	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		todo!()
+	}
+
+    fn get_text_info(&self) -> Option<&TextInfo> {
+		self.text.as_ref()
+    }
 }

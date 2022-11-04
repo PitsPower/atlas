@@ -52,6 +52,27 @@ impl PinState {
             PinState::Disconnected => "#999",
         }
     }
+
+	/// Returns `true` if the input is [`PinState::On`] and `false` otherwise.
+	pub fn to_binary(&self) -> bool {
+		*self == PinState::On
+	}
+
+	/// Returns [`PinState::On`] if the input is `true` and [`PinState::Off`] if
+	/// the input is `false`. 
+	pub fn from_binary(b: bool) -> PinState {
+		if b { PinState::On } else { PinState::Off }
+	}
+
+	/// Returns the XOR of this signal with the given signal.
+	pub fn xor(&self, other: PinState) -> PinState {
+		match (self.to_binary(), other.to_binary()) {
+			(true, true) => PinState::Off,
+			(true, false) => PinState::On,
+			(false, true) => PinState::On,
+			(false, false) => PinState::Off,
+		}
+	}
 }
 
 /// Converts a list of pin states into a number by interpreting the states as a binary value.
@@ -349,7 +370,7 @@ impl Circuit {
 }
 
 impl Drawable for Circuit {
-	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: Viewport) {
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: Viewport) -> SimulationMode {
 		for wire in &self.wires {
 			let con1 = &wire.pin1;
 			let con2 = &wire.pin2;
@@ -419,8 +440,11 @@ impl Drawable for Circuit {
 			ctx.translate(x, y).unwrap();
 
 			component.draw(ctx, viewport);
+			
 			ctx.restore();
 		}
+
+		SimulationMode::None
 	}
 }
 
@@ -433,13 +457,15 @@ pub struct ChipInternals {
 }
 
 impl Drawable for ChipInternals {
-	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: Viewport) {
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: Viewport) -> SimulationMode {
 		ctx.save();
 		ctx.scale(self.inner_scale, self.inner_scale).unwrap();
 
 		self.circuit.draw(ctx, viewport);
 
 		ctx.restore();
+
+		SimulationMode::None
 	}
 }
 
@@ -458,6 +484,21 @@ pub trait Chip {
 	/// Returns the size of the chip.
 	fn get_chip_size(&self) -> (f64, f64);
 
+	/// Returns the text info for the chip.
+	fn get_text_info(&self) -> Option<&TextInfo>;
+	
+	/// Return the current simulation mode.
+	fn get_mode(&self) -> SimulationMode;
+	
+	/// Sets the simulation mode of the chip to the given mode.
+	fn set_mode(&mut self, mode: SimulationMode);
+
+	/// Returns the state of a pin.
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError>;
+
+	/// Sets the state of a pin.
+	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError>;
+
 	/// Returns whether the given viewport is fully contained within the chip.
 	fn contains_chip(&self, viewport: &Viewport) -> bool;
 
@@ -471,8 +512,8 @@ pub trait Chip {
 	fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d);
 }
 
-impl<T> Drawable for T where T: Chip {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: Viewport) {
+impl<T: Chip> Drawable for T {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: Viewport) -> SimulationMode {
 		self.draw_back(ctx);
 
 		let start_ratio = 0.3;
@@ -485,6 +526,8 @@ impl<T> Drawable for T where T: Chip {
 
 		let height_ratio = height / viewport.get_size().1;
 
+		let mut sim_mode = SimulationMode::HighLevel;
+
 		if self.intersects(&viewport) && height_ratio > start_ratio {
 			self.get_chip_internals().draw(
 				ctx,
@@ -493,16 +536,20 @@ impl<T> Drawable for T where T: Chip {
 					self.get_chip_internals(),
 				),
 			);
+
+			sim_mode = SimulationMode::Circuit;
 		}
 
 		let opacity = ((end_ratio - height_ratio) / (end_ratio - start_ratio)).max(0.0);
 		ctx.set_global_alpha(opacity);
 		
 		self.draw_front(ctx);
+		
+		sim_mode
     }
 }
 
-impl<T> Component for T where T: Chip {
+impl<T: Chip> Component for T {
 	fn get_internals(&self) -> Option<&ChipInternals> {
 		Some(self.get_chip_internals())
 	}
@@ -518,35 +565,47 @@ impl<T> Component for T where T: Chip {
     }
 
     fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
-		let maybe_pin_component = self.get_chip_internals().circuit.components.iter()
-			.filter(|c| c.is_pin())
-			.nth(idx);
-
-		match maybe_pin_component {
-			Some(pin_component) => {
-				pin_component.get_pin_state_external(0)
+		match self.get_mode() {
+			SimulationMode::Circuit => {
+				let maybe_pin_component = self.get_chip_internals().circuit.components.iter()
+					.filter(|c| c.is_pin())
+					.nth(idx);
+		
+				match maybe_pin_component {
+					Some(pin_component) => {
+						pin_component.get_pin_state_external(0)
+					},
+					None => Err(PinError::OutOfRange),
+				}
 			},
-			None => Err(PinError::OutOfRange),
+			SimulationMode::HighLevel => self.get_pin_state_high_level(idx),
+			SimulationMode::None => todo!(),
 		}
     }
 
     fn set_pin_state(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		let maybe_component_idx = self.get_chip_internals_mut().circuit.components.iter_mut()
-			.enumerate()
-			.filter(|(_, c)| c.is_pin())
-			.nth(idx)
-			.map(|(i, _)| i);
+		match self.get_mode() {
+			SimulationMode::Circuit => {
+				let maybe_component_idx = self.get_chip_internals_mut().circuit.components.iter_mut()
+					.enumerate()
+					.filter(|(_, c)| c.is_pin())
+					.nth(idx)
+					.map(|(i, _)| i);
 
-		match maybe_component_idx {
-			Some(component_idx) => {
-				let connection = ExternalPin {
-					component_idx,
-					pin_idx: 0,
-				};
-				self.get_chip_internals_mut().circuit.update_component(&connection, state, true);
-				Ok(())
+				match maybe_component_idx {
+					Some(component_idx) => {
+						let connection = ExternalPin {
+							component_idx,
+							pin_idx: 0,
+						};
+						self.get_chip_internals_mut().circuit.update_component(&connection, state, true);
+						Ok(())
+					},
+					None => Err(PinError::OutOfRange),
+				}
 			},
-			None => Err(PinError::OutOfRange),
+			SimulationMode::HighLevel => self.set_pin_state_high_level(idx, state),
+			SimulationMode::None => todo!(),
 		}
     }
 
@@ -575,55 +634,110 @@ pub struct TextInfo {
 	pub size: u32,
 }
 
-/// A [`Chip`] that looks like a rectangle.
-pub struct RectangleChip {
-	/// The chip internals.
-	pub internals: ChipInternals,
-	/// The position of the chip.
-	pub position: (f64, f64),
-	/// The size of the chip.
-	pub size: (f64, f64),
-	/// The text on the chip, if any.
-	pub text: Option<TextInfo>,
+/// How a chip should be simulated.
+#[derive(Clone, Copy)]
+pub enum SimulationMode {
+	/// Simulate the circuit in the chip.
+	Circuit,
+	/// Simulate the chip using the high level implementation.
+	HighLevel,
+	/// Don't simulate anything.
+	None,
 }
 
-impl Chip for RectangleChip {
+/// A [`Chip`] that looks like a rectangle.
+pub trait RectangleChip {
+	/// Returns the chip internals.
+	fn get_chip_internals(&self) -> &ChipInternals;
+
+	/// Returns the mutable chip internals.
+	fn get_chip_internals_mut(&mut self) -> &mut ChipInternals;
+
+	/// Returns the position of the chip.
+	fn get_chip_position(&self) -> (f64, f64);
+
+	/// Returns the size of the chip.
+	fn get_chip_size(&self) -> (f64, f64);
+
+	/// Returns the text info for the chip.
+	fn get_text_info(&self) -> Option<&TextInfo>;
+	
+	/// Return the current simulation mode.
+	fn get_mode(&self) -> SimulationMode;
+	
+	/// Sets the simulation mode of the chip to the given mode.
+	fn set_mode(&mut self, mode: SimulationMode);
+
+	/// Returns the state of a pin.
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError>;
+
+	/// Sets the state of a pin.
+	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError>;
+}
+
+impl<T: RectangleChip> Chip for T {
 	fn get_chip_internals(&self) -> &ChipInternals {
-		&self.internals
+		self.get_chip_internals()
 	}
 	
 	fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
-		&mut self.internals
+		self.get_chip_internals_mut()
 	}
 
 	fn get_chip_position(&self) -> (f64, f64) {
-		self.position
+		self.get_chip_position()
 	}
 
 	fn get_chip_size(&self) -> (f64, f64) {
-		self.size
+		self.get_chip_size()
+	}
+
+    fn get_text_info(&self) -> Option<&TextInfo> {
+		self.get_text_info()
+    }
+	
+	fn get_mode(&self) -> SimulationMode {
+		self.get_mode()
+	}
+
+    fn set_mode(&mut self, mode: SimulationMode) {
+		self.set_mode(mode)
+    }
+
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		self.get_pin_state_high_level(idx)
+	}
+
+	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		self.set_pin_state_high_level(idx, state)
 	}
 
 	fn contains_chip(&self, viewport: &Viewport) -> bool {
+		let position = self.get_position();
+		let size = self.get_size();
+
 		let contains_x =
-			self.position.0 + self.size.0 * 0.5 >= viewport.get_position().0 + viewport.get_size().0 * 0.5 &&
-			self.position.0 - self.size.0 * 0.5 <= viewport.get_position().0 - viewport.get_size().0 * 0.5;
+			position.0 + size.0 * 0.5 >= viewport.get_position().0 + viewport.get_size().0 * 0.5 &&
+			position.0 - size.0 * 0.5 <= viewport.get_position().0 - viewport.get_size().0 * 0.5;
 
 		let contains_y =
-			self.position.1 + self.size.1 * 0.5 >= viewport.get_position().1 + viewport.get_size().1 * 0.5 &&
-			self.position.1 - self.size.1 * 0.5 <= viewport.get_position().1 - viewport.get_size().1 * 0.5;
+			position.1 + size.1 * 0.5 >= viewport.get_position().1 + viewport.get_size().1 * 0.5 &&
+			position.1 - size.1 * 0.5 <= viewport.get_position().1 - viewport.get_size().1 * 0.5;
 
 		contains_x && contains_y
 	}
 
 	fn intersects_chip(&self, viewport: &Viewport) -> bool {
+		let position = self.get_position();
+		let size = self.get_size();
+
 		let intersects_x =
-			self.position.0 + self.size.0 * 0.5 >= viewport.get_position().0 - viewport.get_size().0 * 0.5 &&
-			self.position.0 - self.size.0 * 0.5 <= viewport.get_position().0 + viewport.get_size().0 * 0.5;
+			position.0 + size.0 * 0.5 >= viewport.get_position().0 - viewport.get_size().0 * 0.5 &&
+			position.0 - size.0 * 0.5 <= viewport.get_position().0 + viewport.get_size().0 * 0.5;
 
 		let intersects_y =
-			self.position.1 + self.size.1 * 0.5 >= viewport.get_position().1 - viewport.get_size().1 * 0.5 &&
-			self.position.1 - self.size.1 * 0.5 <= viewport.get_position().1 + viewport.get_size().1 * 0.5;
+			position.1 + size.1 * 0.5 >= viewport.get_position().1 - viewport.get_size().1 * 0.5 &&
+			position.1 - size.1 * 0.5 <= viewport.get_position().1 + viewport.get_size().1 * 0.5;
 
 		intersects_x && intersects_y
 	}
@@ -631,14 +745,13 @@ impl Chip for RectangleChip {
     fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_fill_style(&"#000".into());
 		
-		let width = self.size.0;
-		let height = self.size.1;
+		let (width, height) = self.get_size();
 
 		ctx.begin_path();
 		ctx.rect(-width * 0.5, -height * 0.5, width, height);
 		ctx.fill();
 
-		if let Some(info) = &self.text {
+		if let Some(info) = &self.get_text_info() {
 			ctx.set_fill_style(&"#fff".into());
 			ctx.set_font(format!("bold {}px monospace", info.size).as_str());
 			ctx.set_text_align("center");
@@ -654,8 +767,7 @@ impl Chip for RectangleChip {
 		ctx.set_stroke_style(&"#fff".into());
 		ctx.set_fill_style(&"#000".into());
 		
-		let width = self.size.0;
-		let height = self.size.1;
+		let (width, height) = self.get_size();
 
 		ctx.begin_path();
 		ctx.rect(-width * 0.5, -height * 0.5, width, height);
@@ -664,6 +776,17 @@ impl Chip for RectangleChip {
 		ctx.fill();
     }
 }
+
+// pub struct RectangleChip {
+// 	/// The chip internals.
+// 	pub internals: ChipInternals,
+// 	/// The position of the chip.
+// 	pub position: (f64, f64),
+// 	/// The size of the chip.
+// 	pub size: (f64, f64),
+// 	/// The text on the chip, if any.
+// 	pub text: Option<TextInfo>,
+// }
 
 /// An "internal" pin. Used for connecting an internal [`Circuit`] to a [`Chip`].
 /// 
@@ -690,8 +813,8 @@ impl Pin {
 }
 
 impl Drawable for Pin {
-    fn draw(&self, _ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) {
-		
+    fn draw(&self, _ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) -> SimulationMode {
+		SimulationMode::None
 	}
 }
 
@@ -760,7 +883,7 @@ impl Switch {
 }
 
 impl Drawable for Switch {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) -> SimulationMode {
         ctx.set_fill_style(&self.state.get_colour().into());
 
 		let width = 100.0;
@@ -772,6 +895,8 @@ impl Drawable for Switch {
 			width,
 			height,
 		);
+
+		SimulationMode::None
     }
 }
 
@@ -831,7 +956,7 @@ impl MultiSwitch {
 }
 
 impl Drawable for MultiSwitch {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) -> SimulationMode {
 		ctx.set_line_width(10.0);
 
 		ctx.set_stroke_style(&"#fff".into());
@@ -860,6 +985,8 @@ impl Drawable for MultiSwitch {
 			let extra_width = if i == size-1 { 0.0 } else { 1.0 };
 			ctx.fill_rect((i as f64 - size as f64 * 0.5) * 50.0, height * 0.5 - 50.0, 50.0 + extra_width, 50.0);
 		}
+
+		SimulationMode::None
     }
 }
 
@@ -925,7 +1052,7 @@ impl Bulb {
 }
 
 impl Drawable for Bulb {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) -> SimulationMode {
         ctx.set_fill_style(&self.state.get_colour().into());
 		
 		let radius = 50.0;
@@ -939,6 +1066,8 @@ impl Drawable for Bulb {
 			2.0 * PI,
 		).unwrap();
 		ctx.fill();
+
+		SimulationMode::None
     }
 }
 
@@ -986,7 +1115,7 @@ impl MultiBulb {
 }
 
 impl Drawable for MultiBulb {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) -> SimulationMode {
 		ctx.set_line_width(10.0);
 
 		ctx.set_stroke_style(&"#fff".into());
@@ -1016,6 +1145,8 @@ impl Drawable for MultiBulb {
 			ctx.arc((i as f64 - size as f64 * 0.5) * 50.0 + 25.0, height * 0.5 - 25.0, 20.0, 0.0, 2.0 * PI).unwrap();
 			ctx.fill();
 		}
+
+		SimulationMode::None
     }
 }
 
@@ -1075,7 +1206,7 @@ impl Junction {
 }
 
 impl Drawable for Junction {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) -> SimulationMode {
         ctx.set_fill_style(&self.get_state().get_colour().into());
 		
 		let radius = 10.0;
@@ -1089,6 +1220,8 @@ impl Drawable for Junction {
 			2.0 * PI,
 		).unwrap();
 		ctx.fill();
+		
+		SimulationMode::None
     }
 }
 

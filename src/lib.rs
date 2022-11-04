@@ -16,7 +16,7 @@ use wasm_bindgen::prelude::*;
 use utils::set_panic_hook;
 
 use crate::adder::Adder;
-use crate::core::{Bulb, ChipInternals, Circuit, Junction, MultiBulb, MultiSwitch, RectangleChip, Switch};
+use crate::core::{Bulb, Circuit, Junction, MultiBulb, MultiSwitch, Switch};
 use crate::gates::{AndGate, NandGate, NorGate, NotGate, OrGate, XorGate};
 use crate::graphics::WireLayoutCommand;
 use crate::latches::MultiDFlipFlop;
@@ -42,52 +42,52 @@ macro_rules! add {
 	};
 }
 
-#[wasm_bindgen]
-pub fn example1(n: u32) -> Circuit {
-	fn iter(n: u32) -> Circuit {
-		let mut result = Circuit::new();
+// #[wasm_bindgen]
+// pub fn example1(n: u32) -> Circuit {
+// 	fn iter(n: u32) -> Circuit {
+// 		let mut result = Circuit::new();
 		
-		if n > 0 {
-			let chip1 = RectangleChip {
-				internals: ChipInternals {
-					circuit: iter(n-1),
-					inner_scale: 0.4,
-				},
-				position: (-180.0, 0.0),
-				size: (300.0, 300.0),
-				text: None,
-			};
-			let chip2 = RectangleChip {
-				internals: ChipInternals {
-					circuit: iter(n-1),
-					inner_scale: 0.4,
-				},
-				position: (180.0, 0.0),
-				size: (300.0, 300.0),
-				text: None,
-			};
+// 		if n > 0 {
+// 			let chip1 = RectangleChip {
+// 				internals: ChipInternals {
+// 					circuit: iter(n-1),
+// 					inner_scale: 0.4,
+// 				},
+// 				position: (-180.0, 0.0),
+// 				size: (300.0, 300.0),
+// 				text: None,
+// 			};
+// 			let chip2 = RectangleChip {
+// 				internals: ChipInternals {
+// 					circuit: iter(n-1),
+// 					inner_scale: 0.4,
+// 				},
+// 				position: (180.0, 0.0),
+// 				size: (300.0, 300.0),
+// 				text: None,
+// 			};
 
-			result.add(Box::new(chip1));
-			result.add(Box::new(chip2));
-		}
+// 			result.add(Box::new(chip1));
+// 			result.add(Box::new(chip2));
+// 		}
 
-		result
-	}
+// 		result
+// 	}
 
-	let chip = RectangleChip {
-		internals: ChipInternals {
-			circuit: iter(n),
-			inner_scale: 1.0,
-		},
-		position: (0.0, 10.0),
-		size: (850.0, 500.0),
-		text: None,
-	};
+// 	let chip = RectangleChip {
+// 		internals: ChipInternals {
+// 			circuit: iter(n),
+// 			inner_scale: 1.0,
+// 		},
+// 		position: (0.0, 10.0),
+// 		size: (850.0, 500.0),
+// 		text: None,
+// 	};
 
-	let mut circuit = Circuit::new();
-	circuit.add(Box::new(chip));
-	circuit
-}
+// 	let mut circuit = Circuit::new();
+// 	circuit.add(Box::new(chip));
+// 	circuit
+// }
 
 #[wasm_bindgen]
 pub fn example2() -> Circuit {
