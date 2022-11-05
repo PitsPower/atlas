@@ -54,19 +54,19 @@ impl PinState {
     }
 
 	/// Returns `true` if the input is [`PinState::On`] and `false` otherwise.
-	pub fn to_binary(&self) -> bool {
+	pub fn to_bool(&self) -> bool {
 		*self == PinState::On
 	}
 
 	/// Returns [`PinState::On`] if the input is `true` and [`PinState::Off`] if
 	/// the input is `false`. 
-	pub fn from_binary(b: bool) -> PinState {
+	pub fn from_bool(b: bool) -> PinState {
 		if b { PinState::On } else { PinState::Off }
 	}
 
 	/// Returns the XOR of this signal with the given signal.
 	pub fn xor(&self, other: PinState) -> PinState {
-		match (self.to_binary(), other.to_binary()) {
+		match (self.to_bool(), other.to_bool()) {
 			(true, true) => PinState::Off,
 			(true, false) => PinState::On,
 			(false, true) => PinState::On,
@@ -78,7 +78,7 @@ impl PinState {
 /// Converts a list of pin states into a number by interpreting the states as a binary value.
 /// [`PinState::Disconnected`] and [`PinState::Off`] are treated as 0 and [`PinState::On`] is treated as 1.
 /// The first state in the list is treated as the most significant bit.
-fn states_to_num(states: &Vec<PinState>) -> u32 {
+pub fn states_to_num(states: &Vec<PinState>) -> u32 {
 	let mut result = 0;
 
 	for state in states {
@@ -86,6 +86,20 @@ fn states_to_num(states: &Vec<PinState>) -> u32 {
 		if *state == PinState::On {
 			result += 1;
 		}
+	}
+
+	result
+}
+
+/// Convert a number into a list of pin states where each pin state is a binary bit in the number.
+/// The first state in the list is treated as the most significant bit.
+pub fn num_to_states(num: u32) -> Vec<PinState> {
+	let mut result = vec![];
+	let mut current = num;
+
+	while current != 0 {
+		result.insert(0, if current % 2 == 1 { PinState::On } else { PinState::Off });
+		current /= 2;
 	}
 
 	result
@@ -153,7 +167,7 @@ pub trait Component: Drawable {
 	}
 
 	/// Sets the simulation mode of the chip to the given mode.
-	fn set_mode(&mut self, mode: SimulationMode) {
+	fn set_mode(&mut self, _mode: SimulationMode) {
 
 	}
 
@@ -758,7 +772,6 @@ impl<T: RectangleChip> Chip for T {
 	
 	fn are_internals_visible(&self, viewport: &Viewport) -> bool {
 		let start_ratio = 0.3;
-		let end_ratio = 0.5;
 
 		let height = self.get_size().1;
 		let height_ratio = height / viewport.get_size().1;
@@ -767,7 +780,12 @@ impl<T: RectangleChip> Chip for T {
 	}
 
     fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
-		ctx.set_fill_style(&"#000".into());
+		match self.get_mode() {
+			SimulationMode::Circuit => ctx.set_fill_style(&"#000".into()),
+			SimulationMode::HighLevel => ctx.set_fill_style(&"#f00".into()),
+		}
+
+		// ctx.set_fill_style(&"#000".into());
 		
 		let (width, height) = self.get_size();
 
@@ -787,9 +805,14 @@ impl<T: RectangleChip> Chip for T {
 
     fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_line_width(10.0);
-
 		ctx.set_stroke_style(&"#fff".into());
-		ctx.set_fill_style(&"#000".into());
+		
+		match self.get_mode() {
+			SimulationMode::Circuit => ctx.set_fill_style(&"#000".into()),
+			SimulationMode::HighLevel => ctx.set_fill_style(&"#f00".into()),
+		}
+
+		// ctx.set_fill_style(&"#000".into());
 		
 		let (width, height) = self.get_size();
 

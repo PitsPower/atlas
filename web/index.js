@@ -29,6 +29,7 @@ window.addEventListener("resize", () => {
 	canvas.width = window.innerWidth;
 	canvas.height = window.innerHeight;
 	renderer.update_size();
+	renderer.update_sim_modes(circuit);
 });
 
 let isPanning = false;

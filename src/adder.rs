@@ -1,7 +1,10 @@
 //! Adder components.
 
 use crate::add;
-use crate::core::{ChipInternals, Circuit, Junction, Pin, PinError, PinState, RectangleChip, SimulationMode, TextInfo, ExternalPin};
+use crate::core::{
+	ChipInternals, Circuit, ExternalPin, Junction, num_to_states,
+	Pin, PinError, PinState, RectangleChip, SimulationMode, states_to_num, TextInfo,
+};
 use crate::gates::{AndGate, OrGate, XorGate};
 use crate::graphics::WireLayoutCommand;
 
@@ -122,7 +125,7 @@ impl RectangleChip for HalfAdder {
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
 		match idx {
 			0 | 1 => Ok(PinState::Disconnected),
-			2 => Ok(PinState::from_binary(self.input1.to_binary() && self.input2.to_binary())),
+			2 => Ok(PinState::from_bool(self.input1.to_bool() && self.input2.to_bool())),
 			3 => Ok(self.input1.xor(self.input2)),
 			_ => Err(PinError::OutOfRange),
 		}
@@ -144,8 +147,13 @@ impl RectangleChip for HalfAdder {
 
 pub struct FullAdder {
 	internals: ChipInternals,
+	sim_mode: SimulationMode,
 	position: (f64, f64),
 	text: Option<TextInfo>,
+
+	input1: PinState,
+	input2: PinState,
+	carry_in: PinState,
 }
 
 impl FullAdder {
@@ -211,11 +219,16 @@ impl FullAdder {
 				circuit,
 				inner_scale: 0.4,
 			},
+			sim_mode: SimulationMode::HighLevel,
 			position: pos,
 			text: Some(TextInfo {
 				text: String::from("Full Adder"),
 				size: 50,
 			}),
+
+			input1: PinState::Disconnected,
+			input2: PinState::Disconnected,
+			carry_in: PinState::Disconnected,
 		}
 	}
 }
@@ -238,19 +251,61 @@ impl RectangleChip for FullAdder {
     }
 	
 	fn get_mode(&self) -> SimulationMode {
-		SimulationMode::Circuit
+		self.sim_mode
 	}
 
     fn set_mode(&mut self, mode: SimulationMode) {
-        // todo!()
+		match (self.sim_mode, mode) {
+			(SimulationMode::HighLevel, SimulationMode::Circuit) => {
+				self.internals.circuit.update_component(&ExternalPin {
+					component_idx: 3,
+					pin_idx: 0,
+				}, self.input1, true);
+				self.internals.circuit.update_component(&ExternalPin {
+					component_idx: 4,
+					pin_idx: 0,
+				}, self.input2, true);
+				self.internals.circuit.update_component(&ExternalPin {
+					component_idx: 5,
+					pin_idx: 0,
+				}, self.carry_in, true);
+			},
+			(SimulationMode::Circuit, SimulationMode::HighLevel) => {
+				self.input1 = self.internals.circuit.get_components()[3].as_ref().get_pin_state(0).unwrap();
+				self.input2 = self.internals.circuit.get_components()[4].as_ref().get_pin_state(0).unwrap();
+				self.carry_in = self.internals.circuit.get_components()[5].as_ref().get_pin_state(0).unwrap();
+			},
+			_ => { },
+		}
+		
+		self.sim_mode = mode;
     }
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
-		todo!()
+		match idx {
+			0 | 1 | 2 => Ok(PinState::Disconnected),
+			3 => Ok(self.input1.xor(self.input2).xor(self.carry_in)),
+			4 => {
+				let i1 = self.input1.to_bool();
+				let i2 = self.input2.to_bool();
+				let c = self.carry_in.to_bool();
+
+				let result = (i1 && (i2 || c)) || (i2 && c);
+
+				Ok(PinState::from_bool(result))
+			},
+			_ => Err(PinError::OutOfRange),
+		}
 	}
 
 	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		todo!()
+		match idx {
+			0 => { self.input1 = state; Ok(()) },
+			1 => { self.input2 = state; Ok(()) },
+			2 => { self.carry_in = state; Ok(()) },
+			3 | 4 => Ok(()),
+			_ => Err(PinError::OutOfRange),
+		}
 	}
 
     fn get_text_info(&self) -> Option<&TextInfo> {
@@ -260,9 +315,13 @@ impl RectangleChip for FullAdder {
 
 pub struct Adder {
 	internals: ChipInternals,
+	sim_mode: SimulationMode,
 	size: usize,
 	position: (f64, f64),
 	text: Option<TextInfo>,
+
+	input1: Vec<PinState>,
+	input2: Vec<PinState>,
 }
 
 impl Adder {
@@ -312,12 +371,16 @@ impl Adder {
 				circuit,
 				inner_scale: 0.3,
 			},
-			position: pos,
+			sim_mode: SimulationMode::HighLevel,
 			size,
+			position: pos,
 			text: Some(TextInfo {
 				text: format!("{}-bit Adder", size),
 				size: 50,
 			}),
+
+			input1: vec![PinState::Disconnected; size],
+			input2: vec![PinState::Disconnected; size],
 		}
 	}
 }
@@ -340,19 +403,67 @@ impl RectangleChip for Adder {
     }
 	
 	fn get_mode(&self) -> SimulationMode {
-		SimulationMode::Circuit
+		self.sim_mode
 	}
 
     fn set_mode(&mut self, mode: SimulationMode) {
-        // todo!()
+		match (self.sim_mode, mode) {
+			(SimulationMode::HighLevel, SimulationMode::Circuit) => {
+				for i in 0..self.size {
+					self.internals.circuit.update_component(&ExternalPin {
+						component_idx: self.size + i,
+						pin_idx: 0,
+					}, self.input1[self.size - i - 1], true);
+					self.internals.circuit.update_component(&ExternalPin {
+						component_idx: self.size * 2 + i,
+						pin_idx: 0,
+					}, self.input2[self.size - i - 1], true);
+				}
+			},
+			(SimulationMode::Circuit, SimulationMode::HighLevel) => {
+				for i in 0..self.size {
+					self.input1[self.size - i - 1] =
+						self.internals.circuit.get_components()[self.size + i].as_ref()
+							.get_pin_state(0).unwrap();
+					self.input2[self.size - i - 1] =
+						self.internals.circuit.get_components()[self.size * 2 + i].as_ref()
+							.get_pin_state(0).unwrap();
+				}
+			},
+			_ => { },
+		}
+		
+		self.sim_mode = mode;
     }
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
-		todo!()
+		let i1 = states_to_num(&self.input1);
+		let i2 = states_to_num(&self.input2);
+
+		// TODO: Fix this for 32-bit adders maybe
+		let result = num_to_states(i1 + i2);
+
+		if idx < self.size * 2 {
+			Ok(PinState::Disconnected)
+		} else if idx >= self.size * 2 && idx < self.size * 3 {
+			let i = idx - self.size * 2;
+			Ok(*result.get(result.len() - i - 1).unwrap_or(&PinState::Off))
+		} else {
+			Err(PinError::OutOfRange)
+		}
 	}
 
 	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		todo!()
+		if idx < self.size {
+			self.input1[self.size - idx - 1] = state;
+			Ok(())
+		} else if idx >= self.size && idx < self.size * 2 {
+			self.input2[self.size - (idx - self.size) - 1] = state;
+			Ok(())
+		} else {
+			Err(PinError::OutOfRange)
+		}
+		
 	}
 
     fn get_text_info(&self) -> Option<&TextInfo> {
