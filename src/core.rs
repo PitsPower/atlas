@@ -36,7 +36,7 @@ impl PinState {
 	}
 
 	/// Toggles a pin state. If the state is [`PinState::Disconnected`], toggling doesn't affect it.
-	fn toggle(&self) -> PinState {
+	pub fn toggle(&self) -> PinState {
 		match *self {
 			PinState::On => PinState::Off,
 			PinState::Off => PinState::On,
@@ -243,6 +243,27 @@ impl Circuit {
 		&mut self.components
 	}
 
+	/// Returns the list of [`Pin`] components in the circuit.
+	pub fn get_pins(&self) -> Vec<&Box<dyn Component>> {
+		self.components.iter()
+			.filter(|c| c.is_pin())
+			.collect()
+	}
+
+	/// Sets a [`Pin`] component to a given [`PinState`].
+	pub fn set_pin(&mut self, idx: usize, state: PinState) {
+		let true_idx = self.components.iter()
+			.enumerate()
+			.filter(|(_, c)| c.is_pin())
+			.nth(idx)
+			.unwrap().0;
+
+		self.update_component(&ExternalPin {
+			component_idx: true_idx,
+			pin_idx: 0,
+		}, state, true);
+	}
+
 	/// Adds a component to the circuit.
 	pub fn add(&mut self, component: Box<dyn Component>) -> usize {
 		let idx = self.components.len();
@@ -361,6 +382,14 @@ impl Circuit {
 			self.update_component(&con, true_state, false);
 		}
 	}
+
+	/// Returns the positions of each [`Pin`].
+	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
+		self.components.iter()
+			.filter(|c| c.is_pin())
+			.map(|c| c.get_position())
+			.collect()
+	}
 }
 
 #[wasm_bindgen]
@@ -386,14 +415,6 @@ impl Circuit {
 
 		let state = self.components[component_idx].get_pin_state(pin_idx).unwrap();
 		self.update_component(&ExternalPin { component_idx: component_idx, pin_idx: pin_idx }, state.toggle(), true);
-	}
-
-	/// Returns the positions of each [`Pin`].
-	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
-		self.components.iter()
-			.filter(|c| c.is_pin())
-			.map(|c| c.get_position())
-			.collect()
 	}
 }
 

@@ -1,14 +1,22 @@
 //! Latch and flip-flop components.
 
 use crate::add;
-use crate::core::{ChipInternals, Circuit, Junction, Pin, PinError, PinState, RectangleChip, SimulationMode, TextInfo};
+use crate::core::{
+	ChipInternals, Circuit, ExternalPin, Junction,
+	Pin, PinError, PinState, RectangleChip, SimulationMode, TextInfo,
+};
 use crate::gates::{AndGate, NorGate, NotGate};
 use crate::graphics::WireLayoutCommand;
 
 pub struct SRLatch {
 	internals: ChipInternals,
+	sim_mode: SimulationMode,
 	position: (f64, f64),
 	text: Option<TextInfo>,
+
+	input_reset: PinState,
+	input_set: PinState,
+	state: PinState,
 }
 
 impl SRLatch {
@@ -59,11 +67,16 @@ impl SRLatch {
 				circuit,
 				inner_scale: 0.8,
 			},
+			sim_mode: SimulationMode::HighLevel,
 			position: pos,
 			text: Some(TextInfo {
 				text: String::from("SR Latch"),
 				size: 70,
 			}),
+
+			input_reset: PinState::Disconnected,
+			input_set: PinState::Disconnected,
+			state: PinState::Off,
 		}
 	}
 }
@@ -86,19 +99,66 @@ impl RectangleChip for SRLatch {
     }
 	
 	fn get_mode(&self) -> SimulationMode {
-		SimulationMode::Circuit
+		self.sim_mode
 	}
 
     fn set_mode(&mut self, mode: SimulationMode) {
-        // todo!()
+		match (self.sim_mode, mode) {
+			(SimulationMode::HighLevel, SimulationMode::Circuit) => {
+				self.internals.circuit.set_pin(0, self.input_reset);
+				self.internals.circuit.set_pin(1, self.input_set);
+
+				if !self.input_reset.to_bool() & !self.input_set.to_bool() {
+					if self.state.to_bool() {
+						self.internals.circuit.set_pin(1, PinState::On);
+						self.internals.circuit.set_pin(1, self.input_set);
+					} else {
+						self.internals.circuit.set_pin(0, PinState::On);
+						self.internals.circuit.set_pin(0, self.input_reset);
+					}
+				}
+			},
+			(SimulationMode::Circuit, SimulationMode::HighLevel) => {
+				self.input_reset = self.internals.circuit.get_pins()[0].as_ref().get_pin_state(0).unwrap();
+				self.input_set = self.internals.circuit.get_pins()[1].as_ref().get_pin_state(0).unwrap();
+				self.state = self.internals.circuit.get_pins()[2].as_ref().get_pin_state_external(0).unwrap();
+			},
+			_ => { },
+		}
+		
+		self.sim_mode = mode;
     }
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
-		todo!()
+		match idx {
+			0 | 1 => Ok(PinState::Disconnected),
+			2 => Ok(self.state),
+			3 => Ok(self.state.toggle()),
+			_ => Err(PinError::OutOfRange),
+		}
 	}
 
 	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		todo!()
+		match idx {
+			0 => {
+				self.input_reset = state;
+				if self.input_reset.to_bool() {
+					self.state = PinState::Off;
+				}
+
+				Ok(())
+			},
+			1 => {
+				self.input_set = state;
+				if self.input_set.to_bool() {
+					self.state = PinState::On;
+				}
+
+				Ok(())
+			},
+			2 | 3 => Ok(()),
+			_ => Err(PinError::OutOfRange),
+		}
 	}
 
     fn get_text_info(&self) -> Option<&TextInfo> {
@@ -108,8 +168,13 @@ impl RectangleChip for SRLatch {
 
 pub struct DLatch {
 	internals: ChipInternals,
+	sim_mode: SimulationMode,
 	position: (f64, f64),
 	text: Option<TextInfo>,
+
+	input: PinState,
+	clock: PinState,
+	state: PinState,
 }
 
 impl DLatch {
@@ -174,11 +239,16 @@ impl DLatch {
 				circuit,
 				inner_scale: 0.5,
 			},
+			sim_mode: SimulationMode::HighLevel,
 			position: pos,
 			text: Some(TextInfo {
 				text: String::from("D Latch"),
 				size: 70,
 			}),
+
+			input: PinState::Disconnected,
+			clock: PinState::Disconnected,
+			state: PinState::Off,
 		}
 	}
 }
@@ -201,19 +271,58 @@ impl RectangleChip for DLatch {
     }
 	
 	fn get_mode(&self) -> SimulationMode {
-		SimulationMode::Circuit
+		self.sim_mode
 	}
 
     fn set_mode(&mut self, mode: SimulationMode) {
-        // todo!()
+		match (self.sim_mode, mode) {
+			(SimulationMode::HighLevel, SimulationMode::Circuit) => {
+				self.internals.circuit.set_pin(0, self.state);
+				self.internals.circuit.set_pin(1, PinState::On);
+				self.internals.circuit.set_pin(1, self.clock);
+				self.internals.circuit.set_pin(0, self.input);
+			},
+			(SimulationMode::Circuit, SimulationMode::HighLevel) => {
+				self.input = self.internals.circuit.get_pins()[0].as_ref().get_pin_state(0).unwrap();
+				self.clock = self.internals.circuit.get_pins()[1].as_ref().get_pin_state(0).unwrap();
+				self.state = self.internals.circuit.get_pins()[2].as_ref().get_pin_state_external(0).unwrap();
+			},
+			_ => { },
+		}
+		
+		self.sim_mode = mode;
     }
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
-		todo!()
+		match idx {
+			0 | 1 => Ok(PinState::Disconnected),
+			2 => Ok(self.state),
+			3 => Ok(self.state.toggle()),
+			_ => Err(PinError::OutOfRange),
+		}
 	}
 
 	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		todo!()
+		match idx {
+			0 => {
+				self.input = state;
+				if self.clock.to_bool() {
+					self.state = self.input;
+				}
+
+				Ok(())
+			},
+			1 => {
+				self.clock = state;
+				if self.clock.to_bool() {
+					self.state = self.input;
+				}
+
+				Ok(())
+			},
+			2 | 3 => Ok(()),
+			_ => Err(PinError::OutOfRange),
+		}
 	}
 
     fn get_text_info(&self) -> Option<&TextInfo> {
@@ -223,8 +332,13 @@ impl RectangleChip for DLatch {
 
 pub struct DFlipFlop {
 	internals: ChipInternals,
+	sim_mode: SimulationMode,
 	position: (f64, f64),
 	text: Option<TextInfo>,
+
+	input: PinState,
+	clock: PinState,
+	state: PinState,
 }
 
 impl DFlipFlop {
@@ -283,11 +397,16 @@ impl DFlipFlop {
 				circuit,
 				inner_scale: 0.3,
 			},
+			sim_mode: SimulationMode::HighLevel,
 			position: pos,
 			text: Some(TextInfo {
 				text: String::from("D Flip-Flop"),
 				size: 70,
 			}),
+
+			input: PinState::Disconnected,
+			clock: PinState::Disconnected,
+			state: PinState::Off,
 		}
 	}
 }
@@ -310,19 +429,56 @@ impl RectangleChip for DFlipFlop {
     }
 	
 	fn get_mode(&self) -> SimulationMode {
-		SimulationMode::Circuit
+		self.sim_mode
 	}
 
     fn set_mode(&mut self, mode: SimulationMode) {
-        // todo!()
+		match (self.sim_mode, mode) {
+			(SimulationMode::HighLevel, SimulationMode::Circuit) => {
+				self.internals.circuit.set_pin(0, self.state);
+				self.internals.circuit.set_pin(1, PinState::Off);
+				self.internals.circuit.set_pin(1, PinState::On);
+
+				self.internals.circuit.set_pin(1, self.clock);
+				self.internals.circuit.set_pin(0, self.input);
+			},
+			(SimulationMode::Circuit, SimulationMode::HighLevel) => {
+				self.input = self.internals.circuit.get_pins()[0].as_ref().get_pin_state(0).unwrap();
+				self.clock = self.internals.circuit.get_pins()[1].as_ref().get_pin_state(0).unwrap();
+				self.state = self.internals.circuit.get_pins()[2].as_ref().get_pin_state_external(0).unwrap();
+			},
+			_ => { },
+		}
+		
+		self.sim_mode = mode;
     }
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
-		todo!()
+		match idx {
+			0 | 1 => Ok(PinState::Disconnected),
+			2 => Ok(self.state),
+			3 => Ok(self.state.toggle()),
+			_ => Err(PinError::OutOfRange),
+		}
 	}
 
 	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		todo!()
+		match idx {
+			0 => {
+				self.input = state;
+				Ok(())
+			},
+			1 => {
+				if state.to_bool() && !self.clock.to_bool() {
+					self.state = self.input;
+				}
+
+				self.clock = state;
+				Ok(())
+			},
+			2 | 3 => Ok(()),
+			_ => Err(PinError::OutOfRange),
+		}
 	}
 
     fn get_text_info(&self) -> Option<&TextInfo> {
@@ -332,9 +488,14 @@ impl RectangleChip for DFlipFlop {
 
 pub struct MultiDFlipFlop {
 	internals: ChipInternals,
+	sim_mode: SimulationMode,
 	position: (f64, f64),
 	size: usize,
 	text: Option<TextInfo>,
+
+	input: Vec<PinState>,
+	clock: PinState,
+	state: Vec<PinState>,
 }
 
 impl MultiDFlipFlop {
@@ -399,12 +560,17 @@ impl MultiDFlipFlop {
 				circuit,
 				inner_scale: 0.19,
 			},
+			sim_mode: SimulationMode::HighLevel,
 			position: pos,
 			size,
 			text: Some(TextInfo {
 				text: format!("{}-bit D Flip-Flop", size),
 				size: 40,
 			}),
+			
+			input: vec![PinState::Disconnected; size],
+			clock: PinState::Disconnected,
+			state: vec![PinState::Off; size],
 		}
 	}
 }
@@ -427,19 +593,66 @@ impl RectangleChip for MultiDFlipFlop {
     }
 	
 	fn get_mode(&self) -> SimulationMode {
-		SimulationMode::Circuit
+		self.sim_mode
 	}
 
     fn set_mode(&mut self, mode: SimulationMode) {
-        // todo!()
+		match (self.sim_mode, mode) {
+			(SimulationMode::HighLevel, SimulationMode::Circuit) => {
+				for i in 0..self.size {
+					self.internals.circuit.set_pin(i, self.state[i]);
+				}
+
+				self.internals.circuit.set_pin(self.size, PinState::Off);
+				self.internals.circuit.set_pin(self.size, PinState::On);
+				self.internals.circuit.set_pin(self.size, self.clock);
+
+				for i in 0..self.size {
+					self.internals.circuit.set_pin(i, self.input[i]);
+				}
+			},
+			(SimulationMode::Circuit, SimulationMode::HighLevel) => {
+				for i in 0..self.size {
+					self.input[i] = self.internals.circuit.get_pins()[i].as_ref().get_pin_state(0).unwrap();
+					self.state[i] = self.internals.circuit.get_pins()[self.size + 1 + i].as_ref()
+						.get_pin_state_external(0).unwrap();
+				}
+				self.clock = self.internals.circuit.get_pins()[self.size].as_ref().get_pin_state(0).unwrap();
+			},
+			_ => { },
+		}
+		
+		self.sim_mode = mode;
     }
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
-		todo!()
+		if idx <= self.size {
+			Ok(PinState::Disconnected)
+		} else if idx > self.size && idx <= self.size * 2 {
+			Ok(self.state[idx - self.size - 1])
+		} else {
+			Err(PinError::OutOfRange)
+		}
 	}
 
 	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		todo!()
+		if idx < self.size {
+			self.input[idx] = state;
+			Ok(())
+		} else if idx == self.size {
+			if state.to_bool() && !self.clock.to_bool() {
+				for i in 0..self.size {
+					self.state[i] = self.input[i];
+				}
+			}
+
+			self.clock = state;
+			Ok(())
+		} else if idx > self.size && idx <= self.size * 2 {
+			Ok(())
+		} else {
+			Err(PinError::OutOfRange)
+		}
 	}
 
     fn get_text_info(&self) -> Option<&TextInfo> {
