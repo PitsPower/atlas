@@ -2,8 +2,8 @@
 
 use crate::add;
 use crate::core::{
-	ChipInternals, Circuit, ExternalPin, Junction,
-	Pin, PinError, PinState, RectangleChip, SimulationMode, TextInfo,
+	ChipInternals, Circuit, Junction, Pin, PinError,
+	PinState, RectangleChip, SimulationMode, TextInfo,
 };
 use crate::gates::{AndGate, NorGate, NotGate};
 use crate::graphics::WireLayoutCommand;

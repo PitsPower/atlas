@@ -3,7 +3,7 @@
 use std::f64::consts::PI;
 
 use crate::add;
-use crate::core::{Chip, ChipInternals, Circuit, Pin, PinError, PinState, Junction, SimulationMode, Switch, TextInfo};
+use crate::core::{Chip, ChipInternals, Circuit, Pin, Junction, Switch, TextInfo};
 use crate::graphics::{Viewport, WireLayoutCommand};
 use crate::transistor::{NTransistor, PTransistor};
 
@@ -65,22 +65,6 @@ impl Chip for AndGate {
     fn get_text_info(&self) -> Option<&TextInfo> {
         todo!()
     }
-	
-	fn get_mode(&self) -> SimulationMode {
-		SimulationMode::Circuit
-	}
-
-    fn set_mode(&mut self, mode: SimulationMode) {
-        // todo!()
-    }
-
-	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
-		todo!()
-	}
-
-	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		todo!()
-	}
 
     fn contains(&self, _viewport: &Viewport) -> bool {
 		false
@@ -100,7 +84,7 @@ impl Chip for AndGate {
 		intersects_x && intersects_y
     }
 
-	fn are_internals_visible(&self, viewport: &Viewport) -> bool {
+	fn are_internals_visible(&self, _viewport: &Viewport) -> bool {
 		true
 	}
 
@@ -121,11 +105,9 @@ impl Chip for AndGate {
 		ctx.fill();
     }
 
-    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
-		ctx.set_line_width(10.0);
-
+	fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+		ctx.set_line_width(5.0);
 		ctx.set_stroke_style(&"#fff".into());
-		ctx.set_fill_style(&"#000".into());
 		
 		let width = self.get_chip_size().0;
 		let height = self.get_chip_size().1;
@@ -133,13 +115,16 @@ impl Chip for AndGate {
 		ctx.begin_path();
 		ctx.move_to(-0.5 * width, 0.5 * height);
 		ctx.line_to(0.0 * width, 0.5 * height);
-		ctx.arc(0.0, 0.0, width * 0.5, -PI * 0.5, PI * 0.5).unwrap();
+		ctx.arc_with_anticlockwise(0.0, 0.0, width * 0.5, PI * 0.5, -PI * 0.5, true).unwrap();
 		ctx.line_to(0.0, -0.5 * height);
 		ctx.line_to(-0.5 * width, -0.5 * height);
 		ctx.close_path();
 
 		ctx.stroke();
-		ctx.fill();
+	}
+
+    fn draw_back(&self, _ctx: &web_sys::CanvasRenderingContext2d) {
+
     }
 }
 
@@ -232,22 +217,6 @@ impl Chip for NandGate {
     fn get_text_info(&self) -> Option<&TextInfo> {
         todo!()
     }
-	
-	fn get_mode(&self) -> SimulationMode {
-		SimulationMode::Circuit
-	}
-
-    fn set_mode(&mut self, mode: SimulationMode) {
-        // todo!()
-    }
-
-	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
-		todo!()
-	}
-
-	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		todo!()
-	}
 
     fn contains(&self, _viewport: &Viewport) -> bool {
 		false
@@ -267,7 +236,7 @@ impl Chip for NandGate {
 		intersects_x && intersects_y
     }
 
-	fn are_internals_visible(&self, viewport: &Viewport) -> bool {
+	fn are_internals_visible(&self, _viewport: &Viewport) -> bool {
 		true
 	}
 
@@ -288,28 +257,32 @@ impl Chip for NandGate {
 		ctx.fill();
     }
 
-    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
-		ctx.set_line_width(10.0);
-
+	fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+		ctx.set_line_width(5.0);
 		ctx.set_stroke_style(&"#fff".into());
-		ctx.set_fill_style(&"#000".into());
 		
-		let width = self.get_chip_size().0;
-		let height = self.get_chip_size().1;
+		let (width, height) = self.get_chip_size();
 
 		ctx.begin_path();
 		ctx.move_to(-0.5 * width, 0.5 * height);
 		ctx.line_to(0.0 * width, 0.5 * height);
-		ctx.arc(0.0, 0.0, width * 0.5, -PI * 0.5, PI * 0.5).unwrap();
+		ctx.arc_with_anticlockwise(0.0, 0.0, width * 0.5, PI * 0.5, -PI * 0.5, true).unwrap();
 		ctx.line_to(0.0, -0.5 * height);
 		ctx.line_to(-0.5 * width, -0.5 * height);
 		ctx.close_path();
 
 		ctx.stroke();
-		ctx.fill();
+	}
+
+    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+		ctx.set_line_width(10.0);
+		ctx.set_stroke_style(&"#fff".into());
+		ctx.set_fill_style(&"#000".into());
+
+		let width = self.get_chip_size().0;
 
 		ctx.begin_path();
-		ctx.arc(width * 0.5 + 15.0, 0.0, 7.0, 0.0, 2.0 * PI).unwrap();
+		ctx.arc(width * 0.5 + 12.8, 0.0, 7.0, 0.0, 2.0 * PI).unwrap();
 		ctx.stroke();
 		ctx.fill();
     }
@@ -405,22 +378,6 @@ impl Chip for NorGate {
     fn get_text_info(&self) -> Option<&TextInfo> {
         todo!()
     }
-	
-	fn get_mode(&self) -> SimulationMode {
-		SimulationMode::Circuit
-	}
-
-    fn set_mode(&mut self, mode: SimulationMode) {
-        // todo!()
-    }
-
-	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
-		todo!()
-	}
-
-	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		todo!()
-	}
 
     fn contains(&self, _viewport: &Viewport) -> bool {
 		false
@@ -440,7 +397,7 @@ impl Chip for NorGate {
 		intersects_x && intersects_y
     }
 
-	fn are_internals_visible(&self, viewport: &Viewport) -> bool {
+	fn are_internals_visible(&self, _viewport: &Viewport) -> bool {
 		true
 	}
 
@@ -460,14 +417,11 @@ impl Chip for NorGate {
 		ctx.fill();
     }
 
-    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
-		ctx.set_line_width(10.0);
-
+	fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+		ctx.set_line_width(5.0);
 		ctx.set_stroke_style(&"#fff".into());
-		ctx.set_fill_style(&"#000".into());
 		
-		let width = self.get_chip_size().0;
-		let height = self.get_chip_size().1;
+		let (width, height) = self.get_chip_size();
 
 		ctx.begin_path();
 		ctx.move_to(-0.5 * width, 0.5 * height);
@@ -477,10 +431,17 @@ impl Chip for NorGate {
 		ctx.close_path();
 
 		ctx.stroke();
-		ctx.fill();
+	}
+
+    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+		let width = self.get_chip_size().0;
+
+		ctx.set_line_width(10.0);
+		ctx.set_stroke_style(&"#fff".into());
+		ctx.set_fill_style(&"#000".into());
 
 		ctx.begin_path();
-		ctx.arc(width * 0.5 + 15.0, 0.0, 7.0, 0.0, 2.0 * PI).unwrap();
+		ctx.arc(width * 0.5 + 10.0, 0.0, 7.0, 0.0, 2.0 * PI).unwrap();
 		ctx.stroke();
 		ctx.fill();
     }
@@ -511,7 +472,7 @@ impl NotGate {
 		circuit.toggle_switch(0);
 		
 		let output_junc = add!(circuit, Junction, (230.0 + offset_x, 0.0), 3);
-		let output = add!(circuit, Pin, (1080.0 + offset_x, 0.0));
+		let output = add!(circuit, Pin, (1150.0 + offset_x, 0.0));
 
 		circuit.connect((input, 0), (input_junc, 0), vec![]);
 		circuit.connect((input_junc, 1), (n_transistor, 0), vec![WireLayoutCommand::AlignHorizontal]);
@@ -555,22 +516,6 @@ impl Chip for NotGate {
     fn get_text_info(&self) -> Option<&TextInfo> {
         todo!()
     }
-	
-	fn get_mode(&self) -> SimulationMode {
-		SimulationMode::Circuit
-	}
-
-    fn set_mode(&mut self, mode: SimulationMode) {
-        // todo!()
-    }
-
-	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
-		todo!()
-	}
-
-	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		todo!()
-	}
 
     fn contains(&self, _viewport: &Viewport) -> bool {
 		false
@@ -590,7 +535,7 @@ impl Chip for NotGate {
 		intersects_x && intersects_y
     }
 
-	fn are_internals_visible(&self, viewport: &Viewport) -> bool {
+	fn are_internals_visible(&self, _viewport: &Viewport) -> bool {
 		true
 	}
 
@@ -609,14 +554,11 @@ impl Chip for NotGate {
 		ctx.fill();
     }
 
-    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
-		ctx.set_line_width(10.0);
-
+	fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+		ctx.set_line_width(5.0);
 		ctx.set_stroke_style(&"#fff".into());
-		ctx.set_fill_style(&"#000".into());
 		
-		let width = self.get_chip_size().0;
-		let height = self.get_chip_size().1;
+		let (width, height) = self.get_chip_size();
 
 		ctx.begin_path();
 		ctx.move_to(-width * 0.5, -height * 0.5);
@@ -625,10 +567,17 @@ impl Chip for NotGate {
 		ctx.close_path();
 
 		ctx.stroke();
-		ctx.fill();
+	}
+
+    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+		ctx.set_line_width(10.0);
+		ctx.set_stroke_style(&"#fff".into());
+		ctx.set_fill_style(&"#000".into());
+		
+		let width = self.get_chip_size().0;
 
 		ctx.begin_path();
-		ctx.arc(width * 0.5 + 15.0, 0.0, 7.0, 0.0, 2.0 * PI).unwrap();
+		ctx.arc(width * 0.5 + 12.8, 0.0, 7.0, 0.0, 2.0 * PI).unwrap();
 		ctx.stroke();
 		ctx.fill();
     }
@@ -692,22 +641,6 @@ impl Chip for OrGate {
     fn get_text_info(&self) -> Option<&TextInfo> {
         todo!()
     }
-	
-	fn get_mode(&self) -> SimulationMode {
-		SimulationMode::Circuit
-	}
-
-    fn set_mode(&mut self, mode: SimulationMode) {
-        // todo!()
-    }
-
-	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
-		todo!()
-	}
-
-	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		todo!()
-	}
 
     fn contains(&self, _viewport: &Viewport) -> bool {
 		false
@@ -727,7 +660,7 @@ impl Chip for OrGate {
 		intersects_x && intersects_y
     }
 
-	fn are_internals_visible(&self, viewport: &Viewport) -> bool {
+	fn are_internals_visible(&self, _viewport: &Viewport) -> bool {
 		true
 	}
 
@@ -747,11 +680,9 @@ impl Chip for OrGate {
 		ctx.fill();
     }
 
-    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
-		ctx.set_line_width(10.0);
-
+    fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+		ctx.set_line_width(5.0);
 		ctx.set_stroke_style(&"#fff".into());
-		ctx.set_fill_style(&"#000".into());
 		
 		let width = self.get_chip_size().0;
 		let height = self.get_chip_size().1;
@@ -764,8 +695,11 @@ impl Chip for OrGate {
 		ctx.close_path();
 
 		ctx.stroke();
-		ctx.fill();
     }
+	
+	fn draw_back(&self, _ctx: &web_sys::CanvasRenderingContext2d) {
+		
+	}
 }
 
 pub struct XorGate {
@@ -848,22 +782,6 @@ impl Chip for XorGate {
     fn get_text_info(&self) -> Option<&TextInfo> {
         todo!()
     }
-	
-	fn get_mode(&self) -> SimulationMode {
-		SimulationMode::Circuit
-	}
-
-    fn set_mode(&mut self, mode: SimulationMode) {
-        // todo!()
-    }
-
-	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
-		todo!()
-	}
-
-	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		todo!()
-	}
 
     fn contains(&self, _viewport: &Viewport) -> bool {
 		false
@@ -883,7 +801,7 @@ impl Chip for XorGate {
 		intersects_x && intersects_y
     }
 
-	fn are_internals_visible(&self, viewport: &Viewport) -> bool {
+	fn are_internals_visible(&self, _viewport: &Viewport) -> bool {
 		true
 	}
 
@@ -903,14 +821,11 @@ impl Chip for XorGate {
 		ctx.fill();
     }
 
-    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
-		ctx.set_line_width(10.0);
-
+	fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+		ctx.set_line_width(5.0);
 		ctx.set_stroke_style(&"#fff".into());
-		ctx.set_fill_style(&"#000".into());
 		
-		let width = self.get_chip_size().0;
-		let height = self.get_chip_size().1;
+		let (width, height) = self.get_chip_size();
 
 		ctx.begin_path();
 		ctx.move_to(-0.5 * width, 0.5 * height);
@@ -920,18 +835,21 @@ impl Chip for XorGate {
 		ctx.close_path();
 
 		ctx.stroke();
-		ctx.fill();
+	}
 
-		let xor_line_offset = 25.0;
-		
+    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_line_width(5.0);
+		ctx.set_stroke_style(&"#fff".into());
+
+		let xor_line_offset = 20.0;
+		let (width, height) = self.get_chip_size();
 
 		ctx.begin_path();
 		ctx.move_to(-0.5 * width - xor_line_offset, 0.5 * height);
 		ctx.bezier_curve_to(
-			-0.33 * width - xor_line_offset,
+			-0.3 * width - xor_line_offset,
 			0.25 * height,
-			-0.33 * width - xor_line_offset,
+			-0.3 * width - xor_line_offset,
 			-0.25 * height,
 			-0.5 * width - xor_line_offset,
 			-0.5 * height,

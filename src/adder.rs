@@ -2,8 +2,8 @@
 
 use crate::add;
 use crate::core::{
-	ChipInternals, Circuit, ExternalPin, Junction, num_to_states,
-	Pin, PinError, PinState, RectangleChip, SimulationMode, states_to_num, TextInfo,
+	ChipInternals, Circuit, Junction, num_to_states, Pin, PinError,
+	PinState, RectangleChip, SimulationMode, states_to_num, TextInfo,
 };
 use crate::gates::{AndGate, OrGate, XorGate};
 use crate::graphics::WireLayoutCommand;
@@ -313,20 +313,23 @@ impl Adder {
 	pub fn new(pos: (f64, f64), size: usize) -> Adder {
 		let mut circuit = Circuit::new();
 
+		let chip_width = 400.0;
+		let scale = 0.3;
+
 		let adders: Vec<_> = (0..size)
 			.map(|i| add!(circuit, FullAdder, (100.0, -(i as f64 - (size as f64) * 0.5) * 300.0 - 150.0)))
 			.collect();
 
 		let input_group_1: Vec<_> = (0..size)
-			.map(|i| add!(circuit, Pin, (-666.0, -600.0 - (i as f64 * 50.0))))
+			.map(|i| add!(circuit, Pin, (-chip_width * 0.5 / scale, -600.0 - (i as f64 * 50.0))))
 			.collect();
 
 		let input_group_2: Vec<_> = (0..size)
-			.map(|i| add!(circuit, Pin, (-666.0, 600.0 + size as f64 * 50.0 - (i as f64 * 50.0))))
+			.map(|i| add!(circuit, Pin, (-chip_width * 0.5 / scale, 600.0 + size as f64 * 50.0 - (i as f64 * 50.0))))
 			.collect();
 			
 		let output_group: Vec<_> = (0..size)
-			.map(|i| add!(circuit, Pin, (666.0, -(i as f64 - (size as f64) * 0.5) * 50.0 - 25.0)))
+			.map(|i| add!(circuit, Pin, (chip_width * 0.5 / scale, -(i as f64 - (size as f64) * 0.5) * 50.0 - 25.0)))
 			.collect();
 
 		for i in 0..size {
@@ -354,7 +357,7 @@ impl Adder {
 		Adder {
 			internals: ChipInternals {
 				circuit,
-				inner_scale: 0.3,
+				inner_scale: scale,
 			},
 			sim_mode: SimulationMode::HighLevel,
 			size,

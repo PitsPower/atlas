@@ -2,7 +2,7 @@
 
 use std::f64::consts::PI;
 
-use crate::core::{Component, PinError, PinState, SimulationMode};
+use crate::core::{Component, PinError, PinState};
 use crate::graphics::{Drawable, Viewport};
 
 const WIDTH: f64 = 67.0;

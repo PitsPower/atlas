@@ -533,16 +533,24 @@ pub trait Chip {
 	fn get_text_info(&self) -> Option<&TextInfo>;
 	
 	/// Return the current simulation mode.
-	fn get_mode(&self) -> SimulationMode;
+	fn get_mode(&self) -> SimulationMode {
+		SimulationMode::Circuit
+	}
 	
 	/// Sets the simulation mode of the chip to the given mode.
-	fn set_mode(&mut self, mode: SimulationMode);
+	fn set_mode(&mut self, _mode: SimulationMode) {
+
+	}
 
 	/// Returns the state of a pin.
-	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError>;
+	fn get_pin_state_high_level(&self, _idx: usize) -> Result<PinState, PinError> {
+		panic!("Unexpected get_pin_state_high_level");
+	}
 
 	/// Sets the state of a pin.
-	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError>;
+	fn set_pin_state_high_level(&mut self, _idx: usize, _state: PinState) -> Result<(), PinError> {
+		panic!("Unexpected set_pin_state_high_level");
+	}
 
 	/// Returns whether the given viewport is fully contained within the chip.
 	fn contains(&self, viewport: &Viewport) -> bool;
@@ -555,6 +563,11 @@ pub trait Chip {
 
 	/// Draws the front of the chip (the part that fades away when zooming in).
 	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d);
+
+	/// Draws the edge of the chip.
+	fn draw_edge(&self, _ctx: &web_sys::CanvasRenderingContext2d) {
+
+	}
 
 	/// Draws the back of the chip.
 	fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d);
@@ -582,11 +595,14 @@ impl<T: Chip> Drawable for T {
 
 			self.get_chip_internals().draw(ctx, new_viewport);
 		}
-
+		
 		let opacity = ((end_ratio - height_ratio) / (end_ratio - start_ratio)).max(0.0);
 		ctx.set_global_alpha(opacity);
 		
 		self.draw_front(ctx);
+		
+		ctx.set_global_alpha(1.0);
+		self.draw_edge(ctx);
     }
 }
 
@@ -801,12 +817,12 @@ impl<T: RectangleChip> Chip for T {
 	}
 
     fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
-		match self.get_mode() {
-			SimulationMode::Circuit => ctx.set_fill_style(&"#000".into()),
-			SimulationMode::HighLevel => ctx.set_fill_style(&"#f00".into()),
-		}
+		// match self.get_mode() {
+		// 	SimulationMode::Circuit => ctx.set_fill_style(&"#000".into()),
+		// 	SimulationMode::HighLevel => ctx.set_fill_style(&"#f00".into()),
+		// }
 
-		// ctx.set_fill_style(&"#000".into());
+		ctx.set_fill_style(&"#000".into());
 		
 		let (width, height) = self.get_size();
 
@@ -828,12 +844,12 @@ impl<T: RectangleChip> Chip for T {
 		ctx.set_line_width(10.0);
 		ctx.set_stroke_style(&"#fff".into());
 		
-		match self.get_mode() {
-			SimulationMode::Circuit => ctx.set_fill_style(&"#000".into()),
-			SimulationMode::HighLevel => ctx.set_fill_style(&"#f00".into()),
-		}
+		// match self.get_mode() {
+		// 	SimulationMode::Circuit => ctx.set_fill_style(&"#000".into()),
+		// 	SimulationMode::HighLevel => ctx.set_fill_style(&"#f00".into()),
+		// }
 
-		// ctx.set_fill_style(&"#000".into());
+		ctx.set_fill_style(&"#000".into());
 		
 		let (width, height) = self.get_size();
 
