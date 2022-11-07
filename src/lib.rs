@@ -8,6 +8,7 @@ pub mod core;
 pub mod gates;
 pub mod graphics;
 pub mod latches;
+pub mod register;
 pub mod transistor;
 pub mod utils;
 
@@ -17,9 +18,10 @@ use utils::set_panic_hook;
 
 use crate::adder::Adder;
 use crate::core::{Bulb, Circuit, Junction, MultiBulb, MultiSwitch, Switch};
-use crate::gates::{AndGate, NandGate, NorGate, NotGate, OrGate, XorGate};
+use crate::gates::{AndGate, NandGate, NorGate, NotGate, OrGate, TriStateBuffer, XorGate};
 use crate::graphics::WireLayoutCommand;
 use crate::latches::MultiDFlipFlop;
+use crate::register::Register;
 use crate::transistor::{NTransistor, PTransistor};
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
@@ -463,6 +465,22 @@ pub fn latch_example() -> Circuit {
 			WireLayoutCommand::AlignHorizontal,
 		]);
 	}
+
+	circuit
+}
+
+#[wasm_bindgen]
+pub fn register_example() -> Circuit {
+	let mut circuit = Circuit::new();
+
+	let input = add!(circuit, Switch, (-300.0, 0.0));
+	let enable = add!(circuit, Switch, (0.0, -300.0));
+	let tsb = add!(circuit, TriStateBuffer, (0.0, 0.0));
+	let output = add!(circuit, Bulb, (300.0, 0.0));
+
+	circuit.connect((input, 0), (tsb, 0), vec![]);
+	circuit.connect((enable, 0), (tsb, 1), vec![]);
+	circuit.connect((tsb, 2), (output, 0), vec![]);
 
 	circuit
 }

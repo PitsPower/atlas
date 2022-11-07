@@ -702,6 +702,152 @@ impl Chip for OrGate {
 	}
 }
 
+pub struct TriStateBuffer {
+	internals: ChipInternals,
+	position: (f64, f64),
+}
+
+impl TriStateBuffer {
+	pub fn new(pos: (f64, f64)) -> Self {
+		let mut circuit = Circuit::new();
+
+		let scale = 0.04;
+
+		let offset = 300.0;
+
+		let input = add!(circuit, Pin, (-55.0 / scale, 0.0));
+		let enable = add!(circuit, Pin, (-offset + 300.0, -700.0));
+
+		let input_junc = add!(circuit, Junction, (-offset - 600.0, 0.0), 3);
+		let enable_junc = add!(circuit, Junction, (-offset - 500.0, -200.0), 3);
+
+		let input_not = add!(circuit, NotGate, (-offset - 800.0, 0.0));
+		let enable_not = add!(circuit, NotGate, (-offset - 300.0, -200.0));
+
+		let p_transistor_1 = add!(circuit, PTransistor, (-offset, -200.0));
+		let p_transistor_2 = add!(circuit, PTransistor, (-offset, -400.0));
+
+		let n_transistor_1 = add!(circuit, NTransistor, (-offset, 200.0));
+		let n_transistor_2 = add!(circuit, NTransistor, (-offset, 400.0));
+
+		let transistor_offset = circuit.get_components()[p_transistor_1].get_pin_positions()[1].0;
+
+		let on_source = add!(circuit, Switch, (-offset + transistor_offset, -600.0));
+		let off_source = add!(circuit, Switch, (-offset + transistor_offset, 600.0));
+
+		circuit.toggle_switch(0);
+
+		let output_junc = add!(circuit, Junction, (-offset + transistor_offset, 0.0), 3);
+		let output = add!(circuit, Pin, (55.0 / scale - 50.0, 0.0));
+
+		circuit.connect((input, 0), (input_not, 0), vec![]);
+		circuit.connect((input_not, 1), (input_junc, 0), vec![]);
+		circuit.connect((input_junc, 1), (p_transistor_2, 0), vec![WireLayoutCommand::AlignHorizontal]);
+		circuit.connect((input_junc, 2), (n_transistor_2, 0), vec![WireLayoutCommand::AlignHorizontal]);
+
+		circuit.connect((enable, 0), (enable_junc, 0), vec![WireLayoutCommand::AlignVertical]);
+		circuit.connect((enable_junc, 1), (enable_not, 0), vec![]);
+		circuit.connect((enable_not, 1), (p_transistor_1, 0), vec![]);
+		circuit.connect((enable_junc, 2), (n_transistor_1, 0), vec![WireLayoutCommand::AlignHorizontal]);
+
+		circuit.connect((on_source, 0), (p_transistor_2, 1), vec![]);
+		circuit.connect((p_transistor_2, 2), (p_transistor_1, 1), vec![]);
+		circuit.connect((p_transistor_1, 2), (output_junc, 0), vec![]);
+
+		circuit.connect((off_source, 0), (n_transistor_2, 1), vec![]);
+		circuit.connect((n_transistor_2, 2), (n_transistor_1, 1), vec![]);
+		circuit.connect((n_transistor_1, 2), (output_junc, 1), vec![]);
+
+		circuit.connect((output_junc, 2), (output, 0), vec![]);
+
+		Self {
+			internals: ChipInternals {
+				circuit,
+				inner_scale: scale,
+			},
+			position: pos,
+		}
+	}
+}
+
+impl Chip for TriStateBuffer {
+    fn get_chip_internals(&self) -> &ChipInternals {
+        &self.internals
+    }
+
+    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+        &mut self.internals
+    }
+
+    fn get_chip_position(&self) -> (f64, f64) {
+		self.position
+    }
+
+    fn get_chip_size(&self) -> (f64, f64) {
+        (110.0, 110.0)
+    }
+
+    fn get_text_info(&self) -> Option<&TextInfo> {
+        todo!()
+    }
+
+    fn contains(&self, _viewport: &Viewport) -> bool {
+		false
+    }
+
+    fn intersects(&self, viewport: &Viewport) -> bool {
+		let size = self.get_chip_size();
+
+		let intersects_x =
+			self.position.0 + size.0 * 0.5 >= viewport.get_position().0 - viewport.get_size().0 * 0.5 &&
+			self.position.0 - size.0 * 0.5 <= viewport.get_position().0 + viewport.get_size().0 * 0.5;
+
+		let intersects_y =
+			self.position.1 + size.1 * 0.5 >= viewport.get_position().1 - viewport.get_size().1 * 0.5 &&
+			self.position.1 - size.1 * 0.5 <= viewport.get_position().1 + viewport.get_size().1 * 0.5;
+
+		intersects_x && intersects_y
+    }
+
+	fn are_internals_visible(&self, _viewport: &Viewport) -> bool {
+		true
+	}
+
+    fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+		ctx.set_fill_style(&"#000".into());
+		
+		let width = self.get_chip_size().0;
+		let height = self.get_chip_size().1;
+
+		ctx.begin_path();
+		ctx.move_to(-width * 0.5, -height * 0.5);
+		ctx.line_to(-width * 0.5, height * 0.5);
+		ctx.line_to(width * 0.5, 0.0);
+		ctx.close_path();
+
+		ctx.fill();
+    }
+
+	fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+		ctx.set_line_width(5.0);
+		ctx.set_stroke_style(&"#fff".into());
+		
+		let (width, height) = self.get_chip_size();
+
+		ctx.begin_path();
+		ctx.move_to(-width * 0.5, -height * 0.5);
+		ctx.line_to(-width * 0.5, height * 0.5);
+		ctx.line_to(width * 0.5, 0.0);
+		ctx.close_path();
+
+		ctx.stroke();
+	}
+
+    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+		
+    }
+}
+
 pub struct XorGate {
 	internals: ChipInternals,
 	position: (f64, f64),

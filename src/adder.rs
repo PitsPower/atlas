@@ -19,7 +19,7 @@ pub struct HalfAdder {
 }
 
 impl HalfAdder {
-	pub fn new(pos: (f64, f64)) -> HalfAdder {
+	pub fn new(pos: (f64, f64)) -> Self {
 		let mut circuit = Circuit::new();
 		
 		let input1 = add!(circuit, Pin, (-250.0, -150.0));
@@ -61,7 +61,7 @@ impl HalfAdder {
 			WireLayoutCommand::AlignHorizontal,
 		]);
 
-		HalfAdder {
+		Self {
 			internals: ChipInternals {
 				circuit,
 				inner_scale: 0.4,
@@ -151,7 +151,7 @@ pub struct FullAdder {
 }
 
 impl FullAdder {
-	pub fn new(pos: (f64, f64)) -> FullAdder {
+	pub fn new(pos: (f64, f64)) -> Self {
 		let mut circuit = Circuit::new();
 		
 		let half_adder_1 = add!(circuit, HalfAdder, (-200.0, 100.0));
@@ -208,7 +208,7 @@ impl FullAdder {
 			WireLayoutCommand::AlignVertical,
 		]);
 
-		FullAdder {
+		Self {
 			internals: ChipInternals {
 				circuit,
 				inner_scale: 0.4,
@@ -310,7 +310,7 @@ pub struct Adder {
 }
 
 impl Adder {
-	pub fn new(pos: (f64, f64), size: usize) -> Adder {
+	pub fn new(pos: (f64, f64), size: usize) -> Self {
 		let mut circuit = Circuit::new();
 
 		let chip_width = 400.0;
@@ -354,7 +354,7 @@ impl Adder {
 			circuit.connect((adders[i as usize], 4), (adders[(i+1) as usize], 2), vec![]);
 		}
 
-		Adder {
+		Self {
 			internals: ChipInternals {
 				circuit,
 				inner_scale: scale,

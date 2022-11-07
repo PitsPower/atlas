@@ -20,7 +20,7 @@ pub struct SRLatch {
 }
 
 impl SRLatch {
-	pub fn new(pos: (f64, f64)) -> SRLatch {
+	pub fn new(pos: (f64, f64)) -> Self {
 		let mut circuit = Circuit::new();
 
 		let input1 = add!(circuit, Pin, (-250.0, -100.0));
@@ -62,7 +62,7 @@ impl SRLatch {
 			WireLayoutCommand::AlignHorizontal,
 		]);
 
-		SRLatch {
+		Self {
 			internals: ChipInternals {
 				circuit,
 				inner_scale: 0.8,
@@ -178,7 +178,7 @@ pub struct DLatch {
 }
 
 impl DLatch {
-	pub fn new(pos: (f64, f64)) -> DLatch {
+	pub fn new(pos: (f64, f64)) -> Self {
 		let mut circuit = Circuit::new();
 
 		let offset = 200.0;
@@ -234,7 +234,7 @@ impl DLatch {
 			WireLayoutCommand::AlignHorizontal,
 		]);
 
-		DLatch {
+		Self {
 			internals: ChipInternals {
 				circuit,
 				inner_scale: 0.5,
@@ -342,7 +342,7 @@ pub struct DFlipFlop {
 }
 
 impl DFlipFlop {
-	pub fn new(pos: (f64, f64)) -> DFlipFlop {
+	pub fn new(pos: (f64, f64)) -> Self {
 		let mut circuit = Circuit::new();
 		
 		let offset = 100.0;
@@ -392,7 +392,7 @@ impl DFlipFlop {
 			WireLayoutCommand::AlignHorizontal,
 		]);
 
-		DFlipFlop {
+		Self {
 			internals: ChipInternals {
 				circuit,
 				inner_scale: 0.3,
@@ -499,7 +499,7 @@ pub struct MultiDFlipFlop {
 }
 
 impl MultiDFlipFlop {
-	pub fn new(pos: (f64, f64), size: usize) -> MultiDFlipFlop {
+	pub fn new(pos: (f64, f64), size: usize) -> Self {
 		let mut circuit = Circuit::new();
 
 		let scale = 0.19;
@@ -555,7 +555,7 @@ impl MultiDFlipFlop {
 			circuit.connect((clock_juncs[i], 1), (clock_juncs[i+1], 0), vec![]);
 		}
 
-		MultiDFlipFlop {
+		Self {
 			internals: ChipInternals {
 				circuit,
 				inner_scale: 0.19,

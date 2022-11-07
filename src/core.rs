@@ -118,6 +118,7 @@ pub trait Component: Drawable {
 	fn get_internals(&self) -> Option<&ChipInternals> {
 		None
 	}
+
 	/// Returns the component's internals as mutable.
 	fn get_internals_mut(&mut self) -> Option<&mut ChipInternals> {
 		None
