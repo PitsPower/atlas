@@ -818,12 +818,12 @@ impl<T: RectangleChip> Chip for T {
 	}
 
     fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
-		match self.get_mode() {
-			SimulationMode::Circuit => ctx.set_fill_style(&"#000".into()),
-			SimulationMode::HighLevel => ctx.set_fill_style(&"#f00".into()),
-		}
+		// match self.get_mode() {
+		// 	SimulationMode::Circuit => ctx.set_fill_style(&"#000".into()),
+		// 	SimulationMode::HighLevel => ctx.set_fill_style(&"#f00".into()),
+		// }
 
-		// ctx.set_fill_style(&"#000".into());
+		ctx.set_fill_style(&"#000".into());
 		
 		let (width, height) = self.get_size();
 
@@ -845,12 +845,12 @@ impl<T: RectangleChip> Chip for T {
 		ctx.set_line_width(10.0);
 		ctx.set_stroke_style(&"#fff".into());
 		
-		match self.get_mode() {
-			SimulationMode::Circuit => ctx.set_fill_style(&"#000".into()),
-			SimulationMode::HighLevel => ctx.set_fill_style(&"#f00".into()),
-		}
+		// match self.get_mode() {
+		// 	SimulationMode::Circuit => ctx.set_fill_style(&"#000".into()),
+		// 	SimulationMode::HighLevel => ctx.set_fill_style(&"#f00".into()),
+		// }
 
-		// ctx.set_fill_style(&"#000".into());
+		ctx.set_fill_style(&"#000".into());
 		
 		let (width, height) = self.get_size();
 

@@ -843,7 +843,7 @@ impl Chip for TriStateBuffer {
 		ctx.stroke();
 	}
 
-    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+    fn draw_back(&self, _ctx: &web_sys::CanvasRenderingContext2d) {
 		
     }
 }

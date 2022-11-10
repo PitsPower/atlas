@@ -21,7 +21,6 @@ use crate::core::{Bulb, Circuit, Junction, MultiBulb, MultiSwitch, Switch};
 use crate::gates::{AndGate, NandGate, NorGate, NotGate, OrGate, TriStateBuffer, XorGate};
 use crate::graphics::WireLayoutCommand;
 use crate::latches::MultiDFlipFlop;
-use crate::register::Register;
 use crate::transistor::{NTransistor, PTransistor};
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
