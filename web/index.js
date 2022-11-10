@@ -20,8 +20,8 @@ canvas.height = window.innerHeight;
 // const circuit = wasm.nor_latch_example();
 // const circuit = wasm.test_example();
 // const circuit = wasm.bus_example();
-// const circuit = wasm.latch_example();
-const circuit = wasm.register_example();
+const circuit = wasm.latch_example();
+// const circuit = wasm.register_example();
 
 const renderer = new wasm.Renderer(ctx);
 renderer.update_sim_modes(circuit);

@@ -112,6 +112,15 @@ pub enum PinError {
 	OutOfRange,
 }
 
+/// How a chip should be simulated.
+#[derive(Clone, Copy)]
+pub enum SimulationMode {
+	/// Simulate the circuit in the chip.
+	Circuit,
+	/// Simulate the chip using the high level implementation.
+	HighLevel,
+}
+
 /// Something that can go in a circuit. A [`Component`] may be connected to another [`Component`] using a [`Wire`].
 pub trait Component: Drawable {
 	/// Returns the component's internals. This is used for components that contain a [`Circuit`].
@@ -702,15 +711,6 @@ pub struct TextInfo {
 	pub size: u32,
 }
 
-/// How a chip should be simulated.
-#[derive(Clone, Copy)]
-pub enum SimulationMode {
-	/// Simulate the circuit in the chip.
-	Circuit,
-	/// Simulate the chip using the high level implementation.
-	HighLevel,
-}
-
 /// A [`Chip`] that looks like a rectangle.
 pub trait RectangleChip {
 	/// Returns the chip internals.
@@ -818,12 +818,12 @@ impl<T: RectangleChip> Chip for T {
 	}
 
     fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
-		// match self.get_mode() {
-		// 	SimulationMode::Circuit => ctx.set_fill_style(&"#000".into()),
-		// 	SimulationMode::HighLevel => ctx.set_fill_style(&"#f00".into()),
-		// }
+		match self.get_mode() {
+			SimulationMode::Circuit => ctx.set_fill_style(&"#000".into()),
+			SimulationMode::HighLevel => ctx.set_fill_style(&"#f00".into()),
+		}
 
-		ctx.set_fill_style(&"#000".into());
+		// ctx.set_fill_style(&"#000".into());
 		
 		let (width, height) = self.get_size();
 
@@ -845,12 +845,12 @@ impl<T: RectangleChip> Chip for T {
 		ctx.set_line_width(10.0);
 		ctx.set_stroke_style(&"#fff".into());
 		
-		// match self.get_mode() {
-		// 	SimulationMode::Circuit => ctx.set_fill_style(&"#000".into()),
-		// 	SimulationMode::HighLevel => ctx.set_fill_style(&"#f00".into()),
-		// }
+		match self.get_mode() {
+			SimulationMode::Circuit => ctx.set_fill_style(&"#000".into()),
+			SimulationMode::HighLevel => ctx.set_fill_style(&"#f00".into()),
+		}
 
-		ctx.set_fill_style(&"#000".into());
+		// ctx.set_fill_style(&"#000".into());
 		
 		let (width, height) = self.get_size();
 
