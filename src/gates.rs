@@ -58,6 +58,10 @@ impl Chip for AndGate {
 		self.position
     }
 
+	fn set_chip_position(&mut self, pos: (f64, f64)) {
+		self.position = pos;
+	}
+
     fn get_chip_size(&self) -> (f64, f64) {
         (110.0, 110.0)
     }
@@ -83,10 +87,6 @@ impl Chip for AndGate {
 
 		intersects_x && intersects_y
     }
-
-	fn are_internals_visible(&self, _viewport: &Viewport) -> bool {
-		true
-	}
 
     fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_fill_style(&"#000".into());
@@ -210,6 +210,10 @@ impl Chip for NandGate {
 		self.position
     }
 
+	fn set_chip_position(&mut self, pos: (f64, f64)) {
+		self.position = pos;
+	}
+
     fn get_chip_size(&self) -> (f64, f64) {
         (110.0, 110.0)
     }
@@ -235,10 +239,6 @@ impl Chip for NandGate {
 
 		intersects_x && intersects_y
     }
-
-	fn are_internals_visible(&self, _viewport: &Viewport) -> bool {
-		true
-	}
 
     fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_fill_style(&"#000".into());
@@ -371,6 +371,10 @@ impl Chip for NorGate {
 		self.position
     }
 
+	fn set_chip_position(&mut self, pos: (f64, f64)) {
+		self.position = pos;
+	}
+
     fn get_chip_size(&self) -> (f64, f64) {
         (110.0, 110.0)
     }
@@ -396,10 +400,6 @@ impl Chip for NorGate {
 
 		intersects_x && intersects_y
     }
-
-	fn are_internals_visible(&self, _viewport: &Viewport) -> bool {
-		true
-	}
 
     fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_fill_style(&"#000".into());
@@ -509,6 +509,10 @@ impl Chip for NotGate {
         self.position
     }
 
+	fn set_chip_position(&mut self, pos: (f64, f64)) {
+		self.position = pos;
+	}
+
     fn get_chip_size(&self) -> (f64, f64) {
         (110.0, 110.0)
     }
@@ -534,10 +538,6 @@ impl Chip for NotGate {
 
 		intersects_x && intersects_y
     }
-
-	fn are_internals_visible(&self, _viewport: &Viewport) -> bool {
-		true
-	}
 
     fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_fill_style(&"#000".into());
@@ -634,6 +634,10 @@ impl Chip for OrGate {
 		self.position
     }
 
+	fn set_chip_position(&mut self, pos: (f64, f64)) {
+		self.position = pos;
+	}
+
     fn get_chip_size(&self) -> (f64, f64) {
         (110.0, 110.0)
     }
@@ -659,10 +663,6 @@ impl Chip for OrGate {
 
 		intersects_x && intersects_y
     }
-
-	fn are_internals_visible(&self, _viewport: &Viewport) -> bool {
-		true
-	}
 
     fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_fill_style(&"#000".into());
@@ -783,6 +783,10 @@ impl Chip for TriStateBuffer {
 		self.position
     }
 
+	fn set_chip_position(&mut self, pos: (f64, f64)) {
+		self.position = pos;
+	}
+
     fn get_chip_size(&self) -> (f64, f64) {
         (110.0, 110.0)
     }
@@ -808,10 +812,6 @@ impl Chip for TriStateBuffer {
 
 		intersects_x && intersects_y
     }
-
-	fn are_internals_visible(&self, _viewport: &Viewport) -> bool {
-		true
-	}
 
     fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_fill_style(&"#000".into());
@@ -921,6 +921,10 @@ impl Chip for XorGate {
 		self.position
     }
 
+	fn set_chip_position(&mut self, pos: (f64, f64)) {
+		self.position = pos;
+	}
+
     fn get_chip_size(&self) -> (f64, f64) {
         (110.0, 110.0)
     }
@@ -946,10 +950,6 @@ impl Chip for XorGate {
 
 		intersects_x && intersects_y
     }
-
-	fn are_internals_visible(&self, _viewport: &Viewport) -> bool {
-		true
-	}
 
     fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_fill_style(&"#000".into());

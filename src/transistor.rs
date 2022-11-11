@@ -56,6 +56,18 @@ impl Component for NTransistor {
 		]
 	}
 
+	fn get_position(&self) -> (f64, f64) {
+		self.position
+	}
+
+	fn set_position(&mut self, pos: (f64, f64)) {
+		self.position = pos;
+	}
+
+	fn get_size(&self) -> (f64, f64) {
+		(WIDTH, HEIGHT)
+	}
+
 	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
 		match idx {
 			0 => Ok(PinState::Disconnected),
@@ -78,10 +90,6 @@ impl Component for NTransistor {
 			2 => Ok(()),
 			_ => Err(PinError::OutOfRange),
 		}
-	}
-
-	fn get_position(&self) -> (f64, f64) {
-		self.position
 	}
 }
 
@@ -135,6 +143,18 @@ impl Component for PTransistor {
 			(WIDTH * 0.5, HEIGHT * 0.5),
 		]
 	}
+	
+	fn get_position(&self) -> (f64, f64) {
+		self.position
+	}
+
+	fn set_position(&mut self, pos: (f64, f64)) {
+		self.position = pos;
+	}
+
+	fn get_size(&self) -> (f64, f64) {
+		(WIDTH, HEIGHT)
+	}
 
 	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
 		match idx {
@@ -158,9 +178,5 @@ impl Component for PTransistor {
 			2 => Ok(()),
 			_ => Err(PinError::OutOfRange),
 		}
-	}
-	
-	fn get_position(&self) -> (f64, f64) {
-		self.position
 	}
 }

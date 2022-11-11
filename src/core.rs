@@ -171,6 +171,15 @@ pub trait Component: Drawable {
 	/// Returns the position of the component.
 	fn get_position(&self) -> (f64, f64);
 	
+	/// Sets the position of the component.
+	fn set_position(&mut self, pos: (f64, f64));
+
+	/// Translates the component.
+	fn translate(&mut self, offset: (f64, f64)) {
+		let old_pos = self.get_position();
+		self.set_position((old_pos.0 + offset.0, old_pos.1 + offset.1));
+	}
+	
 	/// Returns the size of the component.
 	fn get_size(&self) -> (f64, f64) {
 		(0.0, 0.0)
@@ -203,8 +212,13 @@ pub trait Component: Drawable {
 	}
 
 	/// Returns whether the given viewport can see the internals of the component.
-	fn are_internals_visible(&self, _viewport: &Viewport) -> bool {
-		true
+	fn are_internals_visible(&self, viewport: &Viewport) -> bool {
+		let start_ratio = 0.3;
+
+		let height = self.get_size().1;
+		let height_ratio = height / viewport.get_size().1;
+
+		self.intersects(viewport) && height_ratio > start_ratio
 	}
 }
 
@@ -404,6 +418,20 @@ impl Circuit {
 		}
 	}
 
+	/// Returns a component given a chip stack.
+	fn get_component_from_chip_stack(&mut self, stack: &[usize]) -> Option<&mut Box<dyn Component>> {
+		match stack.len() {
+			0 => None,
+			1 => Some(&mut self.components[stack[0]]),
+			_ => self.components[stack[0]]
+					.get_internals_mut()
+					.unwrap()
+					.circuit
+					.get_component_from_chip_stack(&stack[1..]),
+		}
+	}
+
+	/// Returns a pin state given a chip stack.
 	fn get_pin_state_from_chip_stack(&self, stack: &[usize], pin_idx: usize) -> Option<PinState> {
 		match stack.len() {
 			0 => None,
@@ -474,6 +502,13 @@ impl Circuit {
 	pub fn toggle_switch_from_chip_stack(&mut self, stack: &[usize]) {
 		if let Some(state) = self.get_pin_state_from_chip_stack(stack, 0) {
 			self.set_switch_from_chip_stack(stack, 0, state.toggle(), true);
+		}
+	}
+
+	/// Translates a component given a chip stack.
+	pub fn translate_component_from_chip_stack(&mut self, stack: &[usize], offset_x: f64, offset_y: f64) {
+		if let Some(component) = self.get_component_from_chip_stack(stack) {
+			component.translate((offset_x, offset_y));
 		}
 	}
 }
@@ -586,6 +621,9 @@ pub trait Chip {
 	/// Returns the position of the chip.
 	fn get_chip_position(&self) -> (f64, f64);
 
+	/// Sets the position of the chip.
+	fn set_chip_position(&mut self, pos: (f64, f64));
+
 	/// Returns the size of the chip.
 	fn get_chip_size(&self) -> (f64, f64);
 
@@ -617,9 +655,6 @@ pub trait Chip {
 
 	/// Returns whether the given viewport is partially contained within the chip.
 	fn intersects(&self, viewport: &Viewport) -> bool;
-
-	/// Returns whether the given viewport can see the internals of the chip.
-	fn are_internals_visible(&self, viewport: &Viewport) -> bool;
 
 	/// Draws the front of the chip (the part that fades away when zooming in).
 	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d);
@@ -685,6 +720,18 @@ impl<T: Chip> Component for T {
 			.collect()
     }
 
+    fn get_position(&self) -> (f64, f64) {
+        self.get_chip_position()
+    }
+
+    fn set_position(&mut self, pos: (f64, f64)) {
+        self.set_chip_position(pos);
+    }
+
+	fn get_size(&self) -> (f64, f64) {
+		self.get_chip_size()
+	}
+
     fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
 		match self.get_mode() {
 			SimulationMode::Circuit => {
@@ -727,14 +774,6 @@ impl<T: Chip> Component for T {
 			SimulationMode::HighLevel => self.set_pin_state_high_level(idx, state),
 		}
     }
-
-    fn get_position(&self) -> (f64, f64) {
-        self.get_chip_position()
-    }
-
-	fn get_size(&self) -> (f64, f64) {
-		self.get_chip_size()
-	}
 	
 	fn set_mode(&mut self, mode: SimulationMode) {
 		self.set_mode(mode);
@@ -746,10 +785,6 @@ impl<T: Chip> Component for T {
 
 	fn intersects(&self, viewport: &Viewport) -> bool {
 		self.intersects(viewport)
-	}
-
-	fn are_internals_visible(&self, viewport: &Viewport) -> bool {
-		self.are_internals_visible(viewport)
 	}
 }
 
@@ -771,6 +806,9 @@ pub trait RectangleChip {
 
 	/// Returns the position of the chip.
 	fn get_chip_position(&self) -> (f64, f64);
+
+	/// Sets the position of the chip.
+	fn set_chip_position(&mut self, pos: (f64, f64));
 
 	/// Returns the size of the chip.
 	fn get_chip_size(&self) -> (f64, f64);
@@ -802,6 +840,10 @@ impl<T: RectangleChip> Chip for T {
 
 	fn get_chip_position(&self) -> (f64, f64) {
 		self.get_chip_position()
+	}
+
+	fn set_chip_position(&mut self, pos: (f64, f64)) {
+		self.set_chip_position(pos);
 	}
 
 	fn get_chip_size(&self) -> (f64, f64) {
@@ -856,15 +898,6 @@ impl<T: RectangleChip> Chip for T {
 			position.1 - size.1 * 0.5 <= viewport.get_position().1 + viewport.get_size().1 * 0.5;
 
 		intersects_x && intersects_y
-	}
-	
-	fn are_internals_visible(&self, viewport: &Viewport) -> bool {
-		let start_ratio = 0.3;
-
-		let height = self.get_size().1;
-		let height_ratio = height / viewport.get_size().1;
-
-		Chip::intersects(self, &viewport) && height_ratio > start_ratio
 	}
 
     fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
@@ -961,6 +994,14 @@ impl Component for Pin {
     fn get_pin_positions(&self) -> Vec<(f64, f64)> {
         vec![(0.0, 0.0)]
     }
+	
+    fn get_position(&self) -> (f64, f64) {
+        self.position
+    }
+
+	fn set_position(&mut self, pos: (f64, f64)) {
+		self.position = pos;
+	}
 
 	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
 		if idx > 0 {
@@ -995,10 +1036,6 @@ impl Component for Pin {
 			Ok(())
 		}
 	}
-	
-    fn get_position(&self) -> (f64, f64) {
-        self.position
-    }
 }
 
 /// A switch that can be turned on and off.
@@ -1044,6 +1081,10 @@ impl Component for Switch {
     fn get_position(&self) -> (f64, f64) {
         self.position
     }
+
+	fn set_position(&mut self, pos: (f64, f64)) {
+		self.position = pos;
+	}
 
 	fn get_size(&self) -> (f64, f64) {
 		(100.0, 100.0)
@@ -1143,6 +1184,10 @@ impl Component for MultiSwitch {
     fn get_position(&self) -> (f64, f64) {
         self.position
     }
+
+	fn set_position(&mut self, pos: (f64, f64)) {
+		self.position = pos;
+	}
 	
 	fn get_size(&self) -> (f64, f64) {
 		let width = 50.0 * self.size as f64;
@@ -1215,6 +1260,18 @@ impl Component for Bulb {
         vec![(0.0, 0.0)]
     }
 
+    fn get_position(&self) -> (f64, f64) {
+        self.position
+    }
+
+	fn set_position(&mut self, pos: (f64, f64)) {
+		self.position = pos;
+	}
+
+	fn get_size(&self) -> (f64, f64) {
+		(100.0, 100.0)
+	}
+
 	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
 		if idx > 0 {
 			Err(PinError::OutOfRange)
@@ -1231,10 +1288,6 @@ impl Component for Bulb {
 			Ok(())
 		}
 	}
-
-    fn get_position(&self) -> (f64, f64) {
-        self.position
-    }
 }
 
 /// A collection of bulbs.
@@ -1298,6 +1351,14 @@ impl Component for MultiBulb {
 			.collect()
     }
 
+    fn get_position(&self) -> (f64, f64) {
+        self.position
+    }
+
+	fn set_position(&mut self, pos: (f64, f64)) {
+		self.position = pos;
+	}
+
 	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
 		if idx >= self.states.len() {
 			Err(PinError::OutOfRange)
@@ -1314,10 +1375,6 @@ impl Component for MultiBulb {
 			Ok(())
 		}
 	}
-
-    fn get_position(&self) -> (f64, f64) {
-        self.position
-    }
 }
 
 /// A [`Component`] for splitting a signal onto many different wires.
@@ -1365,6 +1422,14 @@ impl Component for Junction {
         vec![(0.0, 0.0); self.states.len()]
     }
 
+    fn get_position(&self) -> (f64, f64) {
+        self.position
+    }
+
+	fn set_position(&mut self, pos: (f64, f64)) {
+		self.position = pos;
+	}
+
 	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
 		if idx >= self.states.len() {
 			Err(PinError::OutOfRange)
@@ -1385,8 +1450,4 @@ impl Component for Junction {
 			Ok(())
 		}
 	}
-
-    fn get_position(&self) -> (f64, f64) {
-        self.position
-    }
 }

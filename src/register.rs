@@ -43,6 +43,10 @@ impl RectangleChip for Register {
         self.position
     }
 
+	fn set_chip_position(&mut self, pos: (f64, f64)) {
+		self.position = pos;
+	}
+
     fn get_chip_size(&self) -> (f64, f64) {
         (400.0, 300.0)
     }

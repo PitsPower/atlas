@@ -92,6 +92,10 @@ impl RectangleChip for HalfAdder {
 		self.position
     }
 
+	fn set_chip_position(&mut self, pos: (f64, f64)) {
+		self.position = pos;
+	}
+
     fn get_chip_size(&self) -> (f64, f64) {
 		(200.0, 200.0)
     }
@@ -240,6 +244,10 @@ impl RectangleChip for FullAdder {
 		self.position
     }
 
+	fn set_chip_position(&mut self, pos: (f64, f64)) {
+		self.position = pos;
+	}
+
     fn get_chip_size(&self) -> (f64, f64) {
 		(400.0, 200.0)
     }
@@ -385,6 +393,10 @@ impl RectangleChip for Adder {
     fn get_chip_position(&self) -> (f64, f64) {
 		self.position
     }
+
+	fn set_chip_position(&mut self, pos: (f64, f64)) {
+		self.position = pos;
+	}
 
     fn get_chip_size(&self) -> (f64, f64) {
 		(400.0, self.size as f64 * 100.0)

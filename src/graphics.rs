@@ -103,6 +103,19 @@ impl Viewport {
 	}
 }
 
+#[wasm_bindgen]
+impl Viewport {
+	/// Returns the viewport's x position.
+	pub fn get_x(&self) -> f64 {
+		self.position.0
+	}
+
+	/// Returns the viewport's y position.
+	pub fn get_y(&self) -> f64 {
+		self.position.1
+	}
+}
+
 /// The renderer. This handles drawing every [`Component`] and [`Wire`] on the screen, as well
 /// as handling infinite zoom.
 #[wasm_bindgen]
@@ -256,6 +269,10 @@ impl Renderer {
 	fn get_chip_stack_from_viewport(&mut self, circuit: &Circuit, cursor: Viewport) -> Vec<usize> {
 		for (idx, component) in circuit.get_components().iter().enumerate() {
 			if component.intersects(&cursor) {
+				if !component.are_internals_visible(&self.viewport) {
+					return vec![idx];
+				}
+
 				if let Some(internals) = component.get_internals() {
 					let new_cursor = cursor.transform_in_to_chip(
 						component.get_position(),
@@ -291,9 +308,49 @@ impl Renderer {
 			size: (0.0, 0.0),
 		};
 
-		let mut result = self.chip_stack.clone();
-		result.extend(self.get_chip_stack_from_viewport(circuit, cursor));
-		result
+		let result = self.get_chip_stack_from_viewport(circuit, cursor);
+
+		let mut final_result = self.chip_stack.clone();
+		final_result.extend(result);
+		final_result
+	}
+
+	/// Returns the new viewport after descending down the chip stack.
+	pub fn get_viewport_from_pos(&mut self, circuit: &Circuit, stack: &[usize], cursor_x: f64, cursor_y: f64) -> Viewport {
+		let (width, height) = self.get_canvas_size();
+
+		let cursor_vec = (
+			cursor_x * self.viewport.size.0 / width - self.viewport.size.0 * 0.5 + self.viewport.position.0,
+			cursor_y * self.viewport.size.1 / height - self.viewport.size.1 * 0.5 + self.viewport.position.1,
+		);
+
+		let cursor = Viewport {
+			position: cursor_vec,
+			size: (0.0, 0.0),
+		};
+
+		if stack.len() == 0 {
+			return cursor;
+		}
+		
+		let mut viewport = cursor;
+		let mut current_circuit = circuit;
+
+		for i in 0..stack.len() - 1 {
+			let idx = stack[i];
+
+			let internals = &current_circuit.get_components()[idx].get_internals().unwrap();
+			current_circuit = &internals.circuit;
+
+			if i >= self.chip_stack.len() {
+				viewport = viewport.transform_in_to_chip(
+					current_circuit.get_components()[idx].get_position(),
+					internals
+				);
+			}
+		}
+
+		viewport
 	}
 
 	/// Renders the given [`Circuit`].
