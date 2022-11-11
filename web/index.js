@@ -6,6 +6,7 @@ const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
+const circuit = wasm.Circuit.new();
 // const circuit = wasm.example1(10);
 // const circuit = wasm.example2();
 // const circuit = wasm.transistor_example();
@@ -20,8 +21,23 @@ canvas.height = window.innerHeight;
 // const circuit = wasm.nor_latch_example();
 // const circuit = wasm.test_example();
 // const circuit = wasm.bus_example();
-const circuit = wasm.latch_example();
+// const circuit = wasm.latch_example();
 // const circuit = wasm.register_example();
+
+Object.values(wasm.ComponentType).forEach((ct) => {
+	if (typeof ct === "string") {
+		return;
+	}
+
+	const button = document.createElement("button");
+	button.innerText = wasm.get_ct_name(ct);
+
+	button.onclick = () => {
+		circuit.spawn_component(ct);
+	};
+
+	document.getElementById("spawn-buttons").appendChild(button);
+});
 
 const renderer = new wasm.Renderer(ctx);
 renderer.update_sim_modes(circuit);
@@ -82,8 +98,8 @@ window.addEventListener("mousemove", (e) => {
 
 		circuit.translate_component_from_chip_stack(
 			currentChipStack,
-			inCircuitCursor.x - prevInCircuitCursor.x,
-			inCircuitCursor.y - prevInCircuitCursor.y,	
+			e.ctrlKey ? 0 : inCircuitCursor.x - prevInCircuitCursor.x,
+			e.shiftKey ? 0 : inCircuitCursor.y - prevInCircuitCursor.y,	
 		);
 
 		prevInCircuitCursor = inCircuitCursor;
@@ -113,7 +129,7 @@ window.addEventListener("wheel", (e) => {
 	renderer.update_sim_modes(circuit);
 });
 
-const keys = 'asdfghjkzxcvbnm,';
+const keys = "asdfghjkzxcvbnm,";
 
 window.addEventListener("keypress", (e) => {
 	if (keys.includes(e.key)) {
@@ -122,7 +138,7 @@ window.addEventListener("keypress", (e) => {
 	}
 
 	switch (e.key) {
-		case 'p': {
+		case "p": {
 			renderer.switch_viewport_mode();
 			break;
 		}

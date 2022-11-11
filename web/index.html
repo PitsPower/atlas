@@ -11,10 +11,30 @@
         overflow: hidden;
         margin: 0;
       }
+
+      #spawn-buttons {
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+
+      #spawn-buttons button {
+        user-select: none;
+        color: #fff;
+        background: #333;
+        font-size: 30px;
+        font-family: monospace;
+        border: 5px solid #000;
+        display: block;
+        padding: 10px 20px;
+        margin: 10px;
+      }
     </style>
   </head>
   <body>
     <canvas id="canvas"></canvas>
+
+    <div id="spawn-buttons"></div>
 
     <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript>
     <script src="./bootstrap.js"></script>

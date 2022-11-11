@@ -8,6 +8,7 @@ use std::f64::consts::PI;
 use wasm_bindgen::prelude::*;
 
 use crate::graphics::{Drawable, Viewport, WireLayoutCommand};
+use crate::transistor::{NTransistor, PTransistor};
 
 /// A pin state.
 /// 
@@ -119,6 +120,28 @@ pub enum SimulationMode {
 	Circuit,
 	/// Simulate the chip using the high level implementation.
 	HighLevel,
+}
+
+/// The different kinds of component.
+#[wasm_bindgen]
+pub enum ComponentType {
+	Bulb,
+	Junction,
+	NTransistor,
+	PTransistor,
+	Switch,
+}
+
+/// Returns the name of the given [`ComponentType`].
+#[wasm_bindgen]
+pub fn get_ct_name(ct: ComponentType) -> String {
+	match ct {
+		ComponentType::Bulb => String::from("Bulb"),
+		ComponentType::Junction => String::from("Junction"),
+		ComponentType::NTransistor => String::from("N-type Transistor"),
+		ComponentType::PTransistor => String::from("P-type Transistor"),
+		ComponentType::Switch => String::from("Switch"),
+	}
 }
 
 /// Something that can go in a circuit. A [`Component`] may be connected to another [`Component`] using a [`Wire`].
@@ -258,14 +281,6 @@ pub struct Circuit {
 }
 
 impl Circuit {
-	/// Returns a blank [`Circuit`].
-	pub fn new() -> Self {
-		Self {
-			components: vec![],
-			wires: vec![],
-		}
-	}
-
 	/// Returns the list of components in the circuit.
 	pub fn get_components(&self) -> &Vec<Box<dyn Component>> {
 		&self.components
@@ -473,6 +488,24 @@ impl Circuit {
 
 #[wasm_bindgen]
 impl Circuit {
+	/// Returns a blank [`Circuit`].
+	pub fn new() -> Self {
+		Self {
+			components: vec![],
+			wires: vec![],
+		}
+	}
+
+	pub fn spawn_component(&mut self, component_type: ComponentType) {
+		match component_type {
+			ComponentType::Bulb => crate::add!(self, Bulb, (0.0, 0.0)),	
+			ComponentType::Junction => crate::add!(self, Junction, (0.0, 0.0), 3),	
+			ComponentType::NTransistor => crate::add!(self, NTransistor, (0.0, 0.0)),	
+			ComponentType::PTransistor => crate::add!(self, PTransistor, (0.0, 0.0)),	
+			ComponentType::Switch => crate::add!(self, Switch, (0.0, 0.0)),	
+		};
+	}
+
 	/// Toggles a [`Switch`] in the circuit.
 	pub fn toggle_switch(&mut self, idx: usize) {
 		let mut component_idx = 0;
