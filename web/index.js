@@ -34,6 +34,7 @@ window.addEventListener("resize", () => {
 });
 
 let isPanning = false;
+let hasMoved = false;
 let prevCursor = null;
 
 window.addEventListener("mousedown", (e) => {
@@ -45,14 +46,22 @@ window.addEventListener("mousedown", (e) => {
 	};
 });
 
-window.addEventListener("mouseup", () => {
+window.addEventListener("mouseup", (e) => {
+	if (!hasMoved) {
+		const chipStack = renderer.get_chip_stack_from_pos(circuit, e.clientX, e.clientY);
+		circuit.toggle_switch_from_chip_stack(chipStack);
+	}
+
 	isPanning = false;
+	hasMoved = false;
 });
 
 window.addEventListener("mousemove", (e) => {
 	if (!isPanning) {
 		return;
 	}
+
+	hasMoved = true;
 
 	const xDiff = e.clientX - prevCursor.x;
 	const yDiff = e.clientY - prevCursor.y;

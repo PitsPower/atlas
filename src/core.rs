@@ -187,8 +187,19 @@ pub trait Component: Drawable {
 	}
 
 	/// Returns whether the given viewport is partially contained within the component.
-	fn intersects(&self, _viewport: &Viewport) -> bool {
-		true
+	fn intersects(&self, viewport: &Viewport) -> bool {
+		let position = self.get_position();
+		let size = self.get_size();
+
+		let intersects_x =
+			position.0 + size.0 * 0.5 >= viewport.get_position().0 - viewport.get_size().0 * 0.5 &&
+			position.0 - size.0 * 0.5 <= viewport.get_position().0 + viewport.get_size().0 * 0.5;
+
+		let intersects_y =
+			position.1 + size.1 * 0.5 >= viewport.get_position().1 - viewport.get_size().1 * 0.5 &&
+			position.1 - size.1 * 0.5 <= viewport.get_position().1 + viewport.get_size().1 * 0.5;
+
+		intersects_x && intersects_y
 	}
 
 	/// Returns whether the given viewport can see the internals of the component.
@@ -393,6 +404,38 @@ impl Circuit {
 		}
 	}
 
+	fn get_pin_state_from_chip_stack(&self, stack: &[usize], pin_idx: usize) -> Option<PinState> {
+		match stack.len() {
+			0 => None,
+			1 => self.components[stack[0]].get_pin_state(pin_idx).ok(),
+			_ => self.components[stack[0]]
+					.get_internals()
+					.unwrap()
+					.circuit
+					.get_pin_state_from_chip_stack(&stack[1..], pin_idx),
+		}
+	}
+
+	/// Updates a switch given a chip stack and pin index.
+	fn set_switch_from_chip_stack(&mut self, stack: &[usize], pin_idx: usize, state: PinState, set_manually: bool) {
+		match stack.len() {
+			0 => {},
+			1 => {
+				// TODO: Bit hacky, maybe fix this
+				if self.components[stack[0]].get_switch_count() == 1 {
+					self.update_component(&ExternalPin { component_idx: stack[0], pin_idx }, state, set_manually);
+				}
+			},
+			_ => {
+				self.components[stack[0]]
+					.get_internals_mut()
+					.unwrap()
+					.circuit
+					.set_switch_from_chip_stack(&stack[1..], pin_idx, state, set_manually);
+			},
+		}
+	}
+
 	/// Returns the positions of each [`Pin`].
 	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
 		self.components.iter()
@@ -425,6 +468,13 @@ impl Circuit {
 
 		let state = self.components[component_idx].get_pin_state(pin_idx).unwrap();
 		self.update_component(&ExternalPin { component_idx: component_idx, pin_idx: pin_idx }, state.toggle(), true);
+	}
+
+	/// Toggles the switch referred to by the stack (if the component is a switch).
+	pub fn toggle_switch_from_chip_stack(&mut self, stack: &[usize]) {
+		if let Some(state) = self.get_pin_state_from_chip_stack(stack, 0) {
+			self.set_switch_from_chip_stack(stack, 0, state.toggle(), true);
+		}
 	}
 }
 
@@ -971,8 +1021,7 @@ impl Drawable for Switch {
     fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) {
         ctx.set_fill_style(&self.state.get_colour().into());
 
-		let width = 100.0;
-		let height = 100.0;
+		let (width, height) = self.get_size();
 
 		ctx.fill_rect(
 			-width * 0.5,
@@ -991,6 +1040,14 @@ impl Component for Switch {
     fn get_pin_positions(&self) -> Vec<(f64, f64)> {
         vec![(0.0, 0.0)]
     }
+	
+    fn get_position(&self) -> (f64, f64) {
+        self.position
+    }
+
+	fn get_size(&self) -> (f64, f64) {
+		(100.0, 100.0)
+	}
 
 	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
 		if idx > 0 {
@@ -1016,15 +1073,12 @@ impl Component for Switch {
 			Ok(())
 		}
 	}
-	
-    fn get_position(&self) -> (f64, f64) {
-        self.position
-    }
 }
 
 /// A collection of switches that can be turned on and off.
 pub struct MultiSwitch {
 	position: (f64, f64),
+	size: usize,
 	states: Vec<PinState>,
 }
 
@@ -1033,6 +1087,7 @@ impl MultiSwitch {
 	pub fn new(pos: (f64, f64), size: usize) -> Self {
 		Self {
 			position: pos,
+			size,
 			states: vec![PinState::Off; size],
 		}
 	}
@@ -1047,8 +1102,7 @@ impl Drawable for MultiSwitch {
 
 		let size = self.states.len();
 
-		let width = 50.0 * size as f64;
-		let height = 200.0;
+		let (width, height) = self.get_size();
 
 		ctx.stroke_rect(-width * 0.5, -height * 0.5, width, height);
 		ctx.fill_rect(-width * 0.5, -height * 0.5, width, height);
@@ -1086,6 +1140,16 @@ impl Component for MultiSwitch {
 			.collect()
     }
 	
+    fn get_position(&self) -> (f64, f64) {
+        self.position
+    }
+	
+	fn get_size(&self) -> (f64, f64) {
+		let width = 50.0 * self.size as f64;
+		let height = 200.0;
+		(width, height)
+	}
+	
 	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
 		if idx >= self.states.len() {
 			Err(PinError::OutOfRange)
@@ -1110,10 +1174,6 @@ impl Component for MultiSwitch {
 			Ok(())
 		}
 	}
-	
-    fn get_position(&self) -> (f64, f64) {
-        self.position
-    }
 }
 
 /// A bulb that shows a single state.

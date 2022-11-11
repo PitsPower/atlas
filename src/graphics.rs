@@ -252,6 +252,50 @@ impl Renderer {
 		self.update_sim_modes_with_viewport(circuit, self.viewport);
 	}
 
+	/// Returns the stack of component indices over a given [`Viewport`].
+	fn get_chip_stack_from_viewport(&mut self, circuit: &Circuit, cursor: Viewport) -> Vec<usize> {
+		for (idx, component) in circuit.get_components().iter().enumerate() {
+			if component.intersects(&cursor) {
+				if let Some(internals) = component.get_internals() {
+					let new_cursor = cursor.transform_in_to_chip(
+						component.get_position(),
+						internals,
+					);
+
+					let mut result = self.get_chip_stack_from_viewport(&internals.circuit, new_cursor);
+					result.insert(0, idx);
+
+					return result;
+				} else {
+					return vec![idx];
+				}
+			}
+		}
+
+		vec![]
+	}
+
+	/// Returns the stack of component indices over a given position.
+	pub fn get_chip_stack_from_pos(&mut self, root_circuit: &Circuit, cursor_x: f64, cursor_y: f64) -> Vec<usize> {
+		let circuit = self.get_current_circuit(root_circuit);
+
+		let (width, height) = self.get_canvas_size();
+
+		let cursor_vec = (
+			cursor_x * self.viewport.size.0 / width - self.viewport.size.0 * 0.5 + self.viewport.position.0,
+			cursor_y * self.viewport.size.1 / height - self.viewport.size.1 * 0.5 + self.viewport.position.1,
+		);
+
+		let cursor = Viewport {
+			position: cursor_vec,
+			size: (0.0, 0.0),
+		};
+
+		let mut result = self.chip_stack.clone();
+		result.extend(self.get_chip_stack_from_viewport(circuit, cursor));
+		result
+	}
+
 	/// Renders the given [`Circuit`].
 	pub fn render(&mut self, root_circuit: &Circuit) {
 		let ctx = &self.ctx;
