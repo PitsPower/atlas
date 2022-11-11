@@ -315,8 +315,8 @@ impl Renderer {
 		final_result
 	}
 
-	/// Returns the new viewport after descending down the chip stack.
-	pub fn get_viewport_from_pos(&mut self, circuit: &Circuit, stack: &[usize], cursor_x: f64, cursor_y: f64) -> Viewport {
+	/// Returns the new cursor position after descending down the chip stack.
+	pub fn get_cursor_from_pos(&mut self, circuit: &Circuit, stack: &[usize], cursor_x: f64, cursor_y: f64) -> Viewport {
 		let (width, height) = self.get_canvas_size();
 
 		let cursor_vec = (
@@ -340,14 +340,15 @@ impl Renderer {
 			let idx = stack[i];
 
 			let internals = &current_circuit.get_components()[idx].get_internals().unwrap();
-			current_circuit = &internals.circuit;
 
 			if i >= self.chip_stack.len() {
 				viewport = viewport.transform_in_to_chip(
 					current_circuit.get_components()[idx].get_position(),
-					internals
+					internals,
 				);
 			}
+
+			current_circuit = &internals.circuit;
 		}
 
 		viewport

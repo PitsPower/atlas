@@ -12,7 +12,7 @@ canvas.height = window.innerHeight;
 // const circuit = wasm.transistor_example2();
 // const circuit = wasm.bidirectional_example();
 // const circuit = wasm.not_gate_example();
-const circuit = wasm.nor_gate_example();
+// const circuit = wasm.nor_gate_example();
 // const circuit = wasm.or_gate_example();
 // const circuit = wasm.nand_gate_example();
 // const circuit = wasm.and_gate_example();
@@ -20,7 +20,7 @@ const circuit = wasm.nor_gate_example();
 // const circuit = wasm.nor_latch_example();
 // const circuit = wasm.test_example();
 // const circuit = wasm.bus_example();
-// const circuit = wasm.latch_example();
+const circuit = wasm.latch_example();
 // const circuit = wasm.register_example();
 
 const renderer = new wasm.Renderer(ctx);
@@ -49,11 +49,10 @@ window.addEventListener("mousedown", (e) => {
 		y: e.clientY,
 	};
 	
-	const viewport = renderer.get_viewport_from_pos(circuit, currentChipStack, e.clientX, e.clientY);
-
+	const cursor = renderer.get_cursor_from_pos(circuit, currentChipStack, e.clientX, e.clientY);
 	prevInCircuitCursor = {
-		x: viewport.get_x(),
-		y: viewport.get_y(),
+		x: cursor.get_x(),
+		y: cursor.get_y(),
 	};
 });
 
@@ -75,10 +74,10 @@ window.addEventListener("mousemove", (e) => {
 			return;
 		}
 
-		const viewport = renderer.get_viewport_from_pos(circuit, currentChipStack, e.clientX, e.clientY);
+		const cursor = renderer.get_cursor_from_pos(circuit, currentChipStack, e.clientX, e.clientY);
 		const inCircuitCursor = {
-			x: viewport.get_x(),
-			y: viewport.get_y(),
+			x: cursor.get_x(),
+			y: cursor.get_y(),
 		};
 
 		circuit.translate_component_from_chip_stack(
