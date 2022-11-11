@@ -181,9 +181,7 @@ pub trait Component: Drawable {
 	}
 	
 	/// Returns the size of the component.
-	fn get_size(&self) -> (f64, f64) {
-		(0.0, 0.0)
-	}
+	fn get_size(&self) -> (f64, f64);
 
 	/// Sets the simulation mode of the chip to the given mode.
 	fn set_mode(&mut self, _mode: SimulationMode) {
@@ -1003,6 +1001,10 @@ impl Component for Pin {
 		self.position = pos;
 	}
 
+	fn get_size(&self) -> (f64, f64) {
+		(0.0, 0.0)
+	}
+
 	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
 		if idx > 0 {
 			Err(PinError::OutOfRange)
@@ -1293,6 +1295,7 @@ impl Component for Bulb {
 /// A collection of bulbs.
 pub struct MultiBulb {
 	position: (f64, f64),
+	size: usize,
 	states: Vec<PinState>,
 }
 
@@ -1301,6 +1304,7 @@ impl MultiBulb {
 	pub fn new(pos: (f64, f64), size: usize) -> Self {
 		Self {
 			position: pos,
+			size,
 			states: vec![PinState::Disconnected; size],
 		}
 	}
@@ -1315,8 +1319,7 @@ impl Drawable for MultiBulb {
 
 		let size = self.states.len();
 
-		let width = 50.0 * size as f64;
-		let height = 200.0;
+		let (width, height) = self.get_size();
 
 		ctx.stroke_rect(-width * 0.5, -height * 0.5, width, height);
 		ctx.fill_rect(-width * 0.5, -height * 0.5, width, height);
@@ -1357,6 +1360,12 @@ impl Component for MultiBulb {
 
 	fn set_position(&mut self, pos: (f64, f64)) {
 		self.position = pos;
+	}
+
+	fn get_size(&self) -> (f64, f64) {
+		let width = 50.0 * self.size as f64;
+		let height = 200.0;
+		(width, height)
 	}
 
 	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
@@ -1428,6 +1437,10 @@ impl Component for Junction {
 
 	fn set_position(&mut self, pos: (f64, f64)) {
 		self.position = pos;
+	}
+
+	fn get_size(&self) -> (f64, f64) {
+		(20.0, 20.0)
 	}
 
 	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {

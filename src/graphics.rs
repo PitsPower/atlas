@@ -266,10 +266,10 @@ impl Renderer {
 	}
 
 	/// Returns the stack of component indices over a given [`Viewport`].
-	fn get_chip_stack_from_viewport(&mut self, circuit: &Circuit, cursor: Viewport) -> Vec<usize> {
+	fn get_chip_stack_from_viewport(&mut self, circuit: &Circuit, cursor: Viewport, viewport: Viewport) -> Vec<usize> {
 		for (idx, component) in circuit.get_components().iter().enumerate() {
 			if component.intersects(&cursor) {
-				if !component.are_internals_visible(&self.viewport) {
+				if !component.are_internals_visible(&viewport) {
 					return vec![idx];
 				}
 
@@ -278,8 +278,12 @@ impl Renderer {
 						component.get_position(),
 						internals,
 					);
+					let new_viewport = viewport.transform_in_to_chip(
+						component.get_position(),
+						internals,
+					);
 
-					let mut result = self.get_chip_stack_from_viewport(&internals.circuit, new_cursor);
+					let mut result = self.get_chip_stack_from_viewport(&internals.circuit, new_cursor, new_viewport);
 					result.insert(0, idx);
 
 					return result;
@@ -308,7 +312,7 @@ impl Renderer {
 			size: (0.0, 0.0),
 		};
 
-		let result = self.get_chip_stack_from_viewport(circuit, cursor);
+		let result = self.get_chip_stack_from_viewport(circuit, cursor, self.viewport);
 
 		let mut final_result = self.chip_stack.clone();
 		final_result.extend(result);
