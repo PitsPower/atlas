@@ -4,12 +4,11 @@
 
 use wasm_bindgen::prelude::*;
 
-use crate::core::{ChipInternals, Circuit, Component, SimulationMode};
+use crate::core::{ChipInternals, Circuit, Component, ExternalPin, SimulationMode};
 
 /// A thing that can be drawn on the screen.
 pub trait Drawable {
-	/// Draws something and returns a simulation mode. The simulation mode is used to
-	/// decide how to simulate something based on how zoomed in the viewport is.
+	/// Draws an object.
 	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: BoundingBox);
 }
 
@@ -127,6 +126,8 @@ pub struct Renderer {
 	/// If true, nothing will be scaled or translated. Instead, the viewport will be rendered
 	/// using a yellow box.
 	show_viewport: bool,
+	/// If true, external pins will be shown with green circles.
+	show_pins: bool,
 	/// The stack of [`Chip`] indices that are being zoomed into. Used for infinite zoom.
 	chip_stack: Vec<usize>,
 }
@@ -146,6 +147,7 @@ impl Renderer {
 				height,
 			),
 			show_viewport: false,
+			show_pins: false,
 			chip_stack: vec![],
 		}
 	}
@@ -193,6 +195,11 @@ impl Renderer {
 	/// Switches between "yellow box" mode and regular mode.
 	pub fn switch_viewport_mode(&mut self) {
 		self.show_viewport = !self.show_viewport;
+	}
+
+	/// Switches between showing and hiding pins.
+	pub fn switch_pin_mode(&mut self) {
+		self.show_pins = !self.show_pins;
 	}
 
 	/// Returns the [`Circuit`] that is currently being rendered. If the viewport is in a [`Chip`],
@@ -357,6 +364,39 @@ impl Renderer {
 
 		viewport
 	}
+	
+	/// Returns the clicked pin.
+	pub fn get_clicked_pin(&self, root_circuit: &Circuit, cursor_x: f64, cursor_y: f64) -> Option<ExternalPin> {
+		let circuit = self.get_current_circuit(root_circuit);
+
+		let (width, height) = self.get_canvas_size();
+
+		let cursor_vec = (
+			cursor_x * self.viewport.size.0 / width - self.viewport.size.0 * 0.5 + self.viewport.position.0,
+			cursor_y * self.viewport.size.1 / height - self.viewport.size.1 * 0.5 + self.viewport.position.1,
+		);
+
+		for (cidx, component) in circuit.get_components().iter().enumerate() {
+			for (pidx, pin_pos) in component.get_pin_positions().iter().enumerate() {
+				let con = ExternalPin { component_idx: cidx, pin_idx: pidx };
+
+				if circuit.get_wires().iter().find(|w| w.pin1 == con || w.pin2 == con).is_some() {
+					continue;
+				}
+
+				let true_pin_pos = (
+					component.get_position().0 + pin_pos.0,
+					component.get_position().1 + pin_pos.1,
+				);
+
+				if (true_pin_pos.0 - cursor_vec.0).powf(2.0) + (true_pin_pos.1 - cursor_vec.1).powf(2.0) <= 50.0 {
+					return Some(con);
+				}
+			}
+		}
+
+		None
+	}
 
 	/// Renders the given [`Circuit`].
 	pub fn render(&mut self, root_circuit: &Circuit) {
@@ -415,6 +455,10 @@ impl Renderer {
 		}
 		
 		circuit.draw(ctx, self.viewport);
+
+		if self.show_pins {
+			circuit.draw_pin_highlights(ctx);
+		}
 
 		if self.show_viewport {
 			ctx.set_line_width(3.0);

@@ -245,6 +245,7 @@ pub trait Component: Drawable {
 
 /// A specifier for a pin on a particular component. This differs from [`Pin`], which is an internal
 /// pin used in a [`Circuit`] within a [`Chip`].
+#[wasm_bindgen]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ExternalPin {
 	/// The index of the component.
@@ -258,11 +259,11 @@ pub struct ExternalPin {
 /// A wire stores two states, one for each pin. This allows for wires to work
 /// correctly in both directions.
 #[derive(Debug)]
-struct Wire {
+pub struct Wire {
 	/// The first pin that the wire is connected to.
-	pin1: ExternalPin,
+	pub pin1: ExternalPin,
 	/// The second pin that the wire is connected to.
-	pin2: ExternalPin,
+	pub pin2: ExternalPin,
 	/// Commands used to specify how the wire is rendered.
 	layout_commands: Vec<WireLayoutCommand>,
 	/// The state being emitted by pin 1.
@@ -289,6 +290,11 @@ impl Circuit {
 	/// Returns the mutable list of components in the circuit.
 	pub fn get_components_mut(&mut self) -> &mut Vec<Box<dyn Component>> {
 		&mut self.components
+	}
+
+	/// Returns the list of wires in the circuit.
+	pub fn get_wires(&self) -> &Vec<Wire> {
+		&self.wires
 	}
 
 	/// Returns the list of [`Pin`] components in the circuit.
@@ -484,6 +490,36 @@ impl Circuit {
 			.map(|c| c.get_position())
 			.collect()
 	}
+
+	/// Draws the pin highlights.
+	pub fn draw_pin_highlights(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+		for (cidx, component) in self.components.iter().enumerate() {
+			ctx.save();
+			
+			let (x, y) = component.get_position();
+			ctx.translate(x, y).unwrap();
+
+			for (pidx, pin_pos) in component.get_pin_positions().iter().enumerate() {
+				let con = ExternalPin { component_idx: cidx, pin_idx: pidx };
+
+				if self.get_wires().iter().find(|w| w.pin1 == con || w.pin2 == con).is_some() {
+					continue;
+				}
+
+				ctx.set_fill_style(&"#000".into());
+				ctx.begin_path();
+				ctx.arc(pin_pos.0, pin_pos.1, 8.0, 0.0, 2.0 * PI).unwrap();
+				ctx.fill();
+	
+				ctx.set_fill_style(&"#0f0".into());
+				ctx.begin_path();
+				ctx.arc(pin_pos.0, pin_pos.1, 5.0, 0.0, 2.0 * PI).unwrap();
+				ctx.fill();
+			}
+			
+			ctx.restore();
+		}
+	}
 }
 
 #[wasm_bindgen]
@@ -542,6 +578,15 @@ impl Circuit {
 		if let Some(component) = self.get_component_from_chip_stack(stack) {
 			component.translate((offset_x, offset_y));
 		}
+	}
+
+	/// Connects two components with a wire externally.
+	/// Used to connect wires from JavaScript.
+	pub fn connect_external(
+		&mut self, comp1_idx: usize, pin1_idx: usize,
+		comp2_idx: usize, pin2_idx: usize,
+	) {
+		self.connect((comp1_idx, pin1_idx), (comp2_idx, pin2_idx), vec![]);
 	}
 }
 

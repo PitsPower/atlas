@@ -56,8 +56,36 @@ let prevCursor = null;
 let currentChipStack = [];
 let prevInCircuitCursor = null;
 
+let isDrawingWire = false;
+let firstExternalPin = null;
+
+const keys = "asdfghjkzxcvbnm,";
+
+window.addEventListener("keypress", (e) => {
+	if (keys.includes(e.key)) {
+		const index = keys.indexOf(e.key);
+		circuit.toggle_switch(index);
+	}
+
+	switch (e.key) {
+		case "p": {
+			renderer.switch_viewport_mode();
+			break;
+		}
+
+		case "w": {
+			isDrawingWire = !isDrawingWire;
+			renderer.switch_pin_mode();
+			break;
+		}
+	}
+});
+
 window.addEventListener("mousedown", (e) => {
-	currentChipStack = renderer.get_chip_stack_from_pos(circuit, e.clientX, e.clientY);
+	if (!isDrawingWire) {
+		currentChipStack = renderer.get_chip_stack_from_pos(circuit, e.clientX, e.clientY);
+	}
+
 	isPanning = currentChipStack.length === 0;
 
 	prevCursor = {
@@ -73,12 +101,33 @@ window.addEventListener("mousedown", (e) => {
 });
 
 window.addEventListener("mouseup", (e) => {
+	isPanning = false;
+
 	if (!hasMoved) {
-		const chipStack = renderer.get_chip_stack_from_pos(circuit, e.clientX, e.clientY);
-		circuit.toggle_switch_from_chip_stack(chipStack);
+		if (isDrawingWire) {
+			const pin = renderer.get_clicked_pin(circuit, e.clientX, e.clientY);
+
+			if (!pin) {
+				return;
+			}
+
+			if (!firstExternalPin) {
+				firstExternalPin = pin;
+				return;
+			}
+
+			circuit.connect_external(
+				firstExternalPin.component_idx, firstExternalPin.pin_idx,
+				pin.component_idx, pin.pin_idx,
+			);
+
+			firstExternalPin = null;
+		} else {
+			const chipStack = renderer.get_chip_stack_from_pos(circuit, e.clientX, e.clientY);
+			circuit.toggle_switch_from_chip_stack(chipStack);
+		}
 	}
 
-	isPanning = false;
 	hasMoved = false;
 
 	currentChipStack = [];
@@ -127,22 +176,6 @@ window.addEventListener("wheel", (e) => {
 	const zoom = 0.95 ** (-e.deltaY / 100);
 	renderer.zoom(zoom, e.clientX, e.clientY);
 	renderer.update_sim_modes(circuit);
-});
-
-const keys = "asdfghjkzxcvbnm,";
-
-window.addEventListener("keypress", (e) => {
-	if (keys.includes(e.key)) {
-		const index = keys.indexOf(e.key);
-		circuit.toggle_switch(index);
-	}
-
-	switch (e.key) {
-		case "p": {
-			renderer.switch_viewport_mode();
-			break;
-		}
-	}
 });
 
 function render() {
