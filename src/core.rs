@@ -7,7 +7,8 @@ use std::f64::consts::PI;
 
 use wasm_bindgen::prelude::*;
 
-use crate::graphics::{Drawable, BoundingBox, WireLayoutCommand};
+use crate::gates::AndGate;
+use crate::graphics::{BoundingBox, Drawable, WireLayoutCommand};
 use crate::transistor::{NTransistor, PTransistor};
 
 /// A pin state.
@@ -125,6 +126,7 @@ pub enum SimulationMode {
 /// The different kinds of component.
 #[wasm_bindgen]
 pub enum ComponentType {
+	AndGate,
 	Bulb,
 	Junction,
 	NTransistor,
@@ -136,6 +138,7 @@ pub enum ComponentType {
 #[wasm_bindgen]
 pub fn get_ct_name(ct: ComponentType) -> String {
 	match ct {
+		ComponentType::AndGate => String::from("AND Gate"),
 		ComponentType::Bulb => String::from("Bulb"),
 		ComponentType::Junction => String::from("Junction"),
 		ComponentType::NTransistor => String::from("N-type Transistor"),
@@ -535,6 +538,7 @@ impl Circuit {
 
 	pub fn spawn_component(&mut self, component_type: ComponentType) {
 		match component_type {
+			ComponentType::AndGate => crate::add!(self, AndGate, (0.0, 0.0)),	
 			ComponentType::Bulb => crate::add!(self, Bulb, (0.0, 0.0)),	
 			ComponentType::Junction => crate::add!(self, Junction, (0.0, 0.0), 3),	
 			ComponentType::NTransistor => crate::add!(self, NTransistor, (0.0, 0.0)),	

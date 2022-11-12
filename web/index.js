@@ -82,11 +82,19 @@ window.addEventListener("keypress", (e) => {
 });
 
 window.addEventListener("mousedown", (e) => {
-	if (!isDrawingWire) {
-		currentChipStack = renderer.get_chip_stack_from_pos(circuit, e.clientX, e.clientY);
-	}
+	if (isDrawingWire) {
+		const pin = renderer.get_clicked_pin(circuit, e.clientX, e.clientY);
 
-	isPanning = currentChipStack.length === 0;
+		if (!pin) {
+			return;
+		}
+		
+		isPanning = false;
+		firstExternalPin = pin;
+	} else {
+		currentChipStack = renderer.get_chip_stack_from_pos(circuit, e.clientX, e.clientY);
+		isPanning = currentChipStack.length === 0;
+	}
 
 	prevCursor = {
 		x: e.clientX,
