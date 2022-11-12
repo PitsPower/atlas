@@ -274,7 +274,7 @@ impl Renderer {
 
 	/// Returns the stack of component indices over a given [`Viewport`].
 	fn get_chip_stack_from_viewport(&mut self, circuit: &Circuit, cursor: BoundingBox, viewport: BoundingBox) -> Vec<usize> {
-		for (idx, component) in circuit.get_components().iter().enumerate() {
+		for (idx, component) in circuit.get_components().iter().enumerate().rev() {
 			if component.intersects(&cursor) {
 				if !component.are_internals_visible(&viewport) {
 					return vec![idx];
@@ -389,7 +389,7 @@ impl Renderer {
 					component.get_position().1 + pin_pos.1,
 				);
 
-				if (true_pin_pos.0 - cursor_vec.0).powf(2.0) + (true_pin_pos.1 - cursor_vec.1).powf(2.0) <= 50.0 {
+				if (true_pin_pos.0 - cursor_vec.0).powf(2.0) + (true_pin_pos.1 - cursor_vec.1).powf(2.0) <= 100.0 {
 					return Some(con);
 				}
 			}
