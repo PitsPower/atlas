@@ -6,7 +6,7 @@ const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-const circuit = wasm.Circuit.new();
+const circuit = new wasm.Circuit();
 // const circuit = wasm.example1(10);
 // const circuit = wasm.example2();
 // const circuit = wasm.transistor_example();

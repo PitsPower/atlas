@@ -7,7 +7,7 @@ use std::f64::consts::PI;
 
 use wasm_bindgen::prelude::*;
 
-use crate::graphics::{Drawable, Viewport, WireLayoutCommand};
+use crate::graphics::{Drawable, BoundingBox, WireLayoutCommand};
 use crate::transistor::{NTransistor, PTransistor};
 
 /// A pin state.
@@ -212,12 +212,12 @@ pub trait Component: Drawable {
 	}
 
 	/// Returns whether the given viewport is fully contained within the component.
-	fn contains(&self, _viewport: &Viewport) -> bool {
+	fn contains(&self, _viewport: &BoundingBox) -> bool {
 		false
 	}
 
 	/// Returns whether the given viewport is partially contained within the component.
-	fn intersects(&self, viewport: &Viewport) -> bool {
+	fn intersects(&self, viewport: &BoundingBox) -> bool {
 		let position = self.get_position();
 		let size = self.get_size();
 
@@ -233,7 +233,7 @@ pub trait Component: Drawable {
 	}
 
 	/// Returns whether the given viewport can see the internals of the component.
-	fn are_internals_visible(&self, viewport: &Viewport) -> bool {
+	fn are_internals_visible(&self, viewport: &BoundingBox) -> bool {
 		let start_ratio = 0.3;
 
 		let height = self.get_size().1;
@@ -489,6 +489,7 @@ impl Circuit {
 #[wasm_bindgen]
 impl Circuit {
 	/// Returns a blank [`Circuit`].
+	#[wasm_bindgen(constructor)]
 	pub fn new() -> Self {
 		Self {
 			components: vec![],
@@ -545,7 +546,7 @@ impl Circuit {
 }
 
 impl Drawable for Circuit {
-	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: Viewport) {
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: BoundingBox) {
 		for wire in &self.wires {
 			let con1 = &wire.pin1;
 			let con2 = &wire.pin2;
@@ -630,7 +631,7 @@ pub struct ChipInternals {
 }
 
 impl Drawable for ChipInternals {
-	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: Viewport) {
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: BoundingBox) {
 		ctx.save();
 		ctx.scale(self.inner_scale, self.inner_scale).unwrap();
 
@@ -682,10 +683,10 @@ pub trait Chip {
 	}
 
 	/// Returns whether the given viewport is fully contained within the chip.
-	fn contains(&self, viewport: &Viewport) -> bool;
+	fn contains(&self, viewport: &BoundingBox) -> bool;
 
 	/// Returns whether the given viewport is partially contained within the chip.
-	fn intersects(&self, viewport: &Viewport) -> bool;
+	fn intersects(&self, viewport: &BoundingBox) -> bool;
 
 	/// Draws the front of the chip (the part that fades away when zooming in).
 	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d);
@@ -700,7 +701,7 @@ pub trait Chip {
 }
 
 impl<T: Chip> Drawable for T {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: Viewport) {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: BoundingBox) {
 		self.draw_back(ctx);
 
 		// TODO: Probably merge this with the other implementation!
@@ -810,11 +811,11 @@ impl<T: Chip> Component for T {
 		self.set_mode(mode);
 	}
 
-	fn contains(&self, viewport: &Viewport) -> bool {
+	fn contains(&self, viewport: &BoundingBox) -> bool {
 		self.contains(viewport)
 	}
 
-	fn intersects(&self, viewport: &Viewport) -> bool {
+	fn intersects(&self, viewport: &BoundingBox) -> bool {
 		self.intersects(viewport)
 	}
 }
@@ -901,7 +902,7 @@ impl<T: RectangleChip> Chip for T {
 		self.set_pin_state_high_level(idx, state)
 	}
 
-	fn contains(&self, viewport: &Viewport) -> bool {
+	fn contains(&self, viewport: &BoundingBox) -> bool {
 		let position = self.get_position();
 		let size = self.get_size();
 
@@ -916,7 +917,7 @@ impl<T: RectangleChip> Chip for T {
 		contains_x && contains_y
 	}
 
-	fn intersects(&self, viewport: &Viewport) -> bool {
+	fn intersects(&self, viewport: &BoundingBox) -> bool {
 		let position = self.get_position();
 		let size = self.get_size();
 
@@ -1012,7 +1013,7 @@ impl Pin {
 }
 
 impl Drawable for Pin {
-    fn draw(&self, _ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) {
+    fn draw(&self, _ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
 		
 	}
 }
@@ -1090,7 +1091,7 @@ impl Switch {
 }
 
 impl Drawable for Switch {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
         ctx.set_fill_style(&self.state.get_colour().into());
 
 		let (width, height) = self.get_size();
@@ -1170,7 +1171,7 @@ impl MultiSwitch {
 }
 
 impl Drawable for MultiSwitch {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
 		ctx.set_line_width(10.0);
 
 		ctx.set_stroke_style(&"#fff".into());
@@ -1273,7 +1274,7 @@ impl Bulb {
 }
 
 impl Drawable for Bulb {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
         ctx.set_fill_style(&self.state.get_colour().into());
 		
 		let radius = 50.0;
@@ -1344,7 +1345,7 @@ impl MultiBulb {
 }
 
 impl Drawable for MultiBulb {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
 		ctx.set_line_width(10.0);
 
 		ctx.set_stroke_style(&"#fff".into());
@@ -1442,7 +1443,7 @@ impl Junction {
 }
 
 impl Drawable for Junction {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: Viewport) {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
         ctx.set_fill_style(&self.get_state().get_colour().into());
 		
 		let radius = 10.0;

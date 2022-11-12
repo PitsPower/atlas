@@ -4,7 +4,7 @@ use std::f64::consts::PI;
 
 use crate::add;
 use crate::core::{Chip, ChipInternals, Circuit, Pin, Junction, Switch, TextInfo};
-use crate::graphics::{Viewport, WireLayoutCommand};
+use crate::graphics::{BoundingBox, WireLayoutCommand};
 use crate::transistor::{NTransistor, PTransistor};
 
 pub struct AndGate {
@@ -70,11 +70,11 @@ impl Chip for AndGate {
         todo!()
     }
 
-    fn contains(&self, _viewport: &Viewport) -> bool {
+    fn contains(&self, _viewport: &BoundingBox) -> bool {
 		false
     }
 
-    fn intersects(&self, viewport: &Viewport) -> bool {
+    fn intersects(&self, viewport: &BoundingBox) -> bool {
 		let size = self.get_chip_size();
 
 		let intersects_x =
@@ -222,11 +222,11 @@ impl Chip for NandGate {
         todo!()
     }
 
-    fn contains(&self, _viewport: &Viewport) -> bool {
+    fn contains(&self, _viewport: &BoundingBox) -> bool {
 		false
     }
 
-    fn intersects(&self, viewport: &Viewport) -> bool {
+    fn intersects(&self, viewport: &BoundingBox) -> bool {
 		let size = self.get_chip_size();
 
 		let intersects_x =
@@ -383,11 +383,11 @@ impl Chip for NorGate {
         todo!()
     }
 
-    fn contains(&self, _viewport: &Viewport) -> bool {
+    fn contains(&self, _viewport: &BoundingBox) -> bool {
 		false
     }
 
-    fn intersects(&self, viewport: &Viewport) -> bool {
+    fn intersects(&self, viewport: &BoundingBox) -> bool {
 		let size = self.get_chip_size();
 
 		let intersects_x =
@@ -521,11 +521,11 @@ impl Chip for NotGate {
         todo!()
     }
 
-    fn contains(&self, _viewport: &Viewport) -> bool {
+    fn contains(&self, _viewport: &BoundingBox) -> bool {
 		false
     }
 
-    fn intersects(&self, viewport: &Viewport) -> bool {
+    fn intersects(&self, viewport: &BoundingBox) -> bool {
 		let size = self.get_chip_size();
 
 		let intersects_x =
@@ -646,11 +646,11 @@ impl Chip for OrGate {
         todo!()
     }
 
-    fn contains(&self, _viewport: &Viewport) -> bool {
+    fn contains(&self, _viewport: &BoundingBox) -> bool {
 		false
     }
 
-    fn intersects(&self, viewport: &Viewport) -> bool {
+    fn intersects(&self, viewport: &BoundingBox) -> bool {
 		let size = self.get_chip_size();
 
 		let intersects_x =
@@ -795,11 +795,11 @@ impl Chip for TriStateBuffer {
         todo!()
     }
 
-    fn contains(&self, _viewport: &Viewport) -> bool {
+    fn contains(&self, _viewport: &BoundingBox) -> bool {
 		false
     }
 
-    fn intersects(&self, viewport: &Viewport) -> bool {
+    fn intersects(&self, viewport: &BoundingBox) -> bool {
 		let size = self.get_chip_size();
 
 		let intersects_x =
@@ -933,11 +933,11 @@ impl Chip for XorGate {
         todo!()
     }
 
-    fn contains(&self, _viewport: &Viewport) -> bool {
+    fn contains(&self, _viewport: &BoundingBox) -> bool {
 		false
     }
 
-    fn intersects(&self, viewport: &Viewport) -> bool {
+    fn intersects(&self, viewport: &BoundingBox) -> bool {
 		let size = self.get_chip_size();
 
 		let intersects_x =

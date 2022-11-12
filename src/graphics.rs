@@ -10,7 +10,7 @@ use crate::core::{ChipInternals, Circuit, Component, SimulationMode};
 pub trait Drawable {
 	/// Draws something and returns a simulation mode. The simulation mode is used to
 	/// decide how to simulate something based on how zoomed in the viewport is.
-	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: Viewport);
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: BoundingBox);
 }
 
 /// A command used to control how a wire looks.
@@ -32,18 +32,18 @@ pub enum WireLayoutCommand {
 	Move((f64, f64)),
 }
 
-/// A rectangle representing what the user can see.
+/// A bounding box.
 #[wasm_bindgen]
 #[derive(Debug, Clone, Copy)]
-pub struct Viewport {
-	/// The position of the viewport.
+pub struct BoundingBox {
+	/// The position of the bounding box.
 	position: (f64, f64),
-	/// The width and height of the viewport.
+	/// The width and height of the bounding box.
 	size: (f64, f64),
 }
 
-impl Viewport {
-	/// Returns a new viewport.
+impl BoundingBox {
+	/// Returns a new bounding box.
 	fn new(width: f64, height: f64) -> Self {
 		Self {
 			position: (0.0, 0.0),
@@ -51,24 +51,24 @@ impl Viewport {
 		}
 	}
 
-	// Returns the viewport's position.
+	// Returns the bounding box's position.
 	pub fn get_position(&self) -> (f64, f64) {
 		self.position
 	}
 
-	// Returns the viewport's size.
+	// Returns the bounding box's size.
 	pub fn get_size(&self) -> (f64, f64) {
 		self.size
 	}
 
-	/// Returns the scale of the viewport relative to the screen.
+	/// Returns the scale of the bounding box relative to the screen.
 	fn scale(&self, ctx: &web_sys::CanvasRenderingContext2d) -> f64 {
 		self.size.0 / ctx.canvas().unwrap().width() as f64
 	}
 
-	/// Returns a new viewport that sees the same thing as the old one when the given chip internals
+	/// Returns a new bounding box that sees the same thing as the old one when the given chip internals
 	/// are scaled to full size.
-	pub fn transform_in_to_chip(&self, position: (f64, f64), internals: &ChipInternals) -> Viewport {
+	pub fn transform_in_to_chip(&self, position: (f64, f64), internals: &ChipInternals) -> BoundingBox {
 		let mut result = *self;
 
 		let scale = internals.inner_scale;
@@ -84,9 +84,9 @@ impl Viewport {
 		result
 	}
 	
-	/// Returns a new viewport that sees the same thing as the old one when the given chip internals
+	/// Returns a new bounding box that sees the same thing as the old one when the given chip internals
 	/// are scaled back down to regular size.
-	fn transform_out_of_chip(&self, position: (f64, f64), internals: &ChipInternals) -> Viewport {
+	fn transform_out_of_chip(&self, position: (f64, f64), internals: &ChipInternals) -> BoundingBox {
 		let mut result = *self;
 
 		let scale = internals.inner_scale;
@@ -104,13 +104,13 @@ impl Viewport {
 }
 
 #[wasm_bindgen]
-impl Viewport {
-	/// Returns the viewport's x position.
+impl BoundingBox {
+	/// Returns the bounding box's x position.
 	pub fn get_x(&self) -> f64 {
 		self.position.0
 	}
 
-	/// Returns the viewport's y position.
+	/// Returns the bounding box's y position.
 	pub fn get_y(&self) -> f64 {
 		self.position.1
 	}
@@ -123,7 +123,7 @@ pub struct Renderer {
 	/// The canvas context.
 	ctx: web_sys::CanvasRenderingContext2d,
 	/// The viewport that the user sees through.
-	viewport: Viewport,
+	viewport: BoundingBox,
 	/// If true, nothing will be scaled or translated. Instead, the viewport will be rendered
 	/// using a yellow box.
 	show_viewport: bool,
@@ -141,7 +141,7 @@ impl Renderer {
 
 		Self {
 			ctx,
-			viewport: Viewport::new(
+			viewport: BoundingBox::new(
 				width,
 				height,
 			),
@@ -235,7 +235,7 @@ impl Renderer {
 		Some(result)
 	}
 
-	fn update_sim_modes_with_viewport(&mut self, circuit: &mut Circuit, viewport: Viewport) {
+	fn update_sim_modes_with_viewport(&mut self, circuit: &mut Circuit, viewport: BoundingBox) {
 		for component in circuit.get_components_mut() {
 			if component.are_internals_visible(&viewport) {
 				component.set_mode(SimulationMode::Circuit);
@@ -266,7 +266,7 @@ impl Renderer {
 	}
 
 	/// Returns the stack of component indices over a given [`Viewport`].
-	fn get_chip_stack_from_viewport(&mut self, circuit: &Circuit, cursor: Viewport, viewport: Viewport) -> Vec<usize> {
+	fn get_chip_stack_from_viewport(&mut self, circuit: &Circuit, cursor: BoundingBox, viewport: BoundingBox) -> Vec<usize> {
 		for (idx, component) in circuit.get_components().iter().enumerate() {
 			if component.intersects(&cursor) {
 				if !component.are_internals_visible(&viewport) {
@@ -307,7 +307,7 @@ impl Renderer {
 			cursor_y * self.viewport.size.1 / height - self.viewport.size.1 * 0.5 + self.viewport.position.1,
 		);
 
-		let cursor = Viewport {
+		let cursor = BoundingBox {
 			position: cursor_vec,
 			size: (0.0, 0.0),
 		};
@@ -320,7 +320,7 @@ impl Renderer {
 	}
 
 	/// Returns the new cursor position after descending down the chip stack.
-	pub fn get_cursor_from_pos(&mut self, circuit: &Circuit, stack: &[usize], cursor_x: f64, cursor_y: f64) -> Viewport {
+	pub fn get_cursor_from_pos(&mut self, circuit: &Circuit, stack: &[usize], cursor_x: f64, cursor_y: f64) -> BoundingBox {
 		let (width, height) = self.get_canvas_size();
 
 		let cursor_vec = (
@@ -328,7 +328,7 @@ impl Renderer {
 			cursor_y * self.viewport.size.1 / height - self.viewport.size.1 * 0.5 + self.viewport.position.1,
 		);
 
-		let cursor = Viewport {
+		let cursor = BoundingBox {
 			position: cursor_vec,
 			size: (0.0, 0.0),
 		};
