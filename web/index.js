@@ -76,6 +76,13 @@ window.addEventListener("keypress", (e) => {
 		case "w": {
 			isDrawingWire = !isDrawingWire;
 			renderer.switch_pin_mode();
+
+			if (isDrawingWire) {
+				document.getElementById("status-text").innerHTML = "Wire Mode";
+			} else {
+				document.getElementById("status-text").innerHTML = "";
+			}
+
 			break;
 		}
 	}
@@ -85,12 +92,11 @@ window.addEventListener("mousedown", (e) => {
 	if (isDrawingWire) {
 		const pin = renderer.get_clicked_pin(circuit, e.clientX, e.clientY);
 
-		if (!pin) {
-			return;
+		if (pin) {
+			firstExternalPin = pin;
 		}
-		
-		isPanning = false;
-		firstExternalPin = pin;
+
+		isPanning = !pin;
 	} else {
 		currentChipStack = renderer.get_chip_stack_from_pos(circuit, e.clientX, e.clientY);
 		isPanning = currentChipStack.length === 0;

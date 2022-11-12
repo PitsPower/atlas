@@ -5,9 +5,14 @@
     <title>ATLAS</title>
 
     <style>
+      * {
+        user-select: none;
+        color: #fff;
+        font-family: monospace;
+      }
+
       body {
-        background-color: #000000;
-        color: #ffffff;
+        background-color: #000;
         overflow: hidden;
         margin: 0;
       }
@@ -19,22 +24,27 @@
       }
 
       #spawn-buttons button {
-        user-select: none;
-        color: #fff;
         background: #333;
         font-size: 30px;
-        font-family: monospace;
         border: 5px solid #000;
         display: block;
         padding: 10px 20px;
         margin: 10px;
       }
+
+      #status-text {
+        font-size: 50px;
+        margin: 20px;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+      }
     </style>
   </head>
   <body>
     <canvas id="canvas"></canvas>
-
     <div id="spawn-buttons"></div>
+    <div id="status-text"></div>
 
     <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript>
     <script src="./bootstrap.js"></script>
