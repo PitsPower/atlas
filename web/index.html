@@ -5,8 +5,22 @@
     <title>ATLAS</title>
 
     <style>
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      
+      ::-webkit-scrollbar-track {
+        background: #333;
+      }
+      
+      ::-webkit-scrollbar-thumb {
+        background: #555;
+      }
+
       * {
         user-select: none;
+        -webkit-user-drag: none;
         color: #fff;
         font-family: monospace;
       }
@@ -18,25 +32,39 @@
       }
 
       #spawn-buttons {
+        background: #111;
+        overflow-x: auto;
+        white-space: nowrap;
+        width: 100%;
         position: absolute;
-        top: 0;
+        bottom: 0;
         left: 0;
       }
-
+      
       #spawn-buttons button {
-        background: #333;
-        font-size: 30px;
-        border: 5px solid #000;
-        display: block;
+        background: #111;
+        font-size: 20px;
         padding: 10px 20px;
-        margin: 10px;
+        border: none;
+        height: 100px;
+        display: inline-block;
+      }
+
+      #spawn-buttons button:hover {
+        background: #222;
+      }
+
+      #spawn-buttons button img {
+        margin: auto;
+        height: 50%;
+        display: block;
       }
 
       #status-text {
-        font-size: 50px;
+        font-size: 30px;
         margin: 20px;
         position: absolute;
-        bottom: 0;
+        top: 0;
         left: 0;
       }
     </style>

@@ -7,7 +7,7 @@ use std::f64::consts::PI;
 
 use wasm_bindgen::prelude::*;
 
-use crate::gates::AndGate;
+use crate::gates::{AndGate, NorGate, OrGate};
 use crate::graphics::{BoundingBox, Drawable, WireLayoutCommand};
 use crate::transistor::{NTransistor, PTransistor};
 
@@ -126,24 +126,49 @@ pub enum SimulationMode {
 /// The different kinds of component.
 #[wasm_bindgen]
 pub enum ComponentType {
-	AndGate,
 	Bulb,
 	Junction,
+	Switch,
+	
 	NTransistor,
 	PTransistor,
-	Switch,
+
+	AndGate,
+	NorGate,
+	OrGate,
 }
 
 /// Returns the name of the given [`ComponentType`].
 #[wasm_bindgen]
 pub fn get_ct_name(ct: ComponentType) -> String {
 	match ct {
-		ComponentType::AndGate => String::from("AND Gate"),
 		ComponentType::Bulb => String::from("Bulb"),
 		ComponentType::Junction => String::from("Junction"),
+		ComponentType::Switch => String::from("Switch"),
+
 		ComponentType::NTransistor => String::from("N-type Transistor"),
 		ComponentType::PTransistor => String::from("P-type Transistor"),
-		ComponentType::Switch => String::from("Switch"),
+
+		ComponentType::AndGate => String::from("AND Gate"),
+		ComponentType::NorGate => String::from("NOR Gate"),
+		ComponentType::OrGate => String::from("OR Gate"),
+	}
+}
+
+/// Returns the slug of the given [`ComponentType`].
+#[wasm_bindgen]
+pub fn get_ct_slug(ct: ComponentType) -> String {
+	match ct {
+		ComponentType::Bulb => String::from("bulb"),
+		ComponentType::Junction => String::from("junction"),
+		ComponentType::Switch => String::from("switch"),
+
+		ComponentType::NTransistor => String::from("ntransistor"),
+		ComponentType::PTransistor => String::from("ptransistor"),
+
+		ComponentType::AndGate => String::from("andgate"),
+		ComponentType::NorGate => String::from("norgate"),
+		ComponentType::OrGate => String::from("orgate"),
 	}
 }
 
@@ -538,12 +563,16 @@ impl Circuit {
 
 	pub fn spawn_component(&mut self, component_type: ComponentType) {
 		match component_type {
-			ComponentType::AndGate => crate::add!(self, AndGate, (0.0, 0.0)),	
-			ComponentType::Bulb => crate::add!(self, Bulb, (0.0, 0.0)),	
-			ComponentType::Junction => crate::add!(self, Junction, (0.0, 0.0), 3),	
-			ComponentType::NTransistor => crate::add!(self, NTransistor, (0.0, 0.0)),	
-			ComponentType::PTransistor => crate::add!(self, PTransistor, (0.0, 0.0)),	
-			ComponentType::Switch => crate::add!(self, Switch, (0.0, 0.0)),	
+			ComponentType::Bulb => crate::add!(self, Bulb, (0.0, 0.0)),
+			ComponentType::Junction => crate::add!(self, Junction, (0.0, 0.0), 3),
+			ComponentType::Switch => crate::add!(self, Switch, (0.0, 0.0)),
+
+			ComponentType::NTransistor => crate::add!(self, NTransistor, (0.0, 0.0)),
+			ComponentType::PTransistor => crate::add!(self, PTransistor, (0.0, 0.0)),
+
+			ComponentType::AndGate => crate::add!(self, AndGate, (0.0, 0.0)),
+			ComponentType::NorGate => crate::add!(self, NorGate, (0.0, 0.0)),
+			ComponentType::OrGate => crate::add!(self, OrGate, (0.0, 0.0)),
 		};
 	}
 

@@ -29,8 +29,14 @@ Object.values(wasm.ComponentType).forEach((ct) => {
 		return;
 	}
 
+	const img = document.createElement("img");
+	img.src = `./img/component_icons/${wasm.get_ct_slug(ct)}.png`;
+
+	const text = document.createTextNode(wasm.get_ct_name(ct));
+
 	const button = document.createElement("button");
-	button.innerText = wasm.get_ct_name(ct);
+	button.appendChild(img);
+	button.appendChild(text);
 
 	button.onclick = () => {
 		circuit.spawn_component(ct);
