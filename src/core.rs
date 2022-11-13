@@ -561,18 +561,18 @@ impl Circuit {
 		}
 	}
 
-	pub fn spawn_component(&mut self, component_type: ComponentType) {
+	pub fn spawn_component(&mut self, component_type: ComponentType, x: f64, y: f64) {
 		match component_type {
-			ComponentType::Bulb => crate::add!(self, Bulb, (0.0, 0.0)),
-			ComponentType::Junction => crate::add!(self, Junction, (0.0, 0.0), 3),
-			ComponentType::Switch => crate::add!(self, Switch, (0.0, 0.0)),
+			ComponentType::Bulb => crate::add!(self, Bulb, (x, y)),
+			ComponentType::Junction => crate::add!(self, Junction, (x, y), 3),
+			ComponentType::Switch => crate::add!(self, Switch, (x, y)),
 
-			ComponentType::NTransistor => crate::add!(self, NTransistor, (0.0, 0.0)),
-			ComponentType::PTransistor => crate::add!(self, PTransistor, (0.0, 0.0)),
+			ComponentType::NTransistor => crate::add!(self, NTransistor, (x, y)),
+			ComponentType::PTransistor => crate::add!(self, PTransistor, (x, y)),
 
-			ComponentType::AndGate => crate::add!(self, AndGate, (0.0, 0.0)),
-			ComponentType::NorGate => crate::add!(self, NorGate, (0.0, 0.0)),
-			ComponentType::OrGate => crate::add!(self, OrGate, (0.0, 0.0)),
+			ComponentType::AndGate => crate::add!(self, AndGate, (x, y)),
+			ComponentType::NorGate => crate::add!(self, NorGate, (x, y)),
+			ComponentType::OrGate => crate::add!(self, OrGate, (x, y)),
 		};
 	}
 

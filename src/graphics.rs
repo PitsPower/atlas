@@ -160,6 +160,16 @@ impl Renderer {
 		(width, height)
 	}
 
+	/// Returns the x position of the viewport.
+	pub fn get_viewport_x(&self) -> f64 {
+		self.viewport.get_x()
+	}
+
+	/// Returns the y position of the viewport.
+	pub fn get_viewport_y(&self) -> f64 {
+		self.viewport.get_y()
+	}
+
 	/// Updates the viewport to match the new canvas size.
 	pub fn update_size(&mut self) {
 		let (width, height) = self.get_canvas_size();

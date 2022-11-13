@@ -24,6 +24,9 @@ const circuit = new wasm.Circuit();
 // const circuit = wasm.latch_example();
 // const circuit = wasm.register_example();
 
+const renderer = new wasm.Renderer(ctx);
+renderer.update_sim_modes(circuit);
+
 Object.values(wasm.ComponentType).forEach((ct) => {
 	if (typeof ct === "string") {
 		return;
@@ -39,14 +42,11 @@ Object.values(wasm.ComponentType).forEach((ct) => {
 	button.appendChild(text);
 
 	button.onclick = () => {
-		circuit.spawn_component(ct);
+		circuit.spawn_component(ct, renderer.get_viewport_x(), renderer.get_viewport_y());
 	};
 
 	document.getElementById("spawn-buttons").appendChild(button);
 });
-
-const renderer = new wasm.Renderer(ctx);
-renderer.update_sim_modes(circuit);
 
 window.addEventListener("resize", () => {
 	canvas.width = window.innerWidth;
