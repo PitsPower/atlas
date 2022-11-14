@@ -561,7 +561,8 @@ impl Circuit {
 		}
 	}
 
-	pub fn spawn_component(&mut self, component_type: ComponentType, x: f64, y: f64) {
+	/// Spawns a component and returns the index.
+	pub fn spawn_component(&mut self, component_type: ComponentType, x: f64, y: f64) -> usize {
 		match component_type {
 			ComponentType::Bulb => crate::add!(self, Bulb, (x, y)),
 			ComponentType::Junction => crate::add!(self, Junction, (x, y), 3),
@@ -573,7 +574,7 @@ impl Circuit {
 			ComponentType::AndGate => crate::add!(self, AndGate, (x, y)),
 			ComponentType::NorGate => crate::add!(self, NorGate, (x, y)),
 			ComponentType::OrGate => crate::add!(self, OrGate, (x, y)),
-		};
+		}
 	}
 
 	/// Toggles a [`Switch`] in the circuit.
@@ -597,6 +598,38 @@ impl Circuit {
 
 		let state = self.components[component_idx].get_pin_state(pin_idx).unwrap();
 		self.update_component(&ExternalPin { component_idx: component_idx, pin_idx: pin_idx }, state.toggle(), true);
+	}
+
+	/// Returns the x coordinate of a component given the chip stack.
+	pub fn get_x_from_chip_stack(&mut self, stack: &[usize]) -> Option<f64> {
+		let component = self.get_component_from_chip_stack(stack)?;
+		Some(component.get_position().0)
+	}
+
+	/// Returns the y coordinate of a component given the chip stack.
+	pub fn get_y_from_chip_stack(&mut self, stack: &[usize]) -> Option<f64> {
+		let component = self.get_component_from_chip_stack(stack)?;
+		Some(component.get_position().1)
+	}
+
+	/// Sets the x coordinate of a component given the chip stack.
+	pub fn set_x_from_chip_stack(&mut self, stack: &[usize], x: f64) {
+		if let Some(component) = self.get_component_from_chip_stack(stack) {
+			component.set_position((
+				x,
+				component.get_position().1,
+			));
+		}
+	}
+
+	/// Sets the y coordinate of a component given the chip stack.
+	pub fn set_y_from_chip_stack(&mut self, stack: &[usize], y: f64) {
+		if let Some(component) = self.get_component_from_chip_stack(stack) {
+			component.set_position((
+				component.get_position().0,
+				y,
+			));
+		}
 	}
 
 	/// Toggles the switch referred to by the stack (if the component is a switch).

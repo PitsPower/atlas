@@ -67,12 +67,34 @@
         top: 0;
         left: 0;
       }
+
+      #coords {
+        background: #111;
+        font-size: 20px;
+        padding: 20px;
+        position: absolute;
+        top: 0;
+        right: 0;
+      }
+
+      #coords input {
+        color: #000;
+        font-size: 20px;
+        margin: 5px 0;
+        display: block;
+      }
     </style>
   </head>
   <body>
     <canvas id="canvas"></canvas>
     <div id="spawn-buttons"></div>
     <div id="status-text"></div>
+    <div id="coords">
+      X:
+      <input type="number" id="x-coord">
+      Y:
+      <input type="number" id="y-coord">
+    </div>
 
     <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript>
     <script src="./bootstrap.js"></script>

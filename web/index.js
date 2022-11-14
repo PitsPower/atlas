@@ -7,22 +7,6 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 const circuit = new wasm.Circuit();
-// const circuit = wasm.example1(10);
-// const circuit = wasm.example2();
-// const circuit = wasm.transistor_example();
-// const circuit = wasm.transistor_example2();
-// const circuit = wasm.bidirectional_example();
-// const circuit = wasm.not_gate_example();
-// const circuit = wasm.nor_gate_example();
-// const circuit = wasm.or_gate_example();
-// const circuit = wasm.nand_gate_example();
-// const circuit = wasm.and_gate_example();
-// const circuit = wasm.xor_gate_example();
-// const circuit = wasm.nor_latch_example();
-// const circuit = wasm.test_example();
-// const circuit = wasm.bus_example();
-// const circuit = wasm.latch_example();
-// const circuit = wasm.register_example();
 
 const renderer = new wasm.Renderer(ctx);
 renderer.update_sim_modes(circuit);
@@ -42,7 +26,8 @@ Object.values(wasm.ComponentType).forEach((ct) => {
 	button.appendChild(text);
 
 	button.onclick = () => {
-		circuit.spawn_component(ct, renderer.get_viewport_x(), renderer.get_viewport_y());
+		const index = circuit.spawn_component(ct, renderer.get_viewport_x(), renderer.get_viewport_y());
+		updateSelection([index]);
 	};
 
 	document.getElementById("spawn-buttons").appendChild(button);
@@ -64,6 +49,33 @@ let prevInCircuitCursor = null;
 
 let isDrawingWire = false;
 let firstExternalPin = null;
+
+let selectedChipStack = [];
+
+document.getElementById("coords").style.visibility = "hidden";
+
+function updateSelection(chipStack) {
+	selectedChipStack = chipStack;
+
+	document.getElementById("coords").style.visibility = chipStack.length === 0 ? "hidden" : "visible";
+	document.getElementById("x-coord").value = circuit.get_x_from_chip_stack(chipStack);
+	document.getElementById("y-coord").value = circuit.get_y_from_chip_stack(chipStack);
+}
+
+document.getElementById("coords").addEventListener("mousedown", (e) => {
+	e.stopPropagation();
+});
+document.getElementById("coords").addEventListener("mouseup", (e) => {
+	e.stopPropagation();
+});
+document.getElementById("x-coord").addEventListener("input", (e) => {
+	const x = e.target.value;
+	circuit.set_x_from_chip_stack(selectedChipStack, x);
+});
+document.getElementById("y-coord").addEventListener("input", (e) => {
+	const y = e.target.value;
+	circuit.set_y_from_chip_stack(selectedChipStack, y);
+});
 
 const keys = "asdfghjkzxcvbnm,";
 
@@ -104,7 +116,7 @@ window.addEventListener("mousedown", (e) => {
 
 		isPanning = !pin;
 	} else {
-		currentChipStack = renderer.get_chip_stack_from_pos(circuit, e.clientX, e.clientY);
+		currentChipStack = Array.from(renderer.get_chip_stack_from_pos(circuit, e.clientX, e.clientY));
 		isPanning = currentChipStack.length === 0;
 	}
 
@@ -143,8 +155,17 @@ window.addEventListener("mouseup", (e) => {
 
 			firstExternalPin = null;
 		} else {
-			const chipStack = renderer.get_chip_stack_from_pos(circuit, e.clientX, e.clientY);
-			circuit.toggle_switch_from_chip_stack(chipStack);
+			const chipStack = Array.from(renderer.get_chip_stack_from_pos(circuit, e.clientX, e.clientY));
+
+			if (
+				chipStack.length > 0 &&
+				chipStack.length === selectedChipStack.length &&
+				selectedChipStack.every((v, i) => chipStack[i] === v)
+			) {
+				circuit.toggle_switch_from_chip_stack(chipStack);
+			}
+
+			updateSelection(chipStack);
 		}
 	}
 
@@ -170,9 +191,11 @@ window.addEventListener("mousemove", (e) => {
 			e.ctrlKey ? 0 : inCircuitCursor.x - prevInCircuitCursor.x,
 			e.shiftKey ? 0 : inCircuitCursor.y - prevInCircuitCursor.y,	
 		);
+		
+		document.getElementById("x-coord").value = circuit.get_x_from_chip_stack(currentChipStack);
+		document.getElementById("y-coord").value = circuit.get_y_from_chip_stack(currentChipStack);
 
 		prevInCircuitCursor = inCircuitCursor;
-
 		hasMoved = true;
 		
 		return;
