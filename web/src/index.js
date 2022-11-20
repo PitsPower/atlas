@@ -76,11 +76,23 @@ window.addEventListener("keydown", (e) => {
 		}
 
 		case "h": {
-			editor.wire_align_horizontal();
+			if (e.ctrlKey) {
+				e.preventDefault();
+				editor.wire_center_horizontal();
+			} else {
+				editor.wire_align_horizontal();
+			}
+
 			break;
 		}
 		case "v": {
-			editor.wire_align_vertical();
+			if (e.ctrlKey) {
+				e.preventDefault();
+				editor.wire_center_vertical();
+			} else {
+				editor.wire_align_vertical();
+			}
+
 			break;
 		}
 

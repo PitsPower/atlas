@@ -136,20 +136,33 @@ impl Editor {
 		self.circuit.re_lay_wire(start, end, self.layout_commands.clone());
 	}
 
+	/// Add a new layout command.
+	fn add_layout_command(&mut self, command: WireLayoutCommand) {
+		if let Some(end_command) = self.layout_commands.pop() {
+			self.layout_commands.push(command);
+			self.layout_commands.push(end_command);
+			self.update_wire_layout();
+		}
+	}
+
 	/// Align the current wire horizontally to the end pin.
 	pub fn wire_align_horizontal(&mut self) {
-		let end_command = self.layout_commands.pop().unwrap();
-		self.layout_commands.push(WireLayoutCommand::AlignHorizontal);
-		self.layout_commands.push(end_command);
-		self.update_wire_layout();
+		self.add_layout_command(WireLayoutCommand::AlignHorizontal);
 	}
 
 	/// Align the current wire vertically to the end pin.
 	pub fn wire_align_vertical(&mut self) {
-		let end_command = self.layout_commands.pop().unwrap();
-		self.layout_commands.push(WireLayoutCommand::AlignVertical);
-		self.layout_commands.push(end_command);
-		self.update_wire_layout();
+		self.add_layout_command(WireLayoutCommand::AlignVertical);
+	}
+
+	/// Move the wire to the horizontal center between the pins.
+	pub fn wire_center_horizontal(&mut self) {
+		self.add_layout_command(WireLayoutCommand::CenterHorizontal);
+	}
+
+	/// Move the wire to the vertical center between the pins.
+	pub fn wire_center_vertical(&mut self) {
+		self.add_layout_command(WireLayoutCommand::CenterVertical);
 	}
 
 	/// Finish laying out the current wire.
