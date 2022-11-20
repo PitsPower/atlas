@@ -2,7 +2,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::core::{Bulb, Circuit, ComponentType, Junction, Switch, ExternalPin};
 use crate::gates::{AndGate, NorGate, OrGate};
-use crate::graphics::{BoundingBox, Renderer};
+use crate::graphics::{BoundingBox, Renderer, WireLayoutCommand};
 use crate::transistor::{NTransistor, PTransistor};
 
 #[wasm_bindgen(module="/web/src/updateSelection.js")]
@@ -34,6 +34,12 @@ pub struct Editor {
 
 	/// The list of selected start pins.
 	start_pins: Vec<ExternalPin>,
+	/// The list of selected end pins.
+	end_pins: Vec<ExternalPin>,
+	/// Whether the user is editing the layout commands
+	is_editing_layout: bool,
+	/// The current list of [`WireLayoutCommands`].
+	layout_commands: Vec<WireLayoutCommand>,
 }
 
 #[wasm_bindgen]
@@ -60,6 +66,9 @@ impl Editor {
 			initial_positions: vec![],
 
 			start_pins: vec![],
+			end_pins: vec![],
+			is_editing_layout: false,
+			layout_commands: vec![],
 		}
 	}
 
@@ -106,18 +115,52 @@ impl Editor {
 		updateSelection(false, 0.0, 0.0);
 	}
 
-	/// Set the x coordinate of the selected component
+	/// Set the x coordinate of the selected component.
 	pub fn set_selected_x(&mut self, x: f64) {
 		let chip_stack = &self.selected_chip_stacks[0];
 		let (_, y) = self.circuit.get_pos_from_chip_stack(&chip_stack).unwrap();
 		self.circuit.set_component_pos_from_chip_stack(&chip_stack, x, y);
 	}
 
-	/// Set the y coordinate of the selected component
+	/// Set the y coordinate of the selected component.
 	pub fn set_selected_y(&mut self, y: f64) {
 		let chip_stack = &self.selected_chip_stacks[0];
 		let (x, _) = self.circuit.get_pos_from_chip_stack(&chip_stack).unwrap();
 		self.circuit.set_component_pos_from_chip_stack(&chip_stack, x, y);
+	}
+
+	/// Update the wire layout.
+	fn update_wire_layout(&mut self) {
+		let start = self.start_pins[0];
+		let end = self.end_pins[0];
+		self.circuit.re_lay_wire(start, end, self.layout_commands.clone());
+	}
+
+	/// Align the current wire horizontally to the end pin.
+	pub fn wire_align_horizontal(&mut self) {
+		let end_command = self.layout_commands.pop().unwrap();
+		self.layout_commands.push(WireLayoutCommand::AlignHorizontal);
+		self.layout_commands.push(end_command);
+		self.update_wire_layout();
+	}
+
+	/// Align the current wire vertically to the end pin.
+	pub fn wire_align_vertical(&mut self) {
+		let end_command = self.layout_commands.pop().unwrap();
+		self.layout_commands.push(WireLayoutCommand::AlignVertical);
+		self.layout_commands.push(end_command);
+		self.update_wire_layout();
+	}
+
+	/// Finish laying out the current wire.
+	pub fn finish_layout(&mut self) {
+		self.layout_commands.pop();
+		self.update_wire_layout();
+		
+		self.is_editing_layout = false;
+
+		self.start_pins.clear();
+		self.end_pins.clear();
 	}
 
 	/// Handle the user pressing down a mouse button.
@@ -125,7 +168,7 @@ impl Editor {
 		if let Some(clicked_pin) = self.renderer.get_clicked_pin(&self.circuit, x, y) {
 			self.start_pins.push(clicked_pin);
 			return;
-		} else {
+		} else if !self.is_editing_layout {
 			self.start_pins.clear();
 		}
 
@@ -143,7 +186,10 @@ impl Editor {
 			updateSelection(false, 0.0, 0.0);
 		}
 
-		self.is_panning = true;
+		if !self.is_editing_layout {
+			self.is_panning = true;
+		}
+
 		self.has_moved = false;
 		self.prev_cursor_pos = (x, y);
 
@@ -204,6 +250,14 @@ impl Editor {
 			}
 	
 			self.prev_cursor_pos = (x, y);
+		} else if self.is_editing_layout {
+			let cursor = self.renderer.get_cursor_from_pos(&self.circuit, &[], x, y);
+
+			let len = self.layout_commands.len();
+			self.layout_commands[len - 1] =
+				WireLayoutCommand::MoveTo((cursor.get_x(), cursor.get_y()));
+
+			self.update_wire_layout();
 		}
 	}
 
@@ -211,27 +265,48 @@ impl Editor {
 	pub fn handle_mouse_up(&mut self, x: f64, y: f64) {
 		self.is_panning = false;
 
+		let mut is_editing_layout = false;
+
 		if let Some(clicked_pin) = self.renderer.get_clicked_pin(&self.circuit, x, y) {
-			if self.start_pins.len() == 1 {
+			if self.start_pins.len() == 1 && self.start_pins[0] != clicked_pin {
+				self.end_pins = vec![clicked_pin];
+
 				let start = self.start_pins[0];
 				let end = clicked_pin;
+
+				let cursor = self.renderer.get_cursor_from_pos(&self.circuit, &[], x, y);
+				self.layout_commands = vec![
+					WireLayoutCommand::MoveTo((cursor.get_x(), cursor.get_y())),
+				];
 
 				self.circuit.connect(
 					(start.component_idx, start.pin_idx),
 					(end.component_idx, end.pin_idx),
-					vec![],
+					self.layout_commands.clone(),
 				);
 
-				self.start_pins.clear();
+				is_editing_layout = true;
 			}
 		}
+		
+		if self.is_editing_layout {
+			let cursor = self.renderer.get_cursor_from_pos(&self.circuit, &[], x, y);
 
-		if !self.has_moved {
+			self.layout_commands.push(
+				WireLayoutCommand::MoveTo((cursor.get_x(), cursor.get_y()))
+			);
+
+			self.update_wire_layout();
+		} else if !self.has_moved {
 			let clicked_chip_stack = self.renderer.get_chip_stack_from_pos(&self.circuit, x, y);
 
 			if self.selected_chip_stacks.contains(&clicked_chip_stack) {
 				self.circuit.toggle_switch_from_chip_stack(&clicked_chip_stack);
-			}
+			} 
+		}
+
+		if is_editing_layout {
+			self.is_editing_layout = true;
 		}
 	}
 

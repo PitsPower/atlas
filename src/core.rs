@@ -413,6 +413,18 @@ impl Circuit {
 			state2: end_state,
 		});
 	}
+
+	/// Re-lays an existing wire.
+	pub fn re_lay_wire(
+		&mut self, pin1: ExternalPin, pin2: ExternalPin, layout_commands: Vec<WireLayoutCommand>,
+	) {
+		for wire in &mut self.wires {
+			if wire.pin1 == pin1 && wire.pin2 == pin2 {
+				wire.layout_commands = layout_commands;
+				return;
+			}
+		}
+	}
 	
 	/// Updates a pin and then propagates the changes. This function is the main
 	/// part of the circuit simulator.
@@ -744,6 +756,9 @@ impl Drawable for Circuit {
 					WireLayoutCommand::Move((x, y)) => {
 						current_pos.0 += x;
 						current_pos.1 += y;
+					},
+					WireLayoutCommand::MoveTo((x, y)) => {
+						current_pos = (*x, *y);
 					},
 				}
 

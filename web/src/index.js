@@ -59,10 +59,10 @@ yCoordEl.addEventListener("input", (e) => {
 const keys = "asdfghjkzxcvbnm,";
 
 window.addEventListener("keydown", (e) => {
-	if (keys.includes(e.key)) {
-		const index = keys.indexOf(e.key);
-		editor.toggle_switch(index);
-	}
+	// if (keys.includes(e.key)) {
+	// 	const index = keys.indexOf(e.key);
+	// 	editor.toggle_switch(index);
+	// }
 
 	switch (e.key.toLowerCase()) {
 		case "p": {
@@ -70,13 +70,22 @@ window.addEventListener("keydown", (e) => {
 			break;
 		}
 
-		case "w": {
-			// TODO: Add wire mode back
+		case "delete": {
+			editor.delete_selected();
 			break;
 		}
 
-		case "delete": {
-			editor.delete_selected();
+		case "h": {
+			editor.wire_align_horizontal();
+			break;
+		}
+		case "v": {
+			editor.wire_align_vertical();
+			break;
+		}
+
+		case "enter": {
+			editor.finish_layout();
 			break;
 		}
 
