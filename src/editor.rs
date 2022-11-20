@@ -1,6 +1,6 @@
 use wasm_bindgen::prelude::*;
 
-use crate::core::{Bulb, Circuit, ComponentType, Junction, Switch};
+use crate::core::{Bulb, Circuit, ComponentType, Junction, Switch, ExternalPin};
 use crate::gates::{AndGate, NorGate, OrGate};
 use crate::graphics::{BoundingBox, Renderer};
 use crate::transistor::{NTransistor, PTransistor};
@@ -31,6 +31,9 @@ pub struct Editor {
 	initial_cursors: Vec<BoundingBox>,
 	/// The initial positions of the selected components.
 	initial_positions: Vec<(f64, f64)>,
+
+	/// The list of selected start pins.
+	start_pins: Vec<ExternalPin>,
 }
 
 #[wasm_bindgen]
@@ -40,7 +43,9 @@ impl Editor {
 	pub fn new(ctx: web_sys::CanvasRenderingContext2d) -> Self {
 		let mut circuit = Circuit::new();
 		let mut renderer = Renderer::new(ctx);
+		
 		renderer.update_sim_modes(&mut circuit);
+		renderer.switch_pin_mode();
 
 		Self {
 			circuit,
@@ -53,6 +58,8 @@ impl Editor {
 			selected_chip_stacks: vec![],
 			initial_cursors: vec![],
 			initial_positions: vec![],
+
+			start_pins: vec![],
 		}
 	}
 
@@ -64,8 +71,11 @@ impl Editor {
 
 	/// Spawns a new component and returns the index of that component in the circuit.
 	pub fn spawn_component(&mut self, component_type: ComponentType) -> usize {
-		let x = self.renderer.viewport.get_x();
-		let y = self.renderer.viewport.get_y();
+		// let x = self.renderer.viewport.get_x();
+		// let y = self.renderer.viewport.get_y();
+
+		let x = 0.0;
+		let y = 0.0;
 
 		let index = match component_type {
 			ComponentType::Bulb => crate::add!(self.circuit, Bulb, (x, y)),
@@ -86,8 +96,39 @@ impl Editor {
 		index
 	}
 
+	/// Deletes the selected component.
+	pub fn delete_selected(&mut self) {
+		for chip_stack in &self.selected_chip_stacks {
+			self.circuit.remove(chip_stack[0]);
+		}
+
+		self.selected_chip_stacks = vec![];
+		updateSelection(false, 0.0, 0.0);
+	}
+
+	/// Set the x coordinate of the selected component
+	pub fn set_selected_x(&mut self, x: f64) {
+		let chip_stack = &self.selected_chip_stacks[0];
+		let (_, y) = self.circuit.get_pos_from_chip_stack(&chip_stack).unwrap();
+		self.circuit.set_component_pos_from_chip_stack(&chip_stack, x, y);
+	}
+
+	/// Set the y coordinate of the selected component
+	pub fn set_selected_y(&mut self, y: f64) {
+		let chip_stack = &self.selected_chip_stacks[0];
+		let (x, _) = self.circuit.get_pos_from_chip_stack(&chip_stack).unwrap();
+		self.circuit.set_component_pos_from_chip_stack(&chip_stack, x, y);
+	}
+
 	/// Handle the user pressing down a mouse button.
 	pub fn handle_mouse_down(&mut self, x: f64, y: f64) {
+		if let Some(clicked_pin) = self.renderer.get_clicked_pin(&self.circuit, x, y) {
+			self.start_pins.push(clicked_pin);
+			return;
+		} else {
+			self.start_pins.clear();
+		}
+
 		let clicked_chip_stack = self.renderer.get_chip_stack_from_pos(&self.circuit, x, y);
 
 		let did_click_component = clicked_chip_stack.len() > 0;
@@ -130,8 +171,13 @@ impl Editor {
 						x, y
 					);
 	
-					let x_diff = cursor.get_x() - self.initial_cursors[idx].get_x();
-					let y_diff = cursor.get_y() - self.initial_cursors[idx].get_y();
+					let mut x_diff = cursor.get_x() - self.initial_cursors[idx].get_x();
+					let mut y_diff = cursor.get_y() - self.initial_cursors[idx].get_y();
+
+					if is_alt {
+						x_diff = (x_diff / 50.0).floor() * 50.0;
+						y_diff = (y_diff / 50.0).floor() * 50.0;
+					}
 
 					let mut new_x = self.initial_positions[idx].0;
 					let mut new_y = self.initial_positions[idx].1;
@@ -165,6 +211,21 @@ impl Editor {
 	pub fn handle_mouse_up(&mut self, x: f64, y: f64) {
 		self.is_panning = false;
 
+		if let Some(clicked_pin) = self.renderer.get_clicked_pin(&self.circuit, x, y) {
+			if self.start_pins.len() == 1 {
+				let start = self.start_pins[0];
+				let end = clicked_pin;
+
+				self.circuit.connect(
+					(start.component_idx, start.pin_idx),
+					(end.component_idx, end.pin_idx),
+					vec![],
+				);
+
+				self.start_pins.clear();
+			}
+		}
+
 		if !self.has_moved {
 			let clicked_chip_stack = self.renderer.get_chip_stack_from_pos(&self.circuit, x, y);
 
@@ -182,6 +243,6 @@ impl Editor {
 
 	/// Render the editor.
 	pub fn render(&mut self) {
-		self.renderer.render(&self.circuit, &self.selected_chip_stacks);
+		self.renderer.render(&self.circuit, &self.selected_chip_stacks, &self.start_pins);
 	}
 }

@@ -58,21 +58,30 @@ yCoordEl.addEventListener("input", (e) => {
 
 const keys = "asdfghjkzxcvbnm,";
 
-window.addEventListener("keypress", (e) => {
+window.addEventListener("keydown", (e) => {
 	if (keys.includes(e.key)) {
 		const index = keys.indexOf(e.key);
 		editor.toggle_switch(index);
 	}
 
-	switch (e.key) {
+	switch (e.key.toLowerCase()) {
 		case "p": {
-			editor.switch_viewport_mode();
+			// editor.switch_viewport_mode();
 			break;
 		}
 
 		case "w": {
 			// TODO: Add wire mode back
+			break;
+		}
 
+		case "delete": {
+			editor.delete_selected();
+			break;
+		}
+
+		default: {
+			console.log("Unhandled key press:", e.key);
 			break;
 		}
 	}

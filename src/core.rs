@@ -286,7 +286,7 @@ pub struct ExternalPin {
 /// 
 /// A wire stores two states, one for each pin. This allows for wires to work
 /// correctly in both directions.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Wire {
 	/// The first pin that the wire is connected to.
 	pub pin1: ExternalPin,
@@ -351,6 +351,32 @@ impl Circuit {
 		let idx = self.components.len();
 		self.components.push(component);
 		idx
+	}
+
+	/// Removes a component from the circuit.
+	pub fn remove(&mut self, component_idx: usize) {
+		let wires_to_dec_start: Vec<_> = self.wires.iter_mut()
+			.filter(|w| w.pin1.component_idx > component_idx)
+			.collect();
+
+		for wire in wires_to_dec_start {
+			wire.pin1.component_idx -= 1;
+		}
+
+		let wires_to_dec_end: Vec<_> = self.wires.iter_mut()
+			.filter(|w| w.pin2.component_idx > component_idx)
+			.collect();
+
+		for wire in wires_to_dec_end {
+			wire.pin2.component_idx -= 1;
+		}
+
+		self.wires = self.wires.iter()
+			.filter(|w| w.pin1.component_idx != component_idx && w.pin2.component_idx != component_idx)
+			.cloned()
+			.collect();	
+
+		self.components.remove(component_idx);
 	}
 
 	/// Connects two components together with a wire.
@@ -539,7 +565,7 @@ impl Circuit {
 	}
 
 	/// Draws the pin highlights.
-	pub fn draw_pin_highlights(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+	pub fn draw_pin_highlights(&self, ctx: &web_sys::CanvasRenderingContext2d, selected_pins: &Vec<ExternalPin>) {
 		for (cidx, component) in self.components.iter().enumerate() {
 			ctx.save();
 			
@@ -558,7 +584,12 @@ impl Circuit {
 				ctx.arc(pin_pos.0, pin_pos.1, 8.0, 0.0, 2.0 * PI).unwrap();
 				ctx.fill();
 	
-				ctx.set_fill_style(&"#0f0".into());
+				if selected_pins.contains(&con) {
+					ctx.set_fill_style(&"#ff0".into());
+				} else {
+					ctx.set_fill_style(&"#0f0".into());
+				}
+
 				ctx.begin_path();
 				ctx.arc(pin_pos.0, pin_pos.1, 5.0, 0.0, 2.0 * PI).unwrap();
 				ctx.fill();

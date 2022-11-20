@@ -396,7 +396,7 @@ impl Renderer {
 	}
 
 	/// Renders the given [`Circuit`].
-	pub fn render(&mut self, root_circuit: &Circuit, selected_chip_stacks: &Vec<Vec<usize>>) {
+	pub fn render(&mut self, root_circuit: &Circuit, selected_chip_stacks: &Vec<Vec<usize>>, selected_pins: &Vec<ExternalPin>) {
 		let ctx = &self.ctx;
 		let mut circuit = self.get_current_circuit(root_circuit);
 
@@ -455,7 +455,7 @@ impl Renderer {
 		circuit.draw_selection_boxes(ctx, selected_chip_stacks);
 
 		if self.show_pins {
-			circuit.draw_pin_highlights(ctx);
+			circuit.draw_pin_highlights(ctx, selected_pins);
 		}
 
 		if self.show_viewport {
