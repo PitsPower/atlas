@@ -1,0 +1,103 @@
+import * as wasm from "atlas";
+
+const spawnButtonsEl = document.getElementById("spawn-buttons");
+const coordsEl = document.getElementById("coords");
+const xCoordEl = document.getElementById("x-coord");
+const yCoordEl = document.getElementById("y-coord");
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+const editor = new wasm.Editor(ctx);
+
+// Add the spawn buttons
+Object.values(wasm.ComponentType).forEach((ct) => {
+	if (typeof ct === "string") {
+		return;
+	}
+
+	const img = document.createElement("img");
+	img.src = `./img/component_icons/${wasm.get_ct_slug(ct)}.png`;
+
+	const text = document.createTextNode(wasm.get_ct_name(ct));
+
+	const button = document.createElement("button");
+	button.appendChild(img);
+	button.appendChild(text);
+
+	button.onclick = () => {
+		editor.spawn_component(ct);
+	};
+
+	spawnButtonsEl.appendChild(button);
+});
+
+window.addEventListener("resize", () => {
+	canvas.width = window.innerWidth;
+	canvas.height = window.innerHeight;
+	editor.update_size();
+});
+
+coordsEl.addEventListener("mousedown", (e) => {
+	e.stopPropagation();
+});
+coordsEl.addEventListener("mouseup", (e) => {
+	e.stopPropagation();
+});
+xCoordEl.addEventListener("input", (e) => {
+	const x = e.target.value;
+	editor.set_selected_x(x);
+});
+yCoordEl.addEventListener("input", (e) => {
+	const y = e.target.value;
+	editor.set_selected_y(y);
+});
+
+const keys = "asdfghjkzxcvbnm,";
+
+window.addEventListener("keypress", (e) => {
+	if (keys.includes(e.key)) {
+		const index = keys.indexOf(e.key);
+		editor.toggle_switch(index);
+	}
+
+	switch (e.key) {
+		case "p": {
+			editor.switch_viewport_mode();
+			break;
+		}
+
+		case "w": {
+			// TODO: Add wire mode back
+
+			break;
+		}
+	}
+});
+
+window.addEventListener("mousedown", (e) => {
+	editor.handle_mouse_down(e.clientX, e.clientY);
+});
+window.addEventListener("mouseup", (e) => {
+	editor.handle_mouse_up(e.clientX, e.clientY);
+});
+window.addEventListener("mousemove", (e) => {
+	editor.handle_mouse_move(e.clientX, e.clientY, e.ctrlKey, e.shiftKey, e.altKey);
+});
+
+window.addEventListener("wheel", (e) => {
+	const zoom = 0.95 ** (-e.deltaY / 100);
+	editor.zoom(zoom, e.clientX, e.clientY);
+});
+
+function render() {
+	requestAnimationFrame(render);
+
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	editor.render();
+}
+
+render();

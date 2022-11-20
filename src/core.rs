@@ -519,6 +519,25 @@ impl Circuit {
 			.collect()
 	}
 
+	/// Draws the selection boxes for each component.
+	pub fn draw_selection_boxes(&self, ctx: &web_sys::CanvasRenderingContext2d, selected_chip_stacks: &Vec<Vec<usize>>) {
+		let first_indices: Vec<_> = selected_chip_stacks.iter().map(|cs| cs[0]).collect();
+
+		for (cidx, component) in self.components.iter().enumerate() {
+			if first_indices.contains(&cidx) {
+				let (x, y) = component.get_position();
+				let (mut width, mut height) = component.get_size();
+
+				width += 30.0;
+				height += 30.0;
+
+				ctx.set_stroke_style(&"#0f0".into());
+				ctx.set_line_width(7.0);
+				ctx.stroke_rect(x - width * 0.5, y - height * 0.5, width, height);
+			}
+		}
+	}
+
 	/// Draws the pin highlights.
 	pub fn draw_pin_highlights(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		for (cidx, component) in self.components.iter().enumerate() {
@@ -550,10 +569,8 @@ impl Circuit {
 	}
 }
 
-#[wasm_bindgen]
 impl Circuit {
 	/// Returns a blank [`Circuit`].
-	#[wasm_bindgen(constructor)]
 	pub fn new() -> Self {
 		Self {
 			components: vec![],
@@ -600,16 +617,10 @@ impl Circuit {
 		self.update_component(&ExternalPin { component_idx: component_idx, pin_idx: pin_idx }, state.toggle(), true);
 	}
 
-	/// Returns the x coordinate of a component given the chip stack.
-	pub fn get_x_from_chip_stack(&mut self, stack: &[usize]) -> Option<f64> {
+	/// Returns the coordinates of a component given the chip stack.
+	pub fn get_pos_from_chip_stack(&mut self, stack: &[usize]) -> Option<(f64, f64)> {
 		let component = self.get_component_from_chip_stack(stack)?;
-		Some(component.get_position().0)
-	}
-
-	/// Returns the y coordinate of a component given the chip stack.
-	pub fn get_y_from_chip_stack(&mut self, stack: &[usize]) -> Option<f64> {
-		let component = self.get_component_from_chip_stack(stack)?;
-		Some(component.get_position().1)
+		Some(component.get_position())
 	}
 
 	/// Sets the x coordinate of a component given the chip stack.
@@ -639,10 +650,10 @@ impl Circuit {
 		}
 	}
 
-	/// Translates a component given a chip stack.
-	pub fn translate_component_from_chip_stack(&mut self, stack: &[usize], offset_x: f64, offset_y: f64) {
+	/// Sets a component's position given a chip stack.
+	pub fn set_component_pos_from_chip_stack(&mut self, stack: &[usize], x: f64, y: f64) {
 		if let Some(component) = self.get_component_from_chip_stack(stack) {
-			component.translate((offset_x, offset_y));
+			component.set_position((x, y));
 		}
 	}
 

@@ -5,6 +5,7 @@ extern crate test;
 
 pub mod adder;
 pub mod core;
+pub mod editor;
 pub mod gates;
 pub mod graphics;
 pub mod latches;

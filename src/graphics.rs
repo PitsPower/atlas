@@ -117,12 +117,11 @@ impl BoundingBox {
 
 /// The renderer. This handles drawing every [`Component`] and [`Wire`] on the screen, as well
 /// as handling infinite zoom.
-#[wasm_bindgen]
 pub struct Renderer {
 	/// The canvas context.
 	ctx: web_sys::CanvasRenderingContext2d,
 	/// The viewport that the user sees through.
-	viewport: BoundingBox,
+	pub viewport: BoundingBox,
 	/// If true, nothing will be scaled or translated. Instead, the viewport will be rendered
 	/// using a yellow box.
 	show_viewport: bool,
@@ -132,10 +131,8 @@ pub struct Renderer {
 	chip_stack: Vec<usize>,
 }
 
-#[wasm_bindgen]
 impl Renderer {
 	/// Returns a new renderer.
-	#[wasm_bindgen(constructor)]
 	pub fn new(ctx: web_sys::CanvasRenderingContext2d) -> Self {
 		let width = ctx.canvas().unwrap().width() as f64;
 		let height = ctx.canvas().unwrap().height() as f64;
@@ -158,16 +155,6 @@ impl Renderer {
 		let height = self.ctx.canvas().unwrap().height() as f64;
 
 		(width, height)
-	}
-
-	/// Returns the x position of the viewport.
-	pub fn get_viewport_x(&self) -> f64 {
-		self.viewport.get_x()
-	}
-
-	/// Returns the y position of the viewport.
-	pub fn get_viewport_y(&self) -> f64 {
-		self.viewport.get_y()
 	}
 
 	/// Updates the viewport to match the new canvas size.
@@ -409,7 +396,7 @@ impl Renderer {
 	}
 
 	/// Renders the given [`Circuit`].
-	pub fn render(&mut self, root_circuit: &Circuit) {
+	pub fn render(&mut self, root_circuit: &Circuit, selected_chip_stacks: &Vec<Vec<usize>>) {
 		let ctx = &self.ctx;
 		let mut circuit = self.get_current_circuit(root_circuit);
 
@@ -465,6 +452,7 @@ impl Renderer {
 		}
 		
 		circuit.draw(ctx, self.viewport);
+		circuit.draw_selection_boxes(ctx, selected_chip_stacks);
 
 		if self.show_pins {
 			circuit.draw_pin_highlights(ctx);
