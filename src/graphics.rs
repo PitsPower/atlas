@@ -29,6 +29,10 @@ pub enum WireLayoutCommand {
 	MoveVertical(f64),
 	/// Moves the wire horizontally and vertically at the same time.
 	Move((f64, f64)),
+	/// Moves the x coordinate to an absolute location.
+	MoveXTo(f64),
+	/// Moves the y coordinate to an absolute location.
+	MoveYTo(f64),
 	/// Moves the wire to an absolute location.
 	MoveTo((f64, f64)),
 }

@@ -757,6 +757,12 @@ impl Drawable for Circuit {
 						current_pos.0 += x;
 						current_pos.1 += y;
 					},
+					WireLayoutCommand::MoveXTo(x) => {
+						current_pos.0 = *x;
+					},
+					WireLayoutCommand::MoveYTo(y) => {
+						current_pos.1 = *y;
+					},
 					WireLayoutCommand::MoveTo((x, y)) => {
 						current_pos = (*x, *y);
 					},

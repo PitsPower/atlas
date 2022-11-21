@@ -266,9 +266,26 @@ impl Editor {
 		} else if self.is_editing_layout {
 			let cursor = self.renderer.get_cursor_from_pos(&self.circuit, &[], x, y);
 
+			let mut new_x = cursor.get_x();
+			let mut new_y = cursor.get_y();
+
+			if is_alt {
+				new_x = (new_x / 50.0).floor() * 50.0;
+				new_y = (new_y / 50.0).floor() * 50.0;
+			}
+
 			let len = self.layout_commands.len();
-			self.layout_commands[len - 1] =
-				WireLayoutCommand::MoveTo((cursor.get_x(), cursor.get_y()));
+
+			if is_ctrl {
+				self.layout_commands[len - 1] =
+					WireLayoutCommand::MoveYTo(new_y);
+			} else if is_shift {
+				self.layout_commands[len - 1] =
+					WireLayoutCommand::MoveXTo(new_x);
+			} else {
+				self.layout_commands[len - 1] =
+					WireLayoutCommand::MoveTo((new_x, new_y));
+			}
 
 			self.update_wire_layout();
 		}

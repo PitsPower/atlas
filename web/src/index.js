@@ -56,7 +56,7 @@ yCoordEl.addEventListener("input", (e) => {
 	editor.set_selected_y(y);
 });
 
-const keys = "asdfghjkzxcvbnm,";
+// const keys = "asdfghjkzxcvbnm,";
 
 window.addEventListener("keydown", (e) => {
 	// if (keys.includes(e.key)) {
