@@ -584,7 +584,7 @@ impl Circuit {
 			let (x, y) = component.get_position();
 			ctx.translate(x, y).unwrap();
 
-			for (pidx, pin_pos) in component.get_pin_positions().iter().enumerate() {
+			for (pidx, pin_pos) in component.get_pin_positions().iter().enumerate().rev() {
 				let con = ExternalPin { component_idx: cidx, pin_idx: pidx };
 
 				if self.get_wires().iter().find(|w| w.pin1 == con || w.pin2 == con).is_some() {
