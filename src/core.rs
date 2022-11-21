@@ -47,13 +47,13 @@ impl PinState {
 	}
 
 	/// Returns the colour of the state. Used in rendering.
-    fn get_colour(&self) -> &str {
-        match self {
-            PinState::On => "#fb016e",
-            PinState::Off => "#333",
-            PinState::Disconnected => "#999",
-        }
-    }
+	fn get_colour(&self) -> &str {
+		match self {
+			PinState::On => "#fb016e",
+			PinState::Off => "#333",
+			PinState::Disconnected => "#999",
+		}
+	}
 
 	/// Returns `true` if the input is [`PinState::On`] and `false` otherwise.
 	pub fn to_bool(&self) -> bool {
@@ -875,7 +875,7 @@ pub trait Chip {
 }
 
 impl<T: Chip> Drawable for T {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: BoundingBox) {
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: BoundingBox) {
 		self.draw_back(ctx);
 
 		// TODO: Probably merge this with the other implementation!
@@ -904,7 +904,7 @@ impl<T: Chip> Drawable for T {
 		
 		ctx.set_global_alpha(1.0);
 		self.draw_edge(ctx);
-    }
+	}
 }
 
 impl<T: Chip> Component for T {
@@ -916,29 +916,29 @@ impl<T: Chip> Component for T {
 		Some(self.get_chip_internals_mut())
 	}
 
-    fn get_pin_positions(&self) -> Vec<(f64, f64)> {
-        self.get_chip_internals().circuit.get_pin_positions()
+	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
+		self.get_chip_internals().circuit.get_pin_positions()
 			.iter()
 			.map(|p| {
 				let scale = self.get_chip_internals().inner_scale;
 				(p.0 * scale, p.1 * scale)
 			})
 			.collect()
-    }
+	}
 
-    fn get_position(&self) -> (f64, f64) {
-        self.get_chip_position()
-    }
+	fn get_position(&self) -> (f64, f64) {
+		self.get_chip_position()
+	}
 
-    fn set_position(&mut self, pos: (f64, f64)) {
-        self.set_chip_position(pos);
-    }
+	fn set_position(&mut self, pos: (f64, f64)) {
+		self.set_chip_position(pos);
+	}
 
 	fn get_size(&self) -> (f64, f64) {
 		self.get_chip_size()
 	}
 
-    fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
+	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
 		match self.get_mode() {
 			SimulationMode::Circuit => {
 				let maybe_pin_component = self.get_chip_internals().circuit.components.iter()
@@ -954,9 +954,9 @@ impl<T: Chip> Component for T {
 			},
 			SimulationMode::HighLevel => self.get_pin_state_high_level(idx),
 		}
-    }
+	}
 
-    fn set_pin_state(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+	fn set_pin_state(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
 		match self.get_mode() {
 			SimulationMode::Circuit => {
 				let maybe_component_idx = self.get_chip_internals_mut().circuit.components.iter_mut()
@@ -979,7 +979,7 @@ impl<T: Chip> Component for T {
 			},
 			SimulationMode::HighLevel => self.set_pin_state_high_level(idx, state),
 		}
-    }
+	}
 	
 	fn set_mode(&mut self, mode: SimulationMode) {
 		self.set_mode(mode);
@@ -1056,17 +1056,17 @@ impl<T: RectangleChip> Chip for T {
 		self.get_chip_size()
 	}
 
-    fn get_text_info(&self) -> Option<&TextInfo> {
+	fn get_text_info(&self) -> Option<&TextInfo> {
 		self.get_text_info()
-    }
+	}
 	
 	fn get_mode(&self) -> SimulationMode {
 		self.get_mode()
 	}
 
-    fn set_mode(&mut self, mode: SimulationMode) {
+	fn set_mode(&mut self, mode: SimulationMode) {
 		self.set_mode(mode)
-    }
+	}
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
 		self.get_pin_state_high_level(idx)
@@ -1106,7 +1106,7 @@ impl<T: RectangleChip> Chip for T {
 		intersects_x && intersects_y
 	}
 
-    fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		// match self.get_mode() {
 		// 	SimulationMode::Circuit => ctx.set_fill_style(&"#000".into()),
 		// 	SimulationMode::HighLevel => ctx.set_fill_style(&"#f00".into()),
@@ -1130,7 +1130,7 @@ impl<T: RectangleChip> Chip for T {
 		}
 	}
 
-    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+	fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_line_width(10.0);
 		ctx.set_stroke_style(&"#fff".into());
 		
@@ -1148,7 +1148,7 @@ impl<T: RectangleChip> Chip for T {
 
 		ctx.stroke();
 		ctx.fill();
-    }
+	}
 }
 
 // pub struct RectangleChip {
@@ -1187,7 +1187,7 @@ impl Pin {
 }
 
 impl Drawable for Pin {
-    fn draw(&self, _ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
+	fn draw(&self, _ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
 		
 	}
 }
@@ -1197,13 +1197,13 @@ impl Component for Pin {
 		true
 	}
 
-    fn get_pin_positions(&self) -> Vec<(f64, f64)> {
-        vec![(0.0, 0.0)]
-    }
+	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
+		vec![(0.0, 0.0)]
+	}
 	
-    fn get_position(&self) -> (f64, f64) {
-        self.position
-    }
+	fn get_position(&self) -> (f64, f64) {
+		self.position
+	}
 
 	fn set_position(&mut self, pos: (f64, f64)) {
 		self.position = pos;
@@ -1265,8 +1265,8 @@ impl Switch {
 }
 
 impl Drawable for Switch {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
-        ctx.set_fill_style(&self.state.get_colour().into());
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
+		ctx.set_fill_style(&self.state.get_colour().into());
 
 		let (width, height) = self.get_size();
 
@@ -1276,7 +1276,7 @@ impl Drawable for Switch {
 			width,
 			height,
 		);
-    }
+	}
 }
 
 impl Component for Switch {
@@ -1284,13 +1284,13 @@ impl Component for Switch {
 		1
 	}
 
-    fn get_pin_positions(&self) -> Vec<(f64, f64)> {
-        vec![(0.0, 0.0)]
-    }
+	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
+		vec![(0.0, 0.0)]
+	}
 	
-    fn get_position(&self) -> (f64, f64) {
-        self.position
-    }
+	fn get_position(&self) -> (f64, f64) {
+		self.position
+	}
 
 	fn set_position(&mut self, pos: (f64, f64)) {
 		self.position = pos;
@@ -1345,7 +1345,7 @@ impl MultiSwitch {
 }
 
 impl Drawable for MultiSwitch {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
 		ctx.set_line_width(10.0);
 
 		ctx.set_stroke_style(&"#fff".into());
@@ -1373,7 +1373,7 @@ impl Drawable for MultiSwitch {
 			let extra_width = if i == size-1 { 0.0 } else { 1.0 };
 			ctx.fill_rect((i as f64 - size as f64 * 0.5) * 50.0, height * 0.5 - 50.0, 50.0 + extra_width, 50.0);
 		}
-    }
+	}
 }
 
 impl Component for MultiSwitch {
@@ -1381,7 +1381,7 @@ impl Component for MultiSwitch {
 		self.states.len()
 	}
 
-    fn get_pin_positions(&self) -> Vec<(f64, f64)> {
+	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
 		let spacing = 50.0;
 		let size = self.states.len();
 
@@ -1389,11 +1389,11 @@ impl Component for MultiSwitch {
 			.map(|i| (i as f64 - size as f64 * 0.5 + 0.5) * spacing)
 			.map(|x| (x, 100.0))
 			.collect()
-    }
+	}
 	
-    fn get_position(&self) -> (f64, f64) {
-        self.position
-    }
+	fn get_position(&self) -> (f64, f64) {
+		self.position
+	}
 
 	fn set_position(&mut self, pos: (f64, f64)) {
 		self.position = pos;
@@ -1448,8 +1448,8 @@ impl Bulb {
 }
 
 impl Drawable for Bulb {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
-        ctx.set_fill_style(&self.state.get_colour().into());
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
+		ctx.set_fill_style(&self.state.get_colour().into());
 		
 		let radius = 50.0;
 
@@ -1462,17 +1462,17 @@ impl Drawable for Bulb {
 			2.0 * PI,
 		).unwrap();
 		ctx.fill();
-    }
+	}
 }
 
 impl Component for Bulb {
-    fn get_pin_positions(&self) -> Vec<(f64, f64)> {
-        vec![(0.0, 0.0)]
-    }
+	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
+		vec![(0.0, 0.0)]
+	}
 
-    fn get_position(&self) -> (f64, f64) {
-        self.position
-    }
+	fn get_position(&self) -> (f64, f64) {
+		self.position
+	}
 
 	fn set_position(&mut self, pos: (f64, f64)) {
 		self.position = pos;
@@ -1519,7 +1519,7 @@ impl MultiBulb {
 }
 
 impl Drawable for MultiBulb {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
 		ctx.set_line_width(10.0);
 
 		ctx.set_stroke_style(&"#fff".into());
@@ -1548,11 +1548,11 @@ impl Drawable for MultiBulb {
 			ctx.arc((i as f64 - size as f64 * 0.5) * 50.0 + 25.0, height * 0.5 - 25.0, 20.0, 0.0, 2.0 * PI).unwrap();
 			ctx.fill();
 		}
-    }
+	}
 }
 
 impl Component for MultiBulb {
-    fn get_pin_positions(&self) -> Vec<(f64, f64)> {
+	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
 		let spacing = 50.0;
 		let size = self.states.len();
 
@@ -1560,11 +1560,11 @@ impl Component for MultiBulb {
 			.map(|i| (i as f64 - size as f64 * 0.5 + 0.5) * spacing)
 			.map(|x| (x, 100.0))
 			.collect()
-    }
+	}
 
-    fn get_position(&self) -> (f64, f64) {
-        self.position
-    }
+	fn get_position(&self) -> (f64, f64) {
+		self.position
+	}
 
 	fn set_position(&mut self, pos: (f64, f64)) {
 		self.position = pos;
@@ -1617,8 +1617,8 @@ impl Junction {
 }
 
 impl Drawable for Junction {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
-        ctx.set_fill_style(&self.get_state().get_colour().into());
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
+		ctx.set_fill_style(&self.get_state().get_colour().into());
 		
 		let radius = 10.0;
 
@@ -1631,17 +1631,17 @@ impl Drawable for Junction {
 			2.0 * PI,
 		).unwrap();
 		ctx.fill();
-    }
+	}
 }
 
 impl Component for Junction {
-    fn get_pin_positions(&self) -> Vec<(f64, f64)> {
-        vec![(0.0, 0.0); self.states.len()]
-    }
+	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
+		vec![(0.0, 0.0); self.states.len()]
+	}
 
-    fn get_position(&self) -> (f64, f64) {
-        self.position
-    }
+	fn get_position(&self) -> (f64, f64) {
+		self.position
+	}
 
 	fn set_position(&mut self, pos: (f64, f64)) {
 		self.position = pos;

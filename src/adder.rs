@@ -80,31 +80,31 @@ impl HalfAdder {
 }
 
 impl RectangleChip for HalfAdder {
-    fn get_chip_internals(&self) -> &ChipInternals {
-        &self.internals
-    }
+	fn get_chip_internals(&self) -> &ChipInternals {
+		&self.internals
+	}
 
-    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+	fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
 		&mut self.internals
-    }
+	}
 
-    fn get_chip_position(&self) -> (f64, f64) {
+	fn get_chip_position(&self) -> (f64, f64) {
 		self.position
-    }
+	}
 
 	fn set_chip_position(&mut self, pos: (f64, f64)) {
 		self.position = pos;
 	}
 
-    fn get_chip_size(&self) -> (f64, f64) {
+	fn get_chip_size(&self) -> (f64, f64) {
 		(200.0, 200.0)
-    }
+	}
 	
 	fn get_mode(&self) -> SimulationMode {
 		self.sim_mode
 	}
 
-    fn set_mode(&mut self, mode: SimulationMode) {
+	fn set_mode(&mut self, mode: SimulationMode) {
 		match (self.sim_mode, mode) {
 			(SimulationMode::HighLevel, SimulationMode::Circuit) => {
 				self.internals.circuit.set_pin(0, self.input1);
@@ -118,7 +118,7 @@ impl RectangleChip for HalfAdder {
 		}
 		
 		self.sim_mode = mode;
-    }
+	}
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
 		match idx {
@@ -138,9 +138,9 @@ impl RectangleChip for HalfAdder {
 		}
 	}
 
-    fn get_text_info(&self) -> Option<&TextInfo> {
+	fn get_text_info(&self) -> Option<&TextInfo> {
 		self.text.as_ref()
-    }
+	}
 }
 
 pub struct FullAdder {
@@ -232,31 +232,31 @@ impl FullAdder {
 }
 
 impl RectangleChip for FullAdder {
-    fn get_chip_internals(&self) -> &ChipInternals {
-        &self.internals
-    }
+	fn get_chip_internals(&self) -> &ChipInternals {
+		&self.internals
+	}
 
-    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+	fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
 		&mut self.internals
-    }
+	}
 
-    fn get_chip_position(&self) -> (f64, f64) {
+	fn get_chip_position(&self) -> (f64, f64) {
 		self.position
-    }
+	}
 
 	fn set_chip_position(&mut self, pos: (f64, f64)) {
 		self.position = pos;
 	}
 
-    fn get_chip_size(&self) -> (f64, f64) {
+	fn get_chip_size(&self) -> (f64, f64) {
 		(400.0, 200.0)
-    }
+	}
 	
 	fn get_mode(&self) -> SimulationMode {
 		self.sim_mode
 	}
 
-    fn set_mode(&mut self, mode: SimulationMode) {
+	fn set_mode(&mut self, mode: SimulationMode) {
 		match (self.sim_mode, mode) {
 			(SimulationMode::HighLevel, SimulationMode::Circuit) => {
 				self.internals.circuit.set_pin(0, self.input1);
@@ -272,7 +272,7 @@ impl RectangleChip for FullAdder {
 		}
 		
 		self.sim_mode = mode;
-    }
+	}
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
 		match idx {
@@ -301,9 +301,9 @@ impl RectangleChip for FullAdder {
 		}
 	}
 
-    fn get_text_info(&self) -> Option<&TextInfo> {
+	fn get_text_info(&self) -> Option<&TextInfo> {
 		self.text.as_ref()
-    }
+	}
 }
 
 pub struct Adder {
@@ -382,31 +382,31 @@ impl Adder {
 }
 
 impl RectangleChip for Adder {
-    fn get_chip_internals(&self) -> &ChipInternals {
-        &self.internals
-    }
+	fn get_chip_internals(&self) -> &ChipInternals {
+		&self.internals
+	}
 
-    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+	fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
 		&mut self.internals
-    }
+	}
 
-    fn get_chip_position(&self) -> (f64, f64) {
+	fn get_chip_position(&self) -> (f64, f64) {
 		self.position
-    }
+	}
 
 	fn set_chip_position(&mut self, pos: (f64, f64)) {
 		self.position = pos;
 	}
 
-    fn get_chip_size(&self) -> (f64, f64) {
+	fn get_chip_size(&self) -> (f64, f64) {
 		(400.0, self.size as f64 * 100.0)
-    }
+	}
 	
 	fn get_mode(&self) -> SimulationMode {
 		self.sim_mode
 	}
 
-    fn set_mode(&mut self, mode: SimulationMode) {
+	fn set_mode(&mut self, mode: SimulationMode) {
 		match (self.sim_mode, mode) {
 			(SimulationMode::HighLevel, SimulationMode::Circuit) => {
 				for i in 0..self.size {
@@ -428,7 +428,7 @@ impl RectangleChip for Adder {
 		}
 		
 		self.sim_mode = mode;
-    }
+	}
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
 		let i1 = states_to_num(&self.input1);
@@ -460,7 +460,7 @@ impl RectangleChip for Adder {
 		
 	}
 
-    fn get_text_info(&self) -> Option<&TextInfo> {
+	fn get_text_info(&self) -> Option<&TextInfo> {
 		self.text.as_ref()
-    }
+	}
 }

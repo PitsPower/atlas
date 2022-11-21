@@ -46,35 +46,35 @@ impl AndGate {
 }
 
 impl Chip for AndGate {
-    fn get_chip_internals(&self) -> &ChipInternals {
-        &self.internals
-    }
+	fn get_chip_internals(&self) -> &ChipInternals {
+		&self.internals
+	}
 
-    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
-        &mut self.internals
-    }
+	fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+		&mut self.internals
+	}
 
-    fn get_chip_position(&self) -> (f64, f64) {
+	fn get_chip_position(&self) -> (f64, f64) {
 		self.position
-    }
+	}
 
 	fn set_chip_position(&mut self, pos: (f64, f64)) {
 		self.position = pos;
 	}
 
-    fn get_chip_size(&self) -> (f64, f64) {
-        (110.0, 110.0)
-    }
+	fn get_chip_size(&self) -> (f64, f64) {
+		(110.0, 110.0)
+	}
 
-    fn get_text_info(&self) -> Option<&TextInfo> {
-        todo!()
-    }
+	fn get_text_info(&self) -> Option<&TextInfo> {
+		todo!()
+	}
 
-    fn contains(&self, _viewport: &BoundingBox) -> bool {
+	fn contains(&self, _viewport: &BoundingBox) -> bool {
 		false
-    }
+	}
 
-    fn intersects(&self, viewport: &BoundingBox) -> bool {
+	fn intersects(&self, viewport: &BoundingBox) -> bool {
 		let size = self.get_chip_size();
 
 		let intersects_x =
@@ -86,9 +86,9 @@ impl Chip for AndGate {
 			self.position.1 - size.1 * 0.5 <= viewport.get_position().1 + viewport.get_size().1 * 0.5;
 
 		intersects_x && intersects_y
-    }
+	}
 
-    fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_fill_style(&"#000".into());
 		
 		let width = self.get_chip_size().0;
@@ -103,7 +103,7 @@ impl Chip for AndGate {
 		ctx.close_path();
 
 		ctx.fill();
-    }
+	}
 
 	fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_line_width(5.0);
@@ -123,9 +123,9 @@ impl Chip for AndGate {
 		ctx.stroke();
 	}
 
-    fn draw_back(&self, _ctx: &web_sys::CanvasRenderingContext2d) {
+	fn draw_back(&self, _ctx: &web_sys::CanvasRenderingContext2d) {
 
-    }
+	}
 }
 
 pub struct NandGate {
@@ -198,35 +198,35 @@ impl NandGate {
 }
 
 impl Chip for NandGate {
-    fn get_chip_internals(&self) -> &ChipInternals {
-        &self.internals
-    }
+	fn get_chip_internals(&self) -> &ChipInternals {
+		&self.internals
+	}
 
-    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
-        &mut self.internals
-    }
+	fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+		&mut self.internals
+	}
 
-    fn get_chip_position(&self) -> (f64, f64) {
+	fn get_chip_position(&self) -> (f64, f64) {
 		self.position
-    }
+	}
 
 	fn set_chip_position(&mut self, pos: (f64, f64)) {
 		self.position = pos;
 	}
 
-    fn get_chip_size(&self) -> (f64, f64) {
-        (110.0, 110.0)
-    }
+	fn get_chip_size(&self) -> (f64, f64) {
+		(110.0, 110.0)
+	}
 
-    fn get_text_info(&self) -> Option<&TextInfo> {
-        todo!()
-    }
+	fn get_text_info(&self) -> Option<&TextInfo> {
+		todo!()
+	}
 
-    fn contains(&self, _viewport: &BoundingBox) -> bool {
+	fn contains(&self, _viewport: &BoundingBox) -> bool {
 		false
-    }
+	}
 
-    fn intersects(&self, viewport: &BoundingBox) -> bool {
+	fn intersects(&self, viewport: &BoundingBox) -> bool {
 		let size = self.get_chip_size();
 
 		let intersects_x =
@@ -238,9 +238,9 @@ impl Chip for NandGate {
 			self.position.1 - size.1 * 0.5 <= viewport.get_position().1 + viewport.get_size().1 * 0.5;
 
 		intersects_x && intersects_y
-    }
+	}
 
-    fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_fill_style(&"#000".into());
 		
 		let width = self.get_chip_size().0;
@@ -255,7 +255,7 @@ impl Chip for NandGate {
 		ctx.close_path();
 
 		ctx.fill();
-    }
+	}
 
 	fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_line_width(5.0);
@@ -274,7 +274,7 @@ impl Chip for NandGate {
 		ctx.stroke();
 	}
 
-    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+	fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_line_width(10.0);
 		ctx.set_stroke_style(&"#fff".into());
 		ctx.set_fill_style(&"#000".into());
@@ -285,7 +285,7 @@ impl Chip for NandGate {
 		ctx.arc(width * 0.5 + 12.8, 0.0, 7.0, 0.0, 2.0 * PI).unwrap();
 		ctx.stroke();
 		ctx.fill();
-    }
+	}
 }
 
 pub struct NorGate {
@@ -359,35 +359,35 @@ impl NorGate {
 }
 
 impl Chip for NorGate {
-    fn get_chip_internals(&self) -> &ChipInternals {
-        &self.internals
-    }
+	fn get_chip_internals(&self) -> &ChipInternals {
+		&self.internals
+	}
 
-    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
-        &mut self.internals
-    }
+	fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+		&mut self.internals
+	}
 
-    fn get_chip_position(&self) -> (f64, f64) {
+	fn get_chip_position(&self) -> (f64, f64) {
 		self.position
-    }
+	}
 
 	fn set_chip_position(&mut self, pos: (f64, f64)) {
 		self.position = pos;
 	}
 
-    fn get_chip_size(&self) -> (f64, f64) {
-        (110.0, 110.0)
-    }
+	fn get_chip_size(&self) -> (f64, f64) {
+		(110.0, 110.0)
+	}
 
-    fn get_text_info(&self) -> Option<&TextInfo> {
-        todo!()
-    }
+	fn get_text_info(&self) -> Option<&TextInfo> {
+		todo!()
+	}
 
-    fn contains(&self, _viewport: &BoundingBox) -> bool {
+	fn contains(&self, _viewport: &BoundingBox) -> bool {
 		false
-    }
+	}
 
-    fn intersects(&self, viewport: &BoundingBox) -> bool {
+	fn intersects(&self, viewport: &BoundingBox) -> bool {
 		let size = self.get_chip_size();
 
 		let intersects_x =
@@ -399,9 +399,9 @@ impl Chip for NorGate {
 			self.position.1 - size.1 * 0.5 <= viewport.get_position().1 + viewport.get_size().1 * 0.5;
 
 		intersects_x && intersects_y
-    }
+	}
 
-    fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_fill_style(&"#000".into());
 		
 		let width = self.get_chip_size().0;
@@ -415,7 +415,7 @@ impl Chip for NorGate {
 		ctx.close_path();
 
 		ctx.fill();
-    }
+	}
 
 	fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_line_width(5.0);
@@ -433,7 +433,7 @@ impl Chip for NorGate {
 		ctx.stroke();
 	}
 
-    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+	fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		let width = self.get_chip_size().0;
 
 		ctx.set_line_width(10.0);
@@ -444,7 +444,7 @@ impl Chip for NorGate {
 		ctx.arc(width * 0.5 + 10.0, 0.0, 7.0, 0.0, 2.0 * PI).unwrap();
 		ctx.stroke();
 		ctx.fill();
-    }
+	}
 }
 
 pub struct NotGate {
@@ -497,35 +497,35 @@ impl NotGate {
 }
 
 impl Chip for NotGate {
-    fn get_chip_internals(&self) -> &ChipInternals {
-        &self.internals
-    }
+	fn get_chip_internals(&self) -> &ChipInternals {
+		&self.internals
+	}
 
-    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
-        &mut self.internals
-    }
+	fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+		&mut self.internals
+	}
 
-    fn get_chip_position(&self) -> (f64, f64) {
-        self.position
-    }
+	fn get_chip_position(&self) -> (f64, f64) {
+		self.position
+	}
 
 	fn set_chip_position(&mut self, pos: (f64, f64)) {
 		self.position = pos;
 	}
 
-    fn get_chip_size(&self) -> (f64, f64) {
-        (110.0, 110.0)
-    }
+	fn get_chip_size(&self) -> (f64, f64) {
+		(110.0, 110.0)
+	}
 
-    fn get_text_info(&self) -> Option<&TextInfo> {
-        todo!()
-    }
+	fn get_text_info(&self) -> Option<&TextInfo> {
+		todo!()
+	}
 
-    fn contains(&self, _viewport: &BoundingBox) -> bool {
+	fn contains(&self, _viewport: &BoundingBox) -> bool {
 		false
-    }
+	}
 
-    fn intersects(&self, viewport: &BoundingBox) -> bool {
+	fn intersects(&self, viewport: &BoundingBox) -> bool {
 		let size = self.get_chip_size();
 
 		let intersects_x =
@@ -537,9 +537,9 @@ impl Chip for NotGate {
 			self.position.1 - size.1 * 0.5 <= viewport.get_position().1 + viewport.get_size().1 * 0.5;
 
 		intersects_x && intersects_y
-    }
+	}
 
-    fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_fill_style(&"#000".into());
 		
 		let width = self.get_chip_size().0;
@@ -552,7 +552,7 @@ impl Chip for NotGate {
 		ctx.close_path();
 
 		ctx.fill();
-    }
+	}
 
 	fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_line_width(5.0);
@@ -569,7 +569,7 @@ impl Chip for NotGate {
 		ctx.stroke();
 	}
 
-    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+	fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_line_width(10.0);
 		ctx.set_stroke_style(&"#fff".into());
 		ctx.set_fill_style(&"#000".into());
@@ -580,7 +580,7 @@ impl Chip for NotGate {
 		ctx.arc(width * 0.5 + 12.8, 0.0, 7.0, 0.0, 2.0 * PI).unwrap();
 		ctx.stroke();
 		ctx.fill();
-    }
+	}
 }
 
 pub struct OrGate {
@@ -622,35 +622,35 @@ impl OrGate {
 }
 
 impl Chip for OrGate {
-    fn get_chip_internals(&self) -> &ChipInternals {
-        &self.internals
-    }
+	fn get_chip_internals(&self) -> &ChipInternals {
+		&self.internals
+	}
 
-    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
-        &mut self.internals
-    }
+	fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+		&mut self.internals
+	}
 
-    fn get_chip_position(&self) -> (f64, f64) {
+	fn get_chip_position(&self) -> (f64, f64) {
 		self.position
-    }
+	}
 
 	fn set_chip_position(&mut self, pos: (f64, f64)) {
 		self.position = pos;
 	}
 
-    fn get_chip_size(&self) -> (f64, f64) {
-        (110.0, 110.0)
-    }
+	fn get_chip_size(&self) -> (f64, f64) {
+		(110.0, 110.0)
+	}
 
-    fn get_text_info(&self) -> Option<&TextInfo> {
-        todo!()
-    }
+	fn get_text_info(&self) -> Option<&TextInfo> {
+		todo!()
+	}
 
-    fn contains(&self, _viewport: &BoundingBox) -> bool {
+	fn contains(&self, _viewport: &BoundingBox) -> bool {
 		false
-    }
+	}
 
-    fn intersects(&self, viewport: &BoundingBox) -> bool {
+	fn intersects(&self, viewport: &BoundingBox) -> bool {
 		let size = self.get_chip_size();
 
 		let intersects_x =
@@ -662,9 +662,9 @@ impl Chip for OrGate {
 			self.position.1 - size.1 * 0.5 <= viewport.get_position().1 + viewport.get_size().1 * 0.5;
 
 		intersects_x && intersects_y
-    }
+	}
 
-    fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_fill_style(&"#000".into());
 		
 		let width = self.get_chip_size().0;
@@ -678,9 +678,9 @@ impl Chip for OrGate {
 		ctx.close_path();
 
 		ctx.fill();
-    }
+	}
 
-    fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+	fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_line_width(5.0);
 		ctx.set_stroke_style(&"#fff".into());
 		
@@ -695,7 +695,7 @@ impl Chip for OrGate {
 		ctx.close_path();
 
 		ctx.stroke();
-    }
+	}
 	
 	fn draw_back(&self, _ctx: &web_sys::CanvasRenderingContext2d) {
 		
@@ -771,35 +771,35 @@ impl TriStateBuffer {
 }
 
 impl Chip for TriStateBuffer {
-    fn get_chip_internals(&self) -> &ChipInternals {
-        &self.internals
-    }
+	fn get_chip_internals(&self) -> &ChipInternals {
+		&self.internals
+	}
 
-    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
-        &mut self.internals
-    }
+	fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+		&mut self.internals
+	}
 
-    fn get_chip_position(&self) -> (f64, f64) {
+	fn get_chip_position(&self) -> (f64, f64) {
 		self.position
-    }
+	}
 
 	fn set_chip_position(&mut self, pos: (f64, f64)) {
 		self.position = pos;
 	}
 
-    fn get_chip_size(&self) -> (f64, f64) {
-        (110.0, 110.0)
-    }
+	fn get_chip_size(&self) -> (f64, f64) {
+		(110.0, 110.0)
+	}
 
-    fn get_text_info(&self) -> Option<&TextInfo> {
-        todo!()
-    }
+	fn get_text_info(&self) -> Option<&TextInfo> {
+		todo!()
+	}
 
-    fn contains(&self, _viewport: &BoundingBox) -> bool {
+	fn contains(&self, _viewport: &BoundingBox) -> bool {
 		false
-    }
+	}
 
-    fn intersects(&self, viewport: &BoundingBox) -> bool {
+	fn intersects(&self, viewport: &BoundingBox) -> bool {
 		let size = self.get_chip_size();
 
 		let intersects_x =
@@ -811,9 +811,9 @@ impl Chip for TriStateBuffer {
 			self.position.1 - size.1 * 0.5 <= viewport.get_position().1 + viewport.get_size().1 * 0.5;
 
 		intersects_x && intersects_y
-    }
+	}
 
-    fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_fill_style(&"#000".into());
 		
 		let width = self.get_chip_size().0;
@@ -826,7 +826,7 @@ impl Chip for TriStateBuffer {
 		ctx.close_path();
 
 		ctx.fill();
-    }
+	}
 
 	fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_line_width(5.0);
@@ -843,9 +843,9 @@ impl Chip for TriStateBuffer {
 		ctx.stroke();
 	}
 
-    fn draw_back(&self, _ctx: &web_sys::CanvasRenderingContext2d) {
+	fn draw_back(&self, _ctx: &web_sys::CanvasRenderingContext2d) {
 		
-    }
+	}
 }
 
 pub struct XorGate {
@@ -909,35 +909,35 @@ impl XorGate {
 }
 
 impl Chip for XorGate {
-    fn get_chip_internals(&self) -> &ChipInternals {
-        &self.internals
-    }
+	fn get_chip_internals(&self) -> &ChipInternals {
+		&self.internals
+	}
 
-    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
-        &mut self.internals
-    }
+	fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+		&mut self.internals
+	}
 
-    fn get_chip_position(&self) -> (f64, f64) {
+	fn get_chip_position(&self) -> (f64, f64) {
 		self.position
-    }
+	}
 
 	fn set_chip_position(&mut self, pos: (f64, f64)) {
 		self.position = pos;
 	}
 
-    fn get_chip_size(&self) -> (f64, f64) {
-        (110.0, 110.0)
-    }
+	fn get_chip_size(&self) -> (f64, f64) {
+		(110.0, 110.0)
+	}
 
-    fn get_text_info(&self) -> Option<&TextInfo> {
-        todo!()
-    }
+	fn get_text_info(&self) -> Option<&TextInfo> {
+		todo!()
+	}
 
-    fn contains(&self, _viewport: &BoundingBox) -> bool {
+	fn contains(&self, _viewport: &BoundingBox) -> bool {
 		false
-    }
+	}
 
-    fn intersects(&self, viewport: &BoundingBox) -> bool {
+	fn intersects(&self, viewport: &BoundingBox) -> bool {
 		let size = self.get_chip_size();
 
 		let intersects_x =
@@ -949,9 +949,9 @@ impl Chip for XorGate {
 			self.position.1 - size.1 * 0.5 <= viewport.get_position().1 + viewport.get_size().1 * 0.5;
 
 		intersects_x && intersects_y
-    }
+	}
 
-    fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_fill_style(&"#000".into());
 		
 		let width = self.get_chip_size().0;
@@ -965,7 +965,7 @@ impl Chip for XorGate {
 		ctx.close_path();
 
 		ctx.fill();
-    }
+	}
 
 	fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_line_width(5.0);
@@ -983,7 +983,7 @@ impl Chip for XorGate {
 		ctx.stroke();
 	}
 
-    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
+	fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
 		ctx.set_line_width(5.0);
 		ctx.set_stroke_style(&"#fff".into());
 
@@ -1002,5 +1002,5 @@ impl Chip for XorGate {
 		);
 
 		ctx.stroke();
-    }
+	}
 }

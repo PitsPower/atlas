@@ -82,31 +82,31 @@ impl SRLatch {
 }
 
 impl RectangleChip for SRLatch {
-    fn get_chip_internals(&self) -> &ChipInternals {
-        &self.internals
-    }
+	fn get_chip_internals(&self) -> &ChipInternals {
+		&self.internals
+	}
 
-    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+	fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
 		&mut self.internals
-    }
+	}
 
-    fn get_chip_position(&self) -> (f64, f64) {
+	fn get_chip_position(&self) -> (f64, f64) {
 		self.position
-    }
+	}
 
 	fn set_chip_position(&mut self, pos: (f64, f64)) {
 		self.position = pos;
 	}
 
-    fn get_chip_size(&self) -> (f64, f64) {
+	fn get_chip_size(&self) -> (f64, f64) {
 		(400.0, 400.0)
-    }
+	}
 	
 	fn get_mode(&self) -> SimulationMode {
 		self.sim_mode
 	}
 
-    fn set_mode(&mut self, mode: SimulationMode) {
+	fn set_mode(&mut self, mode: SimulationMode) {
 		match (self.sim_mode, mode) {
 			(SimulationMode::HighLevel, SimulationMode::Circuit) => {
 				self.internals.circuit.set_pin(0, self.input_reset);
@@ -131,7 +131,7 @@ impl RectangleChip for SRLatch {
 		}
 		
 		self.sim_mode = mode;
-    }
+	}
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
 		match idx {
@@ -165,9 +165,9 @@ impl RectangleChip for SRLatch {
 		}
 	}
 
-    fn get_text_info(&self) -> Option<&TextInfo> {
+	fn get_text_info(&self) -> Option<&TextInfo> {
 		self.text.as_ref()
-    }
+	}
 }
 
 pub struct DLatch {
@@ -258,31 +258,31 @@ impl DLatch {
 }
 
 impl RectangleChip for DLatch {
-    fn get_chip_internals(&self) -> &ChipInternals {
-        &self.internals
-    }
+	fn get_chip_internals(&self) -> &ChipInternals {
+		&self.internals
+	}
 
-    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+	fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
 		&mut self.internals
-    }
+	}
 
-    fn get_chip_position(&self) -> (f64, f64) {
+	fn get_chip_position(&self) -> (f64, f64) {
 		self.position
-    }
+	}
 
 	fn set_chip_position(&mut self, pos: (f64, f64)) {
 		self.position = pos;
 	}
 
-    fn get_chip_size(&self) -> (f64, f64) {
+	fn get_chip_size(&self) -> (f64, f64) {
 		(600.0, 400.0)
-    }
+	}
 	
 	fn get_mode(&self) -> SimulationMode {
 		self.sim_mode
 	}
 
-    fn set_mode(&mut self, mode: SimulationMode) {
+	fn set_mode(&mut self, mode: SimulationMode) {
 		match (self.sim_mode, mode) {
 			(SimulationMode::HighLevel, SimulationMode::Circuit) => {
 				self.internals.circuit.set_pin(0, self.state);
@@ -299,7 +299,7 @@ impl RectangleChip for DLatch {
 		}
 		
 		self.sim_mode = mode;
-    }
+	}
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
 		match idx {
@@ -333,9 +333,9 @@ impl RectangleChip for DLatch {
 		}
 	}
 
-    fn get_text_info(&self) -> Option<&TextInfo> {
+	fn get_text_info(&self) -> Option<&TextInfo> {
 		self.text.as_ref()
-    }
+	}
 }
 
 pub struct DFlipFlop {
@@ -420,31 +420,31 @@ impl DFlipFlop {
 }
 
 impl RectangleChip for DFlipFlop {
-    fn get_chip_internals(&self) -> &ChipInternals {
-        &self.internals
-    }
+	fn get_chip_internals(&self) -> &ChipInternals {
+		&self.internals
+	}
 
-    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+	fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
 		&mut self.internals
-    }
+	}
 
-    fn get_chip_position(&self) -> (f64, f64) {
+	fn get_chip_position(&self) -> (f64, f64) {
 		self.position
-    }
+	}
 
 	fn set_chip_position(&mut self, pos: (f64, f64)) {
 		self.position = pos;
 	}
 
-    fn get_chip_size(&self) -> (f64, f64) {
+	fn get_chip_size(&self) -> (f64, f64) {
 		(600.0, 400.0)
-    }
+	}
 	
 	fn get_mode(&self) -> SimulationMode {
 		self.sim_mode
 	}
 
-    fn set_mode(&mut self, mode: SimulationMode) {
+	fn set_mode(&mut self, mode: SimulationMode) {
 		match (self.sim_mode, mode) {
 			(SimulationMode::HighLevel, SimulationMode::Circuit) => {
 				self.internals.circuit.set_pin(0, self.state);
@@ -463,7 +463,7 @@ impl RectangleChip for DFlipFlop {
 		}
 		
 		self.sim_mode = mode;
-    }
+	}
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
 		match idx {
@@ -493,9 +493,9 @@ impl RectangleChip for DFlipFlop {
 		}
 	}
 
-    fn get_text_info(&self) -> Option<&TextInfo> {
+	fn get_text_info(&self) -> Option<&TextInfo> {
 		self.text.as_ref()
-    }
+	}
 }
 
 pub struct MultiDFlipFlop {
@@ -588,31 +588,31 @@ impl MultiDFlipFlop {
 }
 
 impl RectangleChip for MultiDFlipFlop {
-    fn get_chip_internals(&self) -> &ChipInternals {
-        &self.internals
-    }
+	fn get_chip_internals(&self) -> &ChipInternals {
+		&self.internals
+	}
 
-    fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
+	fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
 		&mut self.internals
-    }
+	}
 
-    fn get_chip_position(&self) -> (f64, f64) {
+	fn get_chip_position(&self) -> (f64, f64) {
 		self.position
-    }
+	}
 
 	fn set_chip_position(&mut self, pos: (f64, f64)) {
 		self.position = pos;
 	}
 
-    fn get_chip_size(&self) -> (f64, f64) {
+	fn get_chip_size(&self) -> (f64, f64) {
 		(400.0, self.size as f64 * 100.0)
-    }
+	}
 	
 	fn get_mode(&self) -> SimulationMode {
 		self.sim_mode
 	}
 
-    fn set_mode(&mut self, mode: SimulationMode) {
+	fn set_mode(&mut self, mode: SimulationMode) {
 		match (self.sim_mode, mode) {
 			(SimulationMode::HighLevel, SimulationMode::Circuit) => {
 				for i in 0..self.size {
@@ -639,7 +639,7 @@ impl RectangleChip for MultiDFlipFlop {
 		}
 		
 		self.sim_mode = mode;
-    }
+	}
 
 	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
 		if idx <= self.size {
@@ -671,7 +671,7 @@ impl RectangleChip for MultiDFlipFlop {
 		}
 	}
 
-    fn get_text_info(&self) -> Option<&TextInfo> {
+	fn get_text_info(&self) -> Option<&TextInfo> {
 		self.text.as_ref()
-    }
+	}
 }
