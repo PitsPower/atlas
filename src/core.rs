@@ -356,23 +356,16 @@ impl Circuit {
 
 	/// Removes a component from the circuit.
 	pub fn remove(&mut self, component_idx: usize) {
-		let wires_to_dec_start: Vec<_> = self.wires.iter_mut()
-			.filter(|w| w.pin1.component_idx > component_idx)
-			.collect();
-
-		for wire in wires_to_dec_start {
-			wire.pin1.component_idx -= 1;
-		}
-
-		let wires_to_dec_end: Vec<_> = self.wires.iter_mut()
-			.filter(|w| w.pin2.component_idx > component_idx)
-			.collect();
-
-		for wire in wires_to_dec_end {
-			wire.pin2.component_idx -= 1;
-		}
-
 		self.wires.retain(|w| w.pin1.component_idx != component_idx && w.pin2.component_idx != component_idx);
+
+		for wire in &mut self.wires {
+			if wire.pin1.component_idx > component_idx {
+				wire.pin1.component_idx -= 1;
+			}
+			if wire.pin2.component_idx > component_idx {
+				wire.pin2.component_idx -= 1;
+			}
+		}
 
 		self.components.remove(component_idx);
 	}
