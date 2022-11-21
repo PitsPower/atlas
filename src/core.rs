@@ -15,7 +15,7 @@ use crate::transistor::{NTransistor, PTransistor};
 /// 
 /// Every [`Component`] has a number of pins that can be read from or written to. For example, an AND gate
 /// has two pins for input and one pin for output.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PinState {
 	/// Analogous to a high signal (e.g. 5V).
 	On,
@@ -274,7 +274,7 @@ pub trait Component: Drawable {
 /// A specifier for a pin on a particular component. This differs from [`Pin`], which is an internal
 /// pin used in a [`Circuit`] within a [`Chip`].
 #[wasm_bindgen]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ExternalPin {
 	/// The index of the component.
 	pub component_idx: usize,
@@ -326,9 +326,10 @@ impl Circuit {
 	}
 
 	/// Returns the list of [`Pin`] components in the circuit.
-	pub fn get_pins(&self) -> Vec<&Box<dyn Component>> {
+	pub fn get_pins(&self) -> Vec<&dyn Component> {
 		self.components.iter()
 			.filter(|c| c.is_pin())
+			.map(|c| c.as_ref())
 			.collect()
 	}
 
@@ -371,10 +372,7 @@ impl Circuit {
 			wire.pin2.component_idx -= 1;
 		}
 
-		self.wires = self.wires.iter()
-			.filter(|w| w.pin1.component_idx != component_idx && w.pin2.component_idx != component_idx)
-			.cloned()
-			.collect();	
+		self.wires.retain(|w| w.pin1.component_idx != component_idx && w.pin2.component_idx != component_idx);
 
 		self.components.remove(component_idx);
 	}
@@ -445,7 +443,7 @@ impl Circuit {
 		let mut wire_starts_to_update = vec![];
 		let mut wire_ends_to_update = vec![];
 
-		for i in 0..component.get_pin_count() {
+		for (i, old_pin_state) in old_pin_states.iter().enumerate().take(component.get_pin_count()) {
 			if i == pin.pin_idx && !set_manually {
 				continue;
 			}
@@ -456,14 +454,12 @@ impl Circuit {
 			if let Some((wire_idx, wire)) = self.wires.iter().enumerate()
 				.find(|(_, w)| w.pin1 == con || w.pin2 == con)
 			{
-				// log!("{:?}", wire);
-
 				if wire.pin1 == con {
 					wire_starts_to_update.push((wire_idx, state));
 
 					if wire.state2 == PinState::Disconnected && wire.state1 != state {
 						components_to_update.push((wire.pin2, state));
-					} else if state == PinState::Disconnected && old_pin_states[i] != PinState::Disconnected {
+					} else if state == PinState::Disconnected && *old_pin_state != PinState::Disconnected {
 						components_to_update.push((wire.pin1, wire.state2));
 					}
 				} else {
@@ -471,7 +467,7 @@ impl Circuit {
 					
 					if wire.state1 == PinState::Disconnected && wire.state2 != state {
 						components_to_update.push((wire.pin1, state));
-					} else if state == PinState::Disconnected && old_pin_states[i] != PinState::Disconnected {
+					} else if state == PinState::Disconnected && *old_pin_state != PinState::Disconnected {
 						components_to_update.push((wire.pin2, wire.state1));
 					}
 				}
@@ -558,7 +554,7 @@ impl Circuit {
 	}
 
 	/// Draws the selection boxes for each component.
-	pub fn draw_selection_boxes(&self, ctx: &web_sys::CanvasRenderingContext2d, selected_chip_stacks: &Vec<Vec<usize>>) {
+	pub fn draw_selection_boxes(&self, ctx: &web_sys::CanvasRenderingContext2d, selected_chip_stacks: &[Vec<usize>]) {
 		let first_indices: Vec<_> = selected_chip_stacks.iter().map(|cs| cs[0]).collect();
 
 		for (cidx, component) in self.components.iter().enumerate() {
@@ -577,7 +573,7 @@ impl Circuit {
 	}
 
 	/// Draws the pin highlights.
-	pub fn draw_pin_highlights(&self, ctx: &web_sys::CanvasRenderingContext2d, selected_pins: &Vec<ExternalPin>) {
+	pub fn draw_pin_highlights(&self, ctx: &web_sys::CanvasRenderingContext2d, selected_pins: &[ExternalPin]) {
 		for (cidx, component) in self.components.iter().enumerate() {
 			ctx.save();
 			
@@ -587,7 +583,7 @@ impl Circuit {
 			for (pidx, pin_pos) in component.get_pin_positions().iter().enumerate().rev() {
 				let con = ExternalPin { component_idx: cidx, pin_idx: pidx };
 
-				if self.get_wires().iter().find(|w| w.pin1 == con || w.pin2 == con).is_some() {
+				if self.get_wires().iter().any(|w| w.pin1 == con || w.pin2 == con) {
 					continue;
 				}
 
@@ -657,7 +653,7 @@ impl Circuit {
 		}
 
 		let state = self.components[component_idx].get_pin_state(pin_idx).unwrap();
-		self.update_component(&ExternalPin { component_idx: component_idx, pin_idx: pin_idx }, state.toggle(), true);
+		self.update_component(&ExternalPin { component_idx, pin_idx }, state.toggle(), true);
 	}
 
 	/// Returns the coordinates of a component given the chip stack.
@@ -708,6 +704,12 @@ impl Circuit {
 	) {
 		self.connect((comp1_idx, pin1_idx), (comp2_idx, pin2_idx), vec![]);
 	}
+}
+
+impl Default for Circuit {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Drawable for Circuit {
@@ -1654,12 +1656,10 @@ impl Component for Junction {
 	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
 		if idx >= self.states.len() {
 			Err(PinError::OutOfRange)
+		} else if self.states[idx] == PinState::Disconnected {
+			Ok(self.get_state())
 		} else {
-			if self.states[idx] == PinState::Disconnected {
-				Ok(self.get_state())
-			} else {
-				Ok(PinState::Disconnected)
-			}
+			Ok(PinState::Disconnected)
 		}
 	}
 

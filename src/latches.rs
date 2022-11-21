@@ -123,9 +123,9 @@ impl RectangleChip for SRLatch {
 				}
 			},
 			(SimulationMode::Circuit, SimulationMode::HighLevel) => {
-				self.input_reset = self.internals.circuit.get_pins()[0].as_ref().get_pin_state(0).unwrap();
-				self.input_set = self.internals.circuit.get_pins()[1].as_ref().get_pin_state(0).unwrap();
-				self.state = self.internals.circuit.get_pins()[2].as_ref().get_pin_state_external(0).unwrap();
+				self.input_reset = self.internals.circuit.get_pins()[0].get_pin_state(0).unwrap();
+				self.input_set = self.internals.circuit.get_pins()[1].get_pin_state(0).unwrap();
+				self.state = self.internals.circuit.get_pins()[2].get_pin_state_external(0).unwrap();
 			},
 			_ => { },
 		}
@@ -291,9 +291,9 @@ impl RectangleChip for DLatch {
 				self.internals.circuit.set_pin(0, self.input);
 			},
 			(SimulationMode::Circuit, SimulationMode::HighLevel) => {
-				self.input = self.internals.circuit.get_pins()[0].as_ref().get_pin_state(0).unwrap();
-				self.clock = self.internals.circuit.get_pins()[1].as_ref().get_pin_state(0).unwrap();
-				self.state = self.internals.circuit.get_pins()[2].as_ref().get_pin_state_external(0).unwrap();
+				self.input = self.internals.circuit.get_pins()[0].get_pin_state(0).unwrap();
+				self.clock = self.internals.circuit.get_pins()[1].get_pin_state(0).unwrap();
+				self.state = self.internals.circuit.get_pins()[2].get_pin_state_external(0).unwrap();
 			},
 			_ => { },
 		}
@@ -455,9 +455,9 @@ impl RectangleChip for DFlipFlop {
 				self.internals.circuit.set_pin(0, self.input);
 			},
 			(SimulationMode::Circuit, SimulationMode::HighLevel) => {
-				self.input = self.internals.circuit.get_pins()[0].as_ref().get_pin_state(0).unwrap();
-				self.clock = self.internals.circuit.get_pins()[1].as_ref().get_pin_state(0).unwrap();
-				self.state = self.internals.circuit.get_pins()[2].as_ref().get_pin_state_external(0).unwrap();
+				self.input = self.internals.circuit.get_pins()[0].get_pin_state(0).unwrap();
+				self.clock = self.internals.circuit.get_pins()[1].get_pin_state(0).unwrap();
+				self.state = self.internals.circuit.get_pins()[2].get_pin_state_external(0).unwrap();
 			},
 			_ => { },
 		}
@@ -629,11 +629,11 @@ impl RectangleChip for MultiDFlipFlop {
 			},
 			(SimulationMode::Circuit, SimulationMode::HighLevel) => {
 				for i in 0..self.size {
-					self.input[i] = self.internals.circuit.get_pins()[i].as_ref().get_pin_state(0).unwrap();
-					self.state[i] = self.internals.circuit.get_pins()[self.size + 1 + i].as_ref()
+					self.input[i] = self.internals.circuit.get_pins()[i].get_pin_state(0).unwrap();
+					self.state[i] = self.internals.circuit.get_pins()[self.size + 1 + i]
 						.get_pin_state_external(0).unwrap();
 				}
-				self.clock = self.internals.circuit.get_pins()[self.size].as_ref().get_pin_state(0).unwrap();
+				self.clock = self.internals.circuit.get_pins()[self.size].get_pin_state(0).unwrap();
 			},
 			_ => { },
 		}

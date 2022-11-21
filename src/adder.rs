@@ -111,8 +111,8 @@ impl RectangleChip for HalfAdder {
 				self.internals.circuit.set_pin(1, self.input2);
 			},
 			(SimulationMode::Circuit, SimulationMode::HighLevel) => {
-				self.input1 = self.internals.circuit.get_pins()[0].as_ref().get_pin_state(0).unwrap();
-				self.input2 = self.internals.circuit.get_pins()[1].as_ref().get_pin_state(0).unwrap();
+				self.input1 = self.internals.circuit.get_pins()[0].get_pin_state(0).unwrap();
+				self.input2 = self.internals.circuit.get_pins()[1].get_pin_state(0).unwrap();
 			},
 			_ => { },
 		}
@@ -264,9 +264,9 @@ impl RectangleChip for FullAdder {
 				self.internals.circuit.set_pin(2, self.carry_in);
 			},
 			(SimulationMode::Circuit, SimulationMode::HighLevel) => {
-				self.input1 = self.internals.circuit.get_pins()[0].as_ref().get_pin_state(0).unwrap();
-				self.input2 = self.internals.circuit.get_pins()[1].as_ref().get_pin_state(0).unwrap();
-				self.carry_in = self.internals.circuit.get_pins()[2].as_ref().get_pin_state(0).unwrap();
+				self.input1 = self.internals.circuit.get_pins()[0].get_pin_state(0).unwrap();
+				self.input2 = self.internals.circuit.get_pins()[1].get_pin_state(0).unwrap();
+				self.carry_in = self.internals.circuit.get_pins()[2].get_pin_state(0).unwrap();
 			},
 			_ => { },
 		}
@@ -417,10 +417,10 @@ impl RectangleChip for Adder {
 			(SimulationMode::Circuit, SimulationMode::HighLevel) => {
 				for i in 0..self.size {
 					self.input1[self.size - i - 1] =
-						self.internals.circuit.get_pins()[i].as_ref()
+						self.internals.circuit.get_pins()[i]
 							.get_pin_state(0).unwrap();
 					self.input2[self.size - i - 1] =
-						self.internals.circuit.get_pins()[self.size + i].as_ref()
+						self.internals.circuit.get_pins()[self.size + i]
 							.get_pin_state(0).unwrap();
 				}
 			},

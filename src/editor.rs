@@ -118,15 +118,15 @@ impl Editor {
 	/// Set the x coordinate of the selected component.
 	pub fn set_selected_x(&mut self, x: f64) {
 		let chip_stack = &self.selected_chip_stacks[0];
-		let (_, y) = self.circuit.get_pos_from_chip_stack(&chip_stack).unwrap();
-		self.circuit.set_component_pos_from_chip_stack(&chip_stack, x, y);
+		let (_, y) = self.circuit.get_pos_from_chip_stack(chip_stack).unwrap();
+		self.circuit.set_component_pos_from_chip_stack(chip_stack, x, y);
 	}
 
 	/// Set the y coordinate of the selected component.
 	pub fn set_selected_y(&mut self, y: f64) {
 		let chip_stack = &self.selected_chip_stacks[0];
-		let (x, _) = self.circuit.get_pos_from_chip_stack(&chip_stack).unwrap();
-		self.circuit.set_component_pos_from_chip_stack(&chip_stack, x, y);
+		let (x, _) = self.circuit.get_pos_from_chip_stack(chip_stack).unwrap();
+		self.circuit.set_component_pos_from_chip_stack(chip_stack, x, y);
 	}
 
 	/// Update the wire layout.
@@ -187,7 +187,7 @@ impl Editor {
 
 		let clicked_chip_stack = self.renderer.get_chip_stack_from_pos(&self.circuit, x, y);
 
-		let did_click_component = clicked_chip_stack.len() > 0;
+		let did_click_component = !clicked_chip_stack.is_empty();
 
 		if did_click_component {
 			let (cx, cy) = self.circuit.get_pos_from_chip_stack(&clicked_chip_stack[..]).unwrap();
@@ -211,7 +211,7 @@ impl Editor {
 
 		for cs in self.selected_chip_stacks.iter() {
 			self.initial_cursors.push(self.renderer.get_cursor_from_pos(
-				&self.circuit, &cs,
+				&self.circuit, cs,
 				x, y
 			));
 			self.initial_positions.push(self.circuit.get_pos_from_chip_stack(cs).unwrap());
@@ -223,10 +223,10 @@ impl Editor {
 		self.has_moved = true;
 
 		if self.is_panning {
-			if self.selected_chip_stacks.len() > 0 {
+			if !self.selected_chip_stacks.is_empty() {
 				for (idx, chip_stack) in self.selected_chip_stacks.iter().enumerate() {
 					let cursor = self.renderer.get_cursor_from_pos(
-						&self.circuit, &chip_stack,
+						&self.circuit, chip_stack,
 						x, y
 					);
 	
@@ -249,7 +249,7 @@ impl Editor {
 					}
 		
 					self.circuit.set_component_pos_from_chip_stack(
-						&chip_stack,
+						chip_stack,
 						new_x, new_y,
 					);
 

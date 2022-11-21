@@ -121,6 +121,60 @@ impl BoundingBox {
 	}
 }
 
+
+/// Returns the stack of component indices over a given [`Viewport`].
+fn get_chip_stack_from_viewport(circuit: &Circuit, cursor: BoundingBox, viewport: BoundingBox) -> Vec<usize> {
+	for (idx, component) in circuit.get_components().iter().enumerate().rev() {
+		if component.intersects(&cursor) {
+			if !component.are_internals_visible(&viewport) {
+				return vec![idx];
+			}
+
+			if let Some(internals) = component.get_internals() {
+				let new_cursor = cursor.transform_in_to_chip(
+					component.get_position(),
+					internals,
+				);
+				let new_viewport = viewport.transform_in_to_chip(
+					component.get_position(),
+					internals,
+				);
+
+				let mut result = get_chip_stack_from_viewport(&internals.circuit, new_cursor, new_viewport);
+				result.insert(0, idx);
+
+				return result;
+			} else {
+				return vec![idx];
+			}
+		}
+	}
+
+	vec![]
+}
+
+/// Updates the simulation modes for a given circuit and a given viewport.
+fn update_sim_modes_with_viewport(circuit: &mut Circuit, viewport: BoundingBox) {
+	for component in circuit.get_components_mut() {
+		if component.are_internals_visible(&viewport) {
+			component.set_mode(SimulationMode::Circuit);
+			
+			let pos = component.get_position();
+
+			if let Some(internals) = component.get_internals_mut() {
+				let new_viewport = viewport.transform_in_to_chip(
+					pos,
+					internals,
+				);
+
+				update_sim_modes_with_viewport(&mut internals.circuit, new_viewport);
+			}
+		} else {
+			component.set_mode(SimulationMode::HighLevel);
+		}
+	}
+}
+
 /// The renderer. This handles drawing every [`Component`] and [`Wire`] on the screen, as well
 /// as handling infinite zoom.
 pub struct Renderer {
@@ -230,8 +284,8 @@ impl Renderer {
 
 	/// Returns the [`Chip`] that houses the current [`Circuit`], unless the current [`Circuit`]
 	/// is at the top level.
-	fn get_parent_chip<'a>(&self, circuit: &'a Circuit) -> Option<&'a Box<dyn Component>> {
-		if self.chip_stack.len() == 0 {
+	fn get_parent_chip<'a>(&self, circuit: &'a Circuit) -> Option<&'a dyn Component> {
+		if self.chip_stack.is_empty() {
 			return None;
 		}
 
@@ -242,68 +296,13 @@ impl Renderer {
 			result = &result.get_internals().unwrap().circuit.get_components()[index];
 		}
 		
-		Some(result)
-	}
-
-	fn update_sim_modes_with_viewport(&mut self, circuit: &mut Circuit, viewport: BoundingBox) {
-		for component in circuit.get_components_mut() {
-			if component.are_internals_visible(&viewport) {
-				component.set_mode(SimulationMode::Circuit);
-				
-				let pos = component.get_position();
-
-				match component.get_internals_mut() {
-					Some(internals) => {
-						let new_viewport = viewport.transform_in_to_chip(
-							pos,
-							&internals,
-						);
-
-						self.update_sim_modes_with_viewport(&mut internals.circuit, new_viewport);
-					},
-					None => {},
-				}
-			} else {
-				component.set_mode(SimulationMode::HighLevel);
-			}
-		}
+		Some(result.as_ref())
 	}
 
 	/// Updates the simulation modes for a given circuit.
 	pub fn update_sim_modes(&mut self, root_circuit: &mut Circuit) {
 		let circuit = self.get_current_circuit_mut(root_circuit);
-		self.update_sim_modes_with_viewport(circuit, self.viewport);
-	}
-
-	/// Returns the stack of component indices over a given [`Viewport`].
-	fn get_chip_stack_from_viewport(&mut self, circuit: &Circuit, cursor: BoundingBox, viewport: BoundingBox) -> Vec<usize> {
-		for (idx, component) in circuit.get_components().iter().enumerate().rev() {
-			if component.intersects(&cursor) {
-				if !component.are_internals_visible(&viewport) {
-					return vec![idx];
-				}
-
-				if let Some(internals) = component.get_internals() {
-					let new_cursor = cursor.transform_in_to_chip(
-						component.get_position(),
-						internals,
-					);
-					let new_viewport = viewport.transform_in_to_chip(
-						component.get_position(),
-						internals,
-					);
-
-					let mut result = self.get_chip_stack_from_viewport(&internals.circuit, new_cursor, new_viewport);
-					result.insert(0, idx);
-
-					return result;
-				} else {
-					return vec![idx];
-				}
-			}
-		}
-
-		vec![]
+		update_sim_modes_with_viewport(circuit, self.viewport);
 	}
 
 	/// Returns the stack of component indices over a given position.
@@ -322,7 +321,7 @@ impl Renderer {
 			size: (0.0, 0.0),
 		};
 
-		let result = self.get_chip_stack_from_viewport(circuit, cursor, self.viewport);
+		let result = get_chip_stack_from_viewport(circuit, cursor, self.viewport);
 
 		let mut final_result = self.chip_stack.clone();
 		final_result.extend(result);
@@ -343,21 +342,19 @@ impl Renderer {
 			size: (0.0, 0.0),
 		};
 
-		if stack.len() == 0 {
+		if stack.is_empty() {
 			return cursor;
 		}
 		
 		let mut viewport = cursor;
 		let mut current_circuit = circuit;
 
-		for i in 0..stack.len() - 1 {
-			let idx = stack[i];
-
-			let internals = &current_circuit.get_components()[idx].get_internals().unwrap();
+		for (i, idx) in stack.iter().enumerate().take(stack.len() - 1) {
+			let internals = &current_circuit.get_components()[*idx].get_internals().unwrap();
 
 			if i >= self.chip_stack.len() {
 				viewport = viewport.transform_in_to_chip(
-					current_circuit.get_components()[idx].get_position(),
+					current_circuit.get_components()[*idx].get_position(),
 					internals,
 				);
 			}
@@ -383,7 +380,7 @@ impl Renderer {
 			for (pidx, pin_pos) in component.get_pin_positions().iter().enumerate() {
 				let con = ExternalPin { component_idx: cidx, pin_idx: pidx };
 
-				if circuit.get_wires().iter().find(|w| w.pin1 == con || w.pin2 == con).is_some() {
+				if circuit.get_wires().iter().any(|w| w.pin1 == con || w.pin2 == con) {
 					continue;
 				}
 
@@ -402,7 +399,7 @@ impl Renderer {
 	}
 
 	/// Renders the given [`Circuit`].
-	pub fn render(&mut self, root_circuit: &Circuit, selected_chip_stacks: &Vec<Vec<usize>>, selected_pins: &Vec<ExternalPin>) {
+	pub fn render(&mut self, root_circuit: &Circuit, selected_chip_stacks: &[Vec<usize>], selected_pins: &[ExternalPin]) {
 		let ctx = &self.ctx;
 		let mut circuit = self.get_current_circuit(root_circuit);
 
