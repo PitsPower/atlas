@@ -7,7 +7,7 @@ use std::f64::consts::PI;
 
 use wasm_bindgen::prelude::*;
 
-use crate::gates::{AndGate, NorGate, OrGate};
+use crate::gates::{AndGate, NorGate, NotGate, OrGate};
 use crate::graphics::{BoundingBox, Drawable, WireLayoutCommand};
 use crate::transistor::{NTransistor, PTransistor};
 
@@ -135,6 +135,7 @@ pub enum ComponentType {
 
 	AndGate,
 	NorGate,
+	NotGate,
 	OrGate,
 }
 
@@ -151,6 +152,7 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 
 		ComponentType::AndGate => String::from("AND Gate"),
 		ComponentType::NorGate => String::from("NOR Gate"),
+		ComponentType::NotGate => String::from("NOT Gate"),
 		ComponentType::OrGate => String::from("OR Gate"),
 	}
 }
@@ -168,6 +170,7 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 
 		ComponentType::AndGate => String::from("andgate"),
 		ComponentType::NorGate => String::from("norgate"),
+		ComponentType::NotGate => String::from("notgate"),
 		ComponentType::OrGate => String::from("orgate"),
 	}
 }
@@ -622,6 +625,7 @@ impl Circuit {
 
 			ComponentType::AndGate => crate::add!(self, AndGate, (x, y)),
 			ComponentType::NorGate => crate::add!(self, NorGate, (x, y)),
+			ComponentType::NotGate => crate::add!(self, NotGate, (x, y)),
 			ComponentType::OrGate => crate::add!(self, OrGate, (x, y)),
 		}
 	}

@@ -65,8 +65,8 @@ window.addEventListener("keydown", (e) => {
 	// }
 
 	switch (e.key.toLowerCase()) {
-		case "p": {
-			// editor.switch_viewport_mode();
+		case "w": {
+			editor.toggle_wire_mode();
 			break;
 		}
 

@@ -1,7 +1,7 @@
 use wasm_bindgen::prelude::*;
 
 use crate::core::{Bulb, Circuit, ComponentType, Junction, Switch, ExternalPin};
-use crate::gates::{AndGate, NorGate, OrGate};
+use crate::gates::{AndGate, NorGate, NotGate, OrGate};
 use crate::graphics::{BoundingBox, Renderer, WireLayoutCommand};
 use crate::transistor::{NTransistor, PTransistor};
 
@@ -32,11 +32,13 @@ pub struct Editor {
 	/// The initial positions of the selected components.
 	initial_positions: Vec<(f64, f64)>,
 
+	/// Whether the user is able to draw wires.
+	is_in_wire_mode: bool,
 	/// The list of selected start pins.
 	start_pins: Vec<ExternalPin>,
 	/// The list of selected end pins.
 	end_pins: Vec<ExternalPin>,
-	/// Whether the user is editing the layout commands
+	/// Whether the user is editing the layout commands.
 	is_editing_layout: bool,
 	/// The current list of [`WireLayoutCommands`].
 	layout_commands: Vec<WireLayoutCommand>,
@@ -65,6 +67,7 @@ impl Editor {
 			initial_cursors: vec![],
 			initial_positions: vec![],
 
+			is_in_wire_mode: true,
 			start_pins: vec![],
 			end_pins: vec![],
 			is_editing_layout: false,
@@ -96,6 +99,7 @@ impl Editor {
 
 			ComponentType::AndGate => crate::add!(self.circuit, AndGate, (x, y)),
 			ComponentType::NorGate => crate::add!(self.circuit, NorGate, (x, y)),
+			ComponentType::NotGate => crate::add!(self.circuit, NotGate, (x, y)),
 			ComponentType::OrGate => crate::add!(self.circuit, OrGate, (x, y)),
 		};
 
@@ -127,6 +131,12 @@ impl Editor {
 		let chip_stack = &self.selected_chip_stacks[0];
 		let (x, _) = self.circuit.get_pos_from_chip_stack(chip_stack).unwrap();
 		self.circuit.set_component_pos_from_chip_stack(chip_stack, x, y);
+	}
+
+	/// Toggle wire mode on and off.
+	pub fn toggle_wire_mode(&mut self) {
+		self.is_in_wire_mode = !self.is_in_wire_mode;
+		self.renderer.switch_pin_mode();
 	}
 
 	/// Update the wire layout.
@@ -178,11 +188,13 @@ impl Editor {
 
 	/// Handle the user pressing down a mouse button.
 	pub fn handle_mouse_down(&mut self, x: f64, y: f64) {
-		if let Some(clicked_pin) = self.renderer.get_clicked_pin(&self.circuit, x, y) {
-			self.start_pins.push(clicked_pin);
-			return;
-		} else if !self.is_editing_layout {
-			self.start_pins.clear();
+		if self.is_in_wire_mode {
+			if let Some(clicked_pin) = self.renderer.get_clicked_pin(&self.circuit, x, y) {
+				self.start_pins.push(clicked_pin);
+				return;
+			} else if !self.is_editing_layout {
+				self.start_pins.clear();
+			}
 		}
 
 		let clicked_chip_stack = self.renderer.get_chip_stack_from_pos(&self.circuit, x, y);
