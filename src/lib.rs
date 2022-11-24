@@ -3,6 +3,7 @@
 extern crate test;
 
 pub mod adder;
+pub mod bus;
 pub mod core;
 pub mod editor;
 pub mod gates;
