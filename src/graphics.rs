@@ -37,6 +37,24 @@ pub enum WireLayoutCommand {
 	MoveTo((f64, f64)),
 }
 
+impl WireLayoutCommand {
+	/// Returns the layout command as a string.
+	pub fn as_string(self) -> String {
+		match self {
+			WireLayoutCommand::AlignHorizontal => String::from("WireLayoutCommand::AlignHorizontal"),
+			WireLayoutCommand::AlignVertical => String::from("WireLayoutCommand::AlignVertical"),
+			WireLayoutCommand::CenterHorizontal => String::from("WireLayoutCommand::CenterHorizontal"),
+			WireLayoutCommand::CenterVertical => String::from("WireLayoutCommand::CenterVertical"),
+			WireLayoutCommand::MoveHorizontal(x) => format!("WireLayoutCommand::MoveHorizontal({:.3})", x),
+			WireLayoutCommand::MoveVertical(y) => format!("WireLayoutCommand::MoveVertical({:.3})", y),
+			WireLayoutCommand::Move((x, y)) => format!("WireLayoutCommand::Move(({:.3}, {:.3}))", x, y),
+			WireLayoutCommand::MoveXTo(x) => format!("WireLayoutCommand::MoveXTo({:.3})", x),
+			WireLayoutCommand::MoveYTo(y) => format!("WireLayoutCommand::MoveYTo({:.3})", y),
+			WireLayoutCommand::MoveTo((x, y)) => format!("WireLayoutCommand::MoveTo(({:.3}, {:.3}))", x, y),
+		}
+	}
+}
+
 /// A bounding box.
 #[wasm_bindgen]
 #[derive(Debug, Clone, Copy)]

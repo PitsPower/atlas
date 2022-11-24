@@ -48,6 +48,10 @@ impl Drawable for NTransistor {
 }
 
 impl Component for NTransistor {
+	fn get_name(&self) -> String {
+		String::from("NTransistor")
+	}
+
 	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
 		vec![
 			(-WIDTH * 0.5 - 15.0, 0.0),
@@ -136,6 +140,10 @@ impl Drawable for PTransistor {
 }
 
 impl Component for PTransistor {
+	fn get_name(&self) -> String {
+		String::from("PTransistor")
+	}
+
 	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
 		vec![
 			(-WIDTH * 0.5 - 15.0 - RADIUS * 2.0 - 4.0, 0.0),

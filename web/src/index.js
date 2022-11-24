@@ -5,6 +5,10 @@ const coordsEl = document.getElementById("coords");
 const xCoordEl = document.getElementById("x-coord");
 const yCoordEl = document.getElementById("y-coord");
 
+const codeViewerEl = document.getElementById("code-viewer");
+const closeButtonEl = document.getElementById("close-button");
+const codeEl = document.getElementById("code");
+
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
@@ -56,6 +60,11 @@ yCoordEl.addEventListener("input", (e) => {
 	editor.set_selected_y(y);
 });
 
+codeViewerEl.style.visibility = "hidden";
+closeButtonEl.addEventListener("click", () => {
+	codeViewerEl.style.visibility = "hidden";
+});
+
 // const keys = "asdfghjkzxcvbnm,";
 
 window.addEventListener("keydown", (e) => {
@@ -67,6 +76,20 @@ window.addEventListener("keydown", (e) => {
 	switch (e.key.toLowerCase()) {
 		case "w": {
 			editor.toggle_wire_mode();
+			break;
+		}
+		case "c": {
+			if (!e.ctrlKey) {
+				if (codeViewerEl.style.visibility === "visible") {
+					codeViewerEl.style.visibility = "hidden";
+				} else {
+					const code = editor.generate_code();
+					navigator.clipboard.writeText(code);
+					
+					codeEl.innerText = code;
+					codeViewerEl.style.visibility = "visible";
+				}
+			}
 			break;
 		}
 

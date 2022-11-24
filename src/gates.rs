@@ -46,6 +46,10 @@ impl AndGate {
 }
 
 impl Chip for AndGate {
+	fn get_chip_name(&self) -> String {
+		String::from("AndGate")
+	}
+
 	fn get_chip_internals(&self) -> &ChipInternals {
 		&self.internals
 	}
@@ -198,6 +202,10 @@ impl NandGate {
 }
 
 impl Chip for NandGate {
+	fn get_chip_name(&self) -> String {
+		String::from("NandGate")
+	}
+
 	fn get_chip_internals(&self) -> &ChipInternals {
 		&self.internals
 	}
@@ -359,6 +367,10 @@ impl NorGate {
 }
 
 impl Chip for NorGate {
+	fn get_chip_name(&self) -> String {
+		String::from("NorGate")
+	}
+
 	fn get_chip_internals(&self) -> &ChipInternals {
 		&self.internals
 	}
@@ -497,6 +509,10 @@ impl NotGate {
 }
 
 impl Chip for NotGate {
+	fn get_chip_name(&self) -> String {
+		String::from("NotGate")
+	}
+
 	fn get_chip_internals(&self) -> &ChipInternals {
 		&self.internals
 	}
@@ -622,6 +638,10 @@ impl OrGate {
 }
 
 impl Chip for OrGate {
+	fn get_chip_name(&self) -> String {
+		String::from("OrGate")
+	}
+
 	fn get_chip_internals(&self) -> &ChipInternals {
 		&self.internals
 	}
@@ -771,6 +791,10 @@ impl TriStateBuffer {
 }
 
 impl Chip for TriStateBuffer {
+	fn get_chip_name(&self) -> String {
+		String::from("TriStateBuffer")
+	}
+
 	fn get_chip_internals(&self) -> &ChipInternals {
 		&self.internals
 	}
@@ -909,6 +933,10 @@ impl XorGate {
 }
 
 impl Chip for XorGate {
+	fn get_chip_name(&self) -> String {
+		String::from("XorGate")
+	}
+
 	fn get_chip_internals(&self) -> &ChipInternals {
 		&self.internals
 	}

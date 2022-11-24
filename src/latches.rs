@@ -82,6 +82,10 @@ impl SRLatch {
 }
 
 impl RectangleChip for SRLatch {
+	fn get_chip_name(&self) -> String {
+		String::from("SRLatch")
+	}
+
 	fn get_chip_internals(&self) -> &ChipInternals {
 		&self.internals
 	}
@@ -258,6 +262,10 @@ impl DLatch {
 }
 
 impl RectangleChip for DLatch {
+	fn get_chip_name(&self) -> String {
+		String::from("DLatch")
+	}
+
 	fn get_chip_internals(&self) -> &ChipInternals {
 		&self.internals
 	}
@@ -420,6 +428,10 @@ impl DFlipFlop {
 }
 
 impl RectangleChip for DFlipFlop {
+	fn get_chip_name(&self) -> String {
+		String::from("DFlipFlop")
+	}
+
 	fn get_chip_internals(&self) -> &ChipInternals {
 		&self.internals
 	}
@@ -588,6 +600,10 @@ impl MultiDFlipFlop {
 }
 
 impl RectangleChip for MultiDFlipFlop {
+	fn get_chip_name(&self) -> String {
+		String::from("MultiDFlipFlop")
+	}
+
 	fn get_chip_internals(&self) -> &ChipInternals {
 		&self.internals
 	}

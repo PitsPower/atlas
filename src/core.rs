@@ -177,6 +177,9 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 
 /// Something that can go in a circuit. A [`Component`] may be connected to another [`Component`] using a [`Wire`].
 pub trait Component: Drawable {
+	/// Returns the name of the component as a string.
+	fn get_name(&self) -> String;
+
 	/// Returns the component's internals. This is used for components that contain a [`Circuit`].
 	fn get_internals(&self) -> Option<&ChipInternals> {
 		None
@@ -296,7 +299,7 @@ pub struct Wire {
 	/// The second pin that the wire is connected to.
 	pub pin2: ExternalPin,
 	/// Commands used to specify how the wire is rendered.
-	layout_commands: Vec<WireLayoutCommand>,
+	pub layout_commands: Vec<WireLayoutCommand>,
 	/// The state being emitted by pin 1.
 	state1: PinState,
 	/// The state being emitted by pin 2.
@@ -817,6 +820,9 @@ impl Drawable for ChipInternals {
 /// A kind of [`Component`] that contains a [`Circuit`]. The behaviour of the chip is
 /// governed by the behaviour of the circuit.
 pub trait Chip {
+	/// Returns the name of the chip as a string.
+	fn get_chip_name(&self) -> String;
+
 	/// Returns the chip internals.
 	fn get_chip_internals(&self) -> &ChipInternals;
 
@@ -907,6 +913,10 @@ impl<T: Chip> Drawable for T {
 }
 
 impl<T: Chip> Component for T {
+	fn get_name(&self) -> String {
+		self.get_chip_name()
+	}
+
 	fn get_internals(&self) -> Option<&ChipInternals> {
 		Some(self.get_chip_internals())
 	}
@@ -1003,6 +1013,9 @@ pub struct TextInfo {
 
 /// A [`Chip`] that looks like a rectangle.
 pub trait RectangleChip {
+	/// Returns the name of the chip as a string.
+	fn get_chip_name(&self) -> String;
+
 	/// Returns the chip internals.
 	fn get_chip_internals(&self) -> &ChipInternals;
 
@@ -1035,6 +1048,10 @@ pub trait RectangleChip {
 }
 
 impl<T: RectangleChip> Chip for T {
+	fn get_chip_name(&self) -> String {
+		self.get_chip_name()
+	}
+
 	fn get_chip_internals(&self) -> &ChipInternals {
 		self.get_chip_internals()
 	}
@@ -1192,6 +1209,10 @@ impl Drawable for Pin {
 }
 
 impl Component for Pin {
+	fn get_name(&self) -> String {
+		String::from("Pin")
+	}
+
 	fn is_pin(&self) -> bool {
 		true
 	}
@@ -1279,6 +1300,10 @@ impl Drawable for Switch {
 }
 
 impl Component for Switch {
+	fn get_name(&self) -> String {
+		String::from("Switch")
+	}
+
 	fn get_switch_count(&self) -> usize {
 		1
 	}
@@ -1376,6 +1401,10 @@ impl Drawable for MultiSwitch {
 }
 
 impl Component for MultiSwitch {
+	fn get_name(&self) -> String {
+		String::from("MultiSwitch")
+	}
+
 	fn get_switch_count(&self) -> usize {
 		self.states.len()
 	}
@@ -1465,6 +1494,10 @@ impl Drawable for Bulb {
 }
 
 impl Component for Bulb {
+	fn get_name(&self) -> String {
+		String::from("Bulb")
+	}
+
 	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
 		vec![(0.0, 0.0)]
 	}
@@ -1551,6 +1584,10 @@ impl Drawable for MultiBulb {
 }
 
 impl Component for MultiBulb {
+	fn get_name(&self) -> String {
+		String::from("MultiBulb")
+	}
+
 	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
 		let spacing = 50.0;
 		let size = self.states.len();
@@ -1634,6 +1671,10 @@ impl Drawable for Junction {
 }
 
 impl Component for Junction {
+	fn get_name(&self) -> String {
+		String::from("Junction")
+	}
+
 	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
 		vec![(0.0, 0.0); self.states.len()]
 	}

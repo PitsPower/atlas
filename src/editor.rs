@@ -1,8 +1,9 @@
 use wasm_bindgen::prelude::*;
 
-use crate::core::{Bulb, Circuit, ComponentType, Junction, Switch, ExternalPin};
+use crate::core::{Bulb, Circuit, ComponentType, ExternalPin, Junction, PinState, Switch};
 use crate::gates::{AndGate, NorGate, NotGate, OrGate};
 use crate::graphics::{BoundingBox, Renderer, WireLayoutCommand};
+use crate::editor_example;
 use crate::transistor::{NTransistor, PTransistor};
 
 #[wasm_bindgen(module="/web/src/updateSelection.js")]
@@ -51,7 +52,7 @@ impl Editor {
 	/// Creates a new editor instance.
 	#[wasm_bindgen(constructor)]
 	pub fn new(ctx: web_sys::CanvasRenderingContext2d) -> Self {
-		let mut circuit = Circuit::new();
+		let mut circuit = editor_example();
 		let mut renderer = Renderer::new(ctx);
 		
 		renderer.update_sim_modes(&mut circuit);
@@ -398,5 +399,58 @@ impl Editor {
 		} else {
 			self.renderer.render(&self.circuit, &self.selected_chip_stacks, &self.start_pins);
 		}
+	}
+
+	/// Returns the generated code for the circuit.
+	pub fn generate_code(&self) -> String {
+		let mut code = String::new();
+
+		code += "let mut circuit = Circuit::new();\n\n";
+
+		for (idx, component) in self.circuit.get_components().iter().enumerate() {
+			if component.get_name() == "Junction" {
+				code += &format!(
+					"let c{} = add!(circuit, {}, ({:.3}, {:.3}), 3);\n",
+					idx,
+					component.get_name(),
+					component.get_position().0,
+					component.get_position().1,
+				);
+			} else {
+				code += &format!(
+					"let c{} = add!(circuit, {}, ({:.3}, {:.3}));\n",
+					idx,
+					component.get_name(),
+					component.get_position().0,
+					component.get_position().1,
+				);
+			}
+		}
+
+		code += "\n";
+
+		for (idx, component) in self.circuit.get_components().iter().enumerate() {
+			if component.get_switch_count() == 1 && component.get_pin_state(0).unwrap() == PinState::On {
+				code += &format!(
+					"circuit.get_components_mut()[c{}].set_pin_state_external(0, PinState::On).unwrap();\n",
+					idx,
+				);
+			}
+		}
+
+		code += "\n";
+
+		for wire in self.circuit.get_wires() {
+			code += &format!(
+				"circuit.connect((c{}, {}), (c{}, {}), vec![{}]);\n",
+				wire.pin1.component_idx,
+				wire.pin1.pin_idx,
+				wire.pin2.component_idx,
+				wire.pin2.pin_idx,
+				wire.layout_commands.iter().map(|lc| lc.as_string()).collect::<Vec<_>>().join(", "),
+			);
+		}
+
+		code
 	}
 }

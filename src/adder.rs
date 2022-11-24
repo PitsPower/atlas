@@ -80,6 +80,10 @@ impl HalfAdder {
 }
 
 impl RectangleChip for HalfAdder {
+	fn get_chip_name(&self) -> String {
+		String::from("HalfAdder")
+	}
+
 	fn get_chip_internals(&self) -> &ChipInternals {
 		&self.internals
 	}
@@ -232,6 +236,10 @@ impl FullAdder {
 }
 
 impl RectangleChip for FullAdder {
+	fn get_chip_name(&self) -> String {
+		String::from("FullAdder")
+	}
+
 	fn get_chip_internals(&self) -> &ChipInternals {
 		&self.internals
 	}
@@ -382,6 +390,10 @@ impl Adder {
 }
 
 impl RectangleChip for Adder {
+	fn get_chip_name(&self) -> String {
+		String::from("Adder")
+	}
+
 	fn get_chip_internals(&self) -> &ChipInternals {
 		&self.internals
 	}

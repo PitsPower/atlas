@@ -18,7 +18,7 @@ use wasm_bindgen::prelude::*;
 use utils::set_panic_hook;
 
 use crate::adder::Adder;
-use crate::core::{Bulb, Circuit, Junction, MultiBulb, MultiSwitch, Switch};
+use crate::core::{Bulb, Circuit, Junction, MultiBulb, MultiSwitch, PinState, Switch};
 use crate::gates::{AndGate, NandGate, NorGate, NotGate, OrGate, TriStateBuffer, XorGate};
 use crate::graphics::WireLayoutCommand;
 use crate::latches::MultiDFlipFlop;
@@ -482,6 +482,27 @@ pub fn register_example() -> Circuit {
 	circuit.connect((enable, 0), (tsb, 1), vec![]);
 	circuit.connect((tsb, 2), (output, 0), vec![]);
 
+	circuit
+}
+
+#[wasm_bindgen]
+pub fn editor_example() -> Circuit {
+	let mut circuit = Circuit::new();
+
+	let c0 = add!(circuit, AndGate, (0.000, 0.000));
+	let c1 = add!(circuit, Switch, (-200.000, 100.000));
+	let c2 = add!(circuit, Switch, (-200.000, -150.000));
+	let c3 = add!(circuit, Switch, (-200.000, 350.000));
+	let c4 = add!(circuit, AndGate, (200.000, 250.000));
+	let c5 = add!(circuit, Bulb, (400.000, 100.000));
+	
+	
+	circuit.connect((c1, 0), (c0, 1), vec![WireLayoutCommand::CenterHorizontal, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c2, 0), (c0, 0), vec![WireLayoutCommand::CenterHorizontal, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c3, 0), (c4, 1), vec![WireLayoutCommand::CenterHorizontal, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c0, 2), (c4, 0), vec![WireLayoutCommand::CenterHorizontal, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c4, 2), (c5, 0), vec![WireLayoutCommand::CenterHorizontal, WireLayoutCommand::AlignHorizontal]);
+	
 	circuit
 }
 
