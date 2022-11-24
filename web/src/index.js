@@ -97,7 +97,7 @@ window.addEventListener("keydown", (e) => {
 		}
 
 		case "enter": {
-			editor.finish_layout();
+			editor.handle_confirm();
 			break;
 		}
 

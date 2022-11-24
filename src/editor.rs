@@ -34,6 +34,8 @@ pub struct Editor {
 
 	/// Whether the user is able to draw wires.
 	is_in_wire_mode: bool,
+	/// Whether the user is selecting the end pins as opposed to the start pins.
+	is_selecting_end_pins: bool,
 	/// The list of selected start pins.
 	start_pins: Vec<ExternalPin>,
 	/// The list of selected end pins.
@@ -68,6 +70,7 @@ impl Editor {
 			initial_positions: vec![],
 
 			is_in_wire_mode: true,
+			is_selecting_end_pins: false,
 			start_pins: vec![],
 			end_pins: vec![],
 			is_editing_layout: false,
@@ -139,11 +142,21 @@ impl Editor {
 		self.renderer.switch_pin_mode();
 	}
 
+	/// Returns the vector corresponding to the pins being selected
+	/// (either `start_pins` or `end_pins`).
+	fn get_pin_vec(&mut self) -> &mut Vec<ExternalPin> {
+		if self.is_selecting_end_pins {
+			&mut self.end_pins
+		} else {
+			&mut self.start_pins
+		}
+	}
+
 	/// Update the wire layout.
 	fn update_wire_layout(&mut self) {
-		let start = self.start_pins[0];
-		let end = self.end_pins[0];
-		self.circuit.re_lay_wire(start, end, self.layout_commands.clone());
+		for (start, end) in self.start_pins.iter().zip(&self.end_pins) {
+			self.circuit.re_lay_wire(*start, *end, self.layout_commands.clone());
+		}
 	}
 
 	/// Add a new layout command.
@@ -175,25 +188,45 @@ impl Editor {
 		self.add_layout_command(WireLayoutCommand::CenterVertical);
 	}
 
-	/// Finish laying out the current wire.
-	pub fn finish_layout(&mut self) {
-		self.layout_commands.pop();
-		self.update_wire_layout();
-		
-		self.is_editing_layout = false;
+	/// Finish laying out the current wire or finish selecting pins.
+	pub fn handle_confirm(&mut self) {
+		if self.is_editing_layout {
+			self.layout_commands.pop();
+			self.update_wire_layout();
+			
+			self.is_selecting_end_pins = false;
+			self.is_editing_layout = false;
+	
+			self.start_pins.clear();
+			self.end_pins.clear();
+		} else if self.is_selecting_end_pins {
+			self.layout_commands = vec![
+				WireLayoutCommand::MoveTo((0.0, 0.0)),
+			];
 
-		self.start_pins.clear();
-		self.end_pins.clear();
+			for (start, end) in self.start_pins.iter().zip(&self.end_pins) {
+				crate::log!("{:?}, {:?}", start, end);
+				self.circuit.connect(
+					(start.component_idx, start.pin_idx),
+					(end.component_idx, end.pin_idx),
+					self.layout_commands.clone(),
+				);
+			}
+
+			self.is_editing_layout = true;
+		} else {
+			self.is_selecting_end_pins = true;
+		}
 	}
 
 	/// Handle the user pressing down a mouse button.
 	pub fn handle_mouse_down(&mut self, x: f64, y: f64) {
 		if self.is_in_wire_mode {
 			if let Some(clicked_pin) = self.renderer.get_clicked_pin(&self.circuit, x, y) {
-				self.start_pins.push(clicked_pin);
+				self.get_pin_vec().push(clicked_pin);
 				return;
 			} else if !self.is_editing_layout {
-				self.start_pins.clear();
+				self.get_pin_vec().clear();
 			}
 		}
 
@@ -360,6 +393,10 @@ impl Editor {
 
 	/// Render the editor.
 	pub fn render(&mut self) {
-		self.renderer.render(&self.circuit, &self.selected_chip_stacks, &self.start_pins);
+		if self.is_selecting_end_pins {
+			self.renderer.render(&self.circuit, &self.selected_chip_stacks, &self.end_pins);
+		} else {
+			self.renderer.render(&self.circuit, &self.selected_chip_stacks, &self.start_pins);
+		}
 	}
 }
