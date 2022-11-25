@@ -375,10 +375,10 @@ impl Editor {
 				is_editing_layout = true;
 			}
 		}
+
+		let cursor = self.renderer.get_cursor_from_pos(&self.circuit, &[], x, y);
 		
 		if self.is_editing_layout {
-			let cursor = self.renderer.get_cursor_from_pos(&self.circuit, &[], x, y);
-
 			self.layout_commands.push(
 				BusLayoutCommand::MoveTo((cursor.get_x(), cursor.get_y()))
 			);
@@ -388,7 +388,13 @@ impl Editor {
 			let clicked_chip_stack = self.renderer.get_chip_stack_from_pos(&self.circuit, x, y);
 
 			if self.selected_chip_stacks.contains(&clicked_chip_stack) {
-				self.circuit.toggle_switch_from_chip_stack(&clicked_chip_stack);
+				let pos = self.circuit.get_pos_from_chip_stack(&clicked_chip_stack).unwrap();
+
+				self.circuit.toggle_switch_from_chip_stack(
+					&clicked_chip_stack,
+					cursor.get_x() - pos.0,
+					cursor.get_y() - pos.1,
+				);
 			} 
 		}
 

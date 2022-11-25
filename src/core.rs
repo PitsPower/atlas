@@ -526,15 +526,25 @@ impl Circuit {
 	}
 
 	/// Returns a pin state given a chip stack.
-	fn get_pin_state_from_chip_stack(&self, stack: &[usize], pin_idx: usize) -> Option<PinState> {
+	fn get_pin_state_from_chip_stack(&self, stack: &[usize], x: f64, y: f64) -> Option<(usize, PinState)> {
 		match stack.len() {
 			0 => None,
-			1 => self.components[stack[0]].get_pin_state(pin_idx).ok(),
-			_ => self.components[stack[0]]
-					.get_internals()
-					.unwrap()
-					.circuit
-					.get_pin_state_from_chip_stack(&stack[1..], pin_idx),
+			1 => {
+				let pin_idx = self.components[stack[0]].get_pin_positions().iter()
+					.map(|pos| ((pos.0 - x) * (pos.0 - x) + (pos.1 - y) * (pos.1 - y)).sqrt())
+					.enumerate()
+					.min_by(|(_, v0), (_, v1)| v0.partial_cmp(v1).unwrap())
+					.map(|(idx, _)| idx)
+					.unwrap();
+
+				Some((pin_idx, self.components[stack[0]].get_pin_state(pin_idx).unwrap()))
+			},
+			// _ => self.components[stack[0]]
+			// 		.get_internals()
+			// 		.unwrap()
+			// 		.circuit
+			// 		.get_pin_state_from_chip_stack(&stack[1..], pin_idx),
+			_ => None,
 		}
 	}
 
@@ -543,17 +553,19 @@ impl Circuit {
 		match stack.len() {
 			0 => {},
 			1 => {
-				// TODO: Bit hacky, maybe fix this
-				if self.components[stack[0]].get_switch_count() == 1 {
+				let component = &self.components[stack[0]];
+
+				if component.get_switch_count() > 0 {
 					self.update_component(&ExternalPin { component_idx: stack[0], pin_idx }, state, set_manually);
 				}
 			},
 			_ => {
-				self.components[stack[0]]
-					.get_internals_mut()
-					.unwrap()
-					.circuit
-					.set_switch_from_chip_stack(&stack[1..], pin_idx, state, set_manually);
+				// TODO: Maybe turn this back on again? Although there's not much point really
+				// self.components[stack[0]]
+				// 	.get_internals_mut()
+				// 	.unwrap()
+				// 	.circuit
+				// 	.set_switch_from_chip_stack(&stack[1..], pin_idx, state, set_manually);
 			},
 		}
 	}
@@ -680,9 +692,9 @@ impl Circuit {
 	}
 
 	/// Toggles the switch referred to by the stack (if the component is a switch).
-	pub fn toggle_switch_from_chip_stack(&mut self, stack: &[usize]) {
-		if let Some(state) = self.get_pin_state_from_chip_stack(stack, 0) {
-			self.set_switch_from_chip_stack(stack, 0, state.toggle(), true);
+	pub fn toggle_switch_from_chip_stack(&mut self, stack: &[usize], x: f64, y: f64) {
+		if let Some((pin_idx, state)) = self.get_pin_state_from_chip_stack(stack, x, y) {
+			self.set_switch_from_chip_stack(stack, pin_idx, state.toggle(), true);
 		}
 	}
 
