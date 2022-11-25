@@ -1,9 +1,10 @@
 use wasm_bindgen::prelude::*;
 
+use crate::editor_example;
+use crate::bus::{BusLayoutCommand, compute_wire_commands};
 use crate::core::{Bulb, Circuit, ComponentType, ExternalPin, Junction, PinState, Switch};
 use crate::gates::{AndGate, NorGate, NotGate, OrGate};
-use crate::graphics::{BoundingBox, Renderer, WireLayoutCommand};
-use crate::editor_example;
+use crate::graphics::{BoundingBox, Renderer};
 use crate::transistor::{NTransistor, PTransistor};
 
 #[wasm_bindgen(module="/web/src/updateSelection.js")]
@@ -43,8 +44,8 @@ pub struct Editor {
 	end_pins: Vec<ExternalPin>,
 	/// Whether the user is editing the layout commands.
 	is_editing_layout: bool,
-	/// The current list of [`WireLayoutCommands`].
-	layout_commands: Vec<WireLayoutCommand>,
+	/// The current list of [`BusLayoutCommand`]s.
+	layout_commands: Vec<BusLayoutCommand>,
 }
 
 #[wasm_bindgen]
@@ -155,13 +156,29 @@ impl Editor {
 
 	/// Update the wire layout.
 	fn update_wire_layout(&mut self) {
-		for (start, end) in self.start_pins.iter().zip(&self.end_pins) {
-			self.circuit.re_lay_wire(*start, *end, self.layout_commands.clone());
+		let start_positions = self.start_pins.iter()
+			.map(|p| {
+				let component = &self.circuit.get_components()[p.component_idx];
+				let comp_pos = component.get_position();
+				let pin_pos = component.get_pin_positions()[p.pin_idx];
+
+				(comp_pos.0 + pin_pos.0, comp_pos.1 + pin_pos.1)
+			})
+			.collect();
+
+		let wire_commands = compute_wire_commands(&self.layout_commands, start_positions);
+
+		for ((start, end), wc) in self.start_pins.iter().zip(&self.end_pins).zip(wire_commands) {
+			self.circuit.connect(
+				(start.component_idx, start.pin_idx),
+				(end.component_idx, end.pin_idx),
+				wc,
+			);
 		}
 	}
 
 	/// Add a new layout command.
-	fn add_layout_command(&mut self, command: WireLayoutCommand) {
+	fn add_layout_command(&mut self, command: BusLayoutCommand) {
 		if let Some(end_command) = self.layout_commands.pop() {
 			self.layout_commands.push(command);
 			self.layout_commands.push(end_command);
@@ -171,22 +188,22 @@ impl Editor {
 
 	/// Align the current wire horizontally to the end pin.
 	pub fn wire_align_horizontal(&mut self) {
-		self.add_layout_command(WireLayoutCommand::AlignHorizontal);
+		self.add_layout_command(BusLayoutCommand::AlignHorizontal);
 	}
 
 	/// Align the current wire vertically to the end pin.
 	pub fn wire_align_vertical(&mut self) {
-		self.add_layout_command(WireLayoutCommand::AlignVertical);
+		self.add_layout_command(BusLayoutCommand::AlignVertical);
 	}
 
 	/// Move the wire to the horizontal center between the pins.
 	pub fn wire_center_horizontal(&mut self) {
-		self.add_layout_command(WireLayoutCommand::CenterHorizontal);
+		self.add_layout_command(BusLayoutCommand::CenterHorizontal);
 	}
 
 	/// Move the wire to the vertical center between the pins.
 	pub fn wire_center_vertical(&mut self) {
-		self.add_layout_command(WireLayoutCommand::CenterVertical);
+		self.add_layout_command(BusLayoutCommand::CenterVertical);
 	}
 
 	/// Finish laying out the current wire or finish selecting pins.
@@ -202,17 +219,10 @@ impl Editor {
 			self.end_pins.clear();
 		} else if self.is_selecting_end_pins {
 			self.layout_commands = vec![
-				WireLayoutCommand::MoveTo((0.0, 0.0)),
+				BusLayoutCommand::MoveTo((0.0, 0.0)),
 			];
 
-			for (start, end) in self.start_pins.iter().zip(&self.end_pins) {
-				crate::log!("{:?}, {:?}", start, end);
-				self.circuit.connect(
-					(start.component_idx, start.pin_idx),
-					(end.component_idx, end.pin_idx),
-					self.layout_commands.clone(),
-				);
-			}
+			self.update_wire_layout();
 
 			self.is_editing_layout = true;
 		} else {
@@ -322,16 +332,14 @@ impl Editor {
 
 			let len = self.layout_commands.len();
 
-			if is_ctrl {
-				self.layout_commands[len - 1] =
-					WireLayoutCommand::MoveYTo(new_y);
-			} else if is_shift {
-				self.layout_commands[len - 1] =
-					WireLayoutCommand::MoveXTo(new_x);
-			} else {
-				self.layout_commands[len - 1] =
-					WireLayoutCommand::MoveTo((new_x, new_y));
-			}
+			self.layout_commands[len - 1] =
+				if is_ctrl {
+					BusLayoutCommand::MoveYTo(new_y)
+				} else if is_shift {
+					BusLayoutCommand::MoveXTo(new_x)
+				} else {
+					BusLayoutCommand::MoveTo((new_x, new_y))
+				};
 
 			self.update_wire_layout();
 		}
@@ -347,19 +355,12 @@ impl Editor {
 			if self.start_pins.len() == 1 && self.start_pins[0] != clicked_pin {
 				self.end_pins = vec![clicked_pin];
 
-				let start = self.start_pins[0];
-				let end = clicked_pin;
-
 				let cursor = self.renderer.get_cursor_from_pos(&self.circuit, &[], x, y);
 				self.layout_commands = vec![
-					WireLayoutCommand::MoveTo((cursor.get_x(), cursor.get_y())),
+					BusLayoutCommand::MoveTo((cursor.get_x(), cursor.get_y())),
 				];
-
-				self.circuit.connect(
-					(start.component_idx, start.pin_idx),
-					(end.component_idx, end.pin_idx),
-					self.layout_commands.clone(),
-				);
+				
+				self.update_wire_layout();
 
 				is_editing_layout = true;
 			}
@@ -369,7 +370,7 @@ impl Editor {
 			let cursor = self.renderer.get_cursor_from_pos(&self.circuit, &[], x, y);
 
 			self.layout_commands.push(
-				WireLayoutCommand::MoveTo((cursor.get_x(), cursor.get_y()))
+				BusLayoutCommand::MoveTo((cursor.get_x(), cursor.get_y()))
 			);
 
 			self.update_wire_layout();

@@ -1,25 +1,113 @@
 //! Provides data structures and algorithms for laying out buses (groups of wires)
 
-use crate::graphics::WireLayoutCommand;
+use crate::{graphics::WireLayoutCommand};
 
 /// A command used to control how a bus is layed out.
 pub enum BusLayoutCommand {
+	/// Moves the bus up or down to be aligned with the end pins.
+	AlignHorizontal,
+	/// Moves the bus left or right to be aligned with the end pins.
+	AlignVertical,
+	/// Moves the bus in-between the start and end pins horizontally.
+	CenterHorizontal,
+	/// Moves the bus in-between the start and end pins vertically.
+	CenterVertical,
+	/// Moves the bus horizontally.
+	MoveHorizontal(f64),
+	/// Moves the bus vertically.
+	MoveVertical(f64),
+	/// Moves the bus horizontally and vertically at the same time.
+	Move((f64, f64)),
+	/// Moves the x coordinate to an absolute location.
+	MoveXTo(f64),
+	/// Moves the y coordinate to an absolute location.
+	MoveYTo(f64),
 	/// Moves the bus to an absolute location.
 	MoveTo((f64, f64)),
 }
 
 /// Computes the wire layouts given the bus layout and the positions of the starting pins.
 pub fn compute_wire_commands(
-	bus_commands: Vec<BusLayoutCommand>, start_positions: Vec<(f64, f64)>
+	bus_commands: &[BusLayoutCommand], start_positions: Vec<(f64, f64)>
 ) -> Vec<Vec<WireLayoutCommand>> {
-	let mut result = vec![vec![]; start_positions.len()];
+	// The starting position of the bus is the average of
+	// the middle two pin starting positions
 
-	for command in bus_commands {
+	let size = start_positions.len();
+	let mid = size / 2;
+
+	let mut bus_pos = (0.0, 0.0);
+
+	if size % 2 == 0 {
+		let p1 = start_positions[mid - 1];
+		let p2 = start_positions[mid];
+		bus_pos.0 = (p1.0 + p2.0) / 2.0;
+		bus_pos.1 = (p1.1 + p2.1) / 2.0;
+	} else {
+		bus_pos = start_positions[mid];
+	}
+
+	// The offsets of each wire from the bus line
+	let mut offsets = vec![0.0; size];
+
+	let mut prev_parallel = (0.0, 0.0);
+	let mut prev_perpendicular = (0.0, 0.0);
+
+	let mut result: Vec<Vec<WireLayoutCommand>> = vec![vec![]; size];
+
+	for (cidx, command) in bus_commands.iter().enumerate() {
 		match command {
+			BusLayoutCommand::AlignHorizontal => todo!(),
+			BusLayoutCommand::AlignVertical => todo!(),
+			BusLayoutCommand::CenterHorizontal => todo!(),
+			BusLayoutCommand::CenterVertical => todo!(),
+			BusLayoutCommand::MoveHorizontal(_) => todo!(),
+			BusLayoutCommand::MoveVertical(_) => todo!(),
+			BusLayoutCommand::Move(_) => todo!(),
+			BusLayoutCommand::MoveXTo(_) => todo!(),
+			BusLayoutCommand::MoveYTo(_) => todo!(),
 			BusLayoutCommand::MoveTo((x, y)) => {
-				for wire in &mut result {
-					wire.push(WireLayoutCommand::MoveTo((x, y)));
+				let diff = (x - bus_pos.0, y - bus_pos.1);
+
+				let parallel_len = (diff.0 * diff.0 + diff.1 * diff.1).sqrt();
+				let parallel = (diff.0 / parallel_len, diff.1 / parallel_len);
+				let perpendicular = (-parallel.1, parallel.0);
+
+				if cidx == 0 {
+					// Calculate offsets on the first bus line segment
+					for i in 0..size {
+						let pin_offset = (start_positions[i].0 - bus_pos.0, start_positions[i].1 - bus_pos.1);
+						offsets[i] = pin_offset.0 * perpendicular.0 + pin_offset.1 * perpendicular.1;
+					}
+				} else {
+					// For the rest, move the wires so that the offset is maintained
+					for i in 0..size {
+						let current_pos = (
+							bus_pos.0 + prev_perpendicular.0 * offsets[i],
+							bus_pos.1 + prev_perpendicular.1 * offsets[i],
+						);
+
+						let mut parallel_offset = offsets[i] + (x - current_pos.0) * perpendicular.0 + (y - current_pos.1) * perpendicular.1;
+						parallel_offset /= perpendicular.0 * prev_parallel.0 + perpendicular.1 * prev_parallel.1;
+						
+						result[i].push(WireLayoutCommand::DontRenderPrevious);
+						result[i].push(WireLayoutCommand::Move((
+							prev_parallel.0 * parallel_offset,
+							prev_parallel.1 * parallel_offset,
+						)));
+					}
 				}
+
+				for (widx, wire) in result.iter_mut().enumerate() {
+					wire.push(WireLayoutCommand::MoveTo((
+						*x + perpendicular.0 * offsets[widx],
+						*y + perpendicular.1 * offsets[widx],
+					)));
+				}
+
+				bus_pos = (*x, *y);
+				prev_parallel = parallel;
+				prev_perpendicular = perpendicular;
 			},
 		}
 	}

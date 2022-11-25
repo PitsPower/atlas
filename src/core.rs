@@ -382,6 +382,16 @@ impl Circuit {
 		(comp2_idx, pin2_idx): (usize, usize),
 		wire_commands: Vec<WireLayoutCommand>,
 	) {
+		let pin1 = ExternalPin { component_idx: comp1_idx, pin_idx: pin1_idx };
+		let pin2 = ExternalPin { component_idx: comp2_idx, pin_idx: pin2_idx };
+
+		for wire in &mut self.wires {
+			if wire.pin1 == pin1 && wire.pin2 == pin2 {
+				wire.layout_commands = wire_commands;
+				return;
+			}
+		}
+
 		let start_state = match self.components[comp1_idx].get_pin_state(pin1_idx) {
 			Ok(state) => state,
 			Err(PinError::OutOfRange) => panic!("Pin index {} out of range for component {}", pin1_idx, comp1_idx),
@@ -409,18 +419,6 @@ impl Circuit {
 			state1: start_state,
 			state2: end_state,
 		});
-	}
-
-	/// Re-lays an existing wire.
-	pub fn re_lay_wire(
-		&mut self, pin1: ExternalPin, pin2: ExternalPin, layout_commands: Vec<WireLayoutCommand>,
-	) {
-		for wire in &mut self.wires {
-			if wire.pin1 == pin1 && wire.pin2 == pin2 {
-				wire.layout_commands = layout_commands;
-				return;
-			}
-		}
 	}
 	
 	/// Updates a pin and then propagates the changes. This function is the main
@@ -735,7 +733,7 @@ impl Drawable for Circuit {
 
 			let mut current_pos = start;
 
-			for command in &wire.layout_commands {
+			for (idx, command) in wire.layout_commands.iter().enumerate() {
 				match command {
 					WireLayoutCommand::AlignHorizontal => {
 						current_pos.1 = end.1;
@@ -768,9 +766,14 @@ impl Drawable for Circuit {
 					WireLayoutCommand::MoveTo((x, y)) => {
 						current_pos = (*x, *y);
 					},
+					WireLayoutCommand::DontRenderPrevious => {},
 				}
 
-				ctx.line_to(current_pos.0, current_pos.1);
+				if command != &WireLayoutCommand::DontRenderPrevious &&
+					(idx == wire.layout_commands.len() - 1 || 
+					wire.layout_commands[idx + 1] != WireLayoutCommand::DontRenderPrevious) {
+					ctx.line_to(current_pos.0, current_pos.1);
+				}
 			}
 
 			ctx.line_to(end.0, end.1);

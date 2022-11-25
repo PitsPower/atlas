@@ -13,7 +13,7 @@ pub trait Drawable {
 }
 
 /// A command used to control how a wire looks.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum WireLayoutCommand {
 	/// Moves the wire up or down to be aligned with the end pin.
 	AlignHorizontal,
@@ -35,6 +35,8 @@ pub enum WireLayoutCommand {
 	MoveYTo(f64),
 	/// Moves the wire to an absolute location.
 	MoveTo((f64, f64)),
+	/// Tells the renderer to not draw the last command, but to still change the position.
+	DontRenderPrevious,
 }
 
 impl WireLayoutCommand {
@@ -51,6 +53,7 @@ impl WireLayoutCommand {
 			WireLayoutCommand::MoveXTo(x) => format!("WireLayoutCommand::MoveXTo({:.3})", x),
 			WireLayoutCommand::MoveYTo(y) => format!("WireLayoutCommand::MoveYTo({:.3})", y),
 			WireLayoutCommand::MoveTo((x, y)) => format!("WireLayoutCommand::MoveTo(({:.3}, {:.3}))", x, y),
+			WireLayoutCommand::DontRenderPrevious => String::from("WireLayoutCommand::DontRenderPrevious"),
 		}
 	}
 }
