@@ -7,9 +7,7 @@ use std::f64::consts::PI;
 
 use wasm_bindgen::prelude::*;
 
-use crate::gates::{AndGate, NorGate, NotGate, OrGate};
 use crate::graphics::{BoundingBox, Drawable, WireLayoutCommand};
-use crate::transistor::{NTransistor, PTransistor};
 
 /// A pin state.
 /// 
@@ -137,6 +135,12 @@ pub enum ComponentType {
 	NorGate,
 	NotGate,
 	OrGate,
+
+	MultiSwitch,
+	MultiBulb,
+
+	Adder,
+	MultiDFlipFlop,
 }
 
 /// Returns the name of the given [`ComponentType`].
@@ -154,6 +158,12 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 		ComponentType::NorGate => String::from("NOR Gate"),
 		ComponentType::NotGate => String::from("NOT Gate"),
 		ComponentType::OrGate => String::from("OR Gate"),
+
+		ComponentType::MultiSwitch => String::from("Multi Switch"),
+		ComponentType::MultiBulb => String::from("Multi Bulb"),
+
+		ComponentType::Adder => String::from("8-bit Adder"),
+		ComponentType::MultiDFlipFlop => String::from("8-bit D Flip-Flop"),
 	}
 }
 
@@ -172,6 +182,12 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 		ComponentType::NorGate => String::from("norgate"),
 		ComponentType::NotGate => String::from("notgate"),
 		ComponentType::OrGate => String::from("orgate"),
+
+		ComponentType::MultiSwitch => String::from("multiswitch"),
+		ComponentType::MultiBulb => String::from("multibulb"),
+
+		ComponentType::Adder => String::from("adder"),
+		ComponentType::MultiDFlipFlop => String::from("multidflipflop"),
 	}
 }
 
@@ -611,23 +627,6 @@ impl Circuit {
 		Self {
 			components: vec![],
 			wires: vec![],
-		}
-	}
-
-	/// Spawns a component and returns the index.
-	pub fn spawn_component(&mut self, component_type: ComponentType, x: f64, y: f64) -> usize {
-		match component_type {
-			ComponentType::Bulb => crate::add!(self, Bulb, (x, y)),
-			ComponentType::Junction => crate::add!(self, Junction, (x, y), 3),
-			ComponentType::Switch => crate::add!(self, Switch, (x, y)),
-
-			ComponentType::NTransistor => crate::add!(self, NTransistor, (x, y)),
-			ComponentType::PTransistor => crate::add!(self, PTransistor, (x, y)),
-
-			ComponentType::AndGate => crate::add!(self, AndGate, (x, y)),
-			ComponentType::NorGate => crate::add!(self, NorGate, (x, y)),
-			ComponentType::NotGate => crate::add!(self, NotGate, (x, y)),
-			ComponentType::OrGate => crate::add!(self, OrGate, (x, y)),
 		}
 	}
 

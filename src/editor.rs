@@ -1,10 +1,12 @@
 use wasm_bindgen::prelude::*;
 
 use crate::editor_example;
+use crate::adder::Adder;
 use crate::bus::{BusLayoutCommand, compute_wire_commands};
-use crate::core::{Bulb, Circuit, ComponentType, ExternalPin, Junction, PinState, Switch};
+use crate::core::{Bulb, Circuit, ComponentType, ExternalPin, Junction, MultiSwitch, MultiBulb, PinState, Switch};
 use crate::gates::{AndGate, NorGate, NotGate, OrGate};
 use crate::graphics::{BoundingBox, Renderer};
+use crate::latches::MultiDFlipFlop;
 use crate::transistor::{NTransistor, PTransistor};
 
 #[wasm_bindgen(module="/web/src/updateSelection.js")]
@@ -106,6 +108,14 @@ impl Editor {
 			ComponentType::NorGate => crate::add!(self.circuit, NorGate, (x, y)),
 			ComponentType::NotGate => crate::add!(self.circuit, NotGate, (x, y)),
 			ComponentType::OrGate => crate::add!(self.circuit, OrGate, (x, y)),
+
+			// TODO: Let any number be added
+
+			ComponentType::MultiSwitch => crate::add!(self.circuit, MultiSwitch, (x, y), 8),
+			ComponentType::MultiBulb => crate::add!(self.circuit, MultiBulb, (x, y), 8),
+
+			ComponentType::Adder => crate::add!(self.circuit, Adder, (x, y), 8),
+			ComponentType::MultiDFlipFlop => crate::add!(self.circuit, MultiDFlipFlop, (x, y), 8),
 		};
 
 		self.selected_chip_stacks = vec![vec![index]];
