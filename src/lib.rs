@@ -489,9 +489,6 @@ pub fn register_example() -> Circuit {
 pub fn editor_example() -> Circuit {
 	let mut circuit = Circuit::new();
 
-	let c0 = add!(circuit, MultiSwitch, (-554.000, -246.000), 8);
-	let c1 = add!(circuit, MultiBulb, (297.113, -283.607), 8);
-
 	circuit
 }
 

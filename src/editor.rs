@@ -352,6 +352,12 @@ impl Editor {
 				};
 
 			self.update_wire_layout();
+		} else if !self.get_pin_vec().is_empty() {
+			if let Some(clicked_pin) = self.renderer.get_clicked_pin(&self.circuit, x, y) {
+				if !self.get_pin_vec().contains(&clicked_pin) {
+					self.get_pin_vec().push(clicked_pin);
+				}
+			}
 		}
 	}
 
