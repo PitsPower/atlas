@@ -22,6 +22,8 @@ pub struct Editor {
 	/// The renderer used to display the circuit.
 	renderer: Renderer,
 
+	/// Whether the user is holding the mouse down.
+	is_mouse_down: bool,
 	/// Whether the user is currently panning.
 	is_panning: bool,
 	/// Whether the user has moved after the last mouse down.
@@ -65,6 +67,7 @@ impl Editor {
 			circuit,
 			renderer,
 
+			is_mouse_down: false,
 			is_panning: false,
 			has_moved: false,
 			prev_cursor_pos: (0.0, 0.0),
@@ -242,6 +245,8 @@ impl Editor {
 
 	/// Handle the user pressing down a mouse button.
 	pub fn handle_mouse_down(&mut self, x: f64, y: f64) {
+		self.is_mouse_down = true;
+
 		if self.is_in_wire_mode {
 			if let Some(clicked_pin) = self.renderer.get_clicked_pin(&self.circuit, x, y) {
 				self.get_pin_vec().push(clicked_pin);
@@ -352,7 +357,7 @@ impl Editor {
 				};
 
 			self.update_wire_layout();
-		} else if !self.get_pin_vec().is_empty() {
+		} else if self.is_mouse_down && !self.get_pin_vec().is_empty() {
 			if let Some(clicked_pin) = self.renderer.get_clicked_pin(&self.circuit, x, y) {
 				if !self.get_pin_vec().contains(&clicked_pin) {
 					self.get_pin_vec().push(clicked_pin);
@@ -363,12 +368,14 @@ impl Editor {
 
 	/// Handle the user releasing a mouse button.
 	pub fn handle_mouse_up(&mut self, x: f64, y: f64) {
+		self.is_mouse_down = false;
 		self.is_panning = false;
 
 		let mut is_editing_layout = false;
 
 		if let Some(clicked_pin) = self.renderer.get_clicked_pin(&self.circuit, x, y) {
-			if self.start_pins.len() == 1 && self.start_pins[0] != clicked_pin {
+			if self.start_pins.len() == 2 && self.start_pins[1] == clicked_pin {
+				self.start_pins = vec![self.start_pins[0]];
 				self.end_pins = vec![clicked_pin];
 
 				let cursor = self.renderer.get_cursor_from_pos(&self.circuit, &[], x, y);
