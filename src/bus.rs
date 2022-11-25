@@ -57,17 +57,49 @@ pub fn compute_wire_commands(
 
 	for (cidx, command) in bus_commands.iter().enumerate() {
 		match command {
-			BusLayoutCommand::AlignHorizontal => todo!(),
-			BusLayoutCommand::AlignVertical => todo!(),
+			BusLayoutCommand::AlignHorizontal => {
+				for wire in &mut result {
+					wire.push(WireLayoutCommand::AlignHorizontal);
+				}
+			},
+			BusLayoutCommand::AlignVertical => {
+				for wire in &mut result {
+					wire.push(WireLayoutCommand::AlignVertical);
+				}
+			},
 			BusLayoutCommand::CenterHorizontal => todo!(),
 			BusLayoutCommand::CenterVertical => todo!(),
-			BusLayoutCommand::MoveHorizontal(_) => todo!(),
-			BusLayoutCommand::MoveVertical(_) => todo!(),
-			BusLayoutCommand::Move(_) => todo!(),
-			BusLayoutCommand::MoveXTo(_) => todo!(),
-			BusLayoutCommand::MoveYTo(_) => todo!(),
-			BusLayoutCommand::MoveTo((x, y)) => {
-				let diff = (x - bus_pos.0, y - bus_pos.1);
+			BusLayoutCommand::MoveHorizontal(_) | BusLayoutCommand::MoveVertical(_) | BusLayoutCommand::Move(_) | BusLayoutCommand::MoveXTo(_) | BusLayoutCommand::MoveYTo(_) | BusLayoutCommand::MoveTo(_) => {
+				let mut new_bus_pos = bus_pos;
+
+				match command {
+					BusLayoutCommand::AlignHorizontal => unreachable!(),
+					BusLayoutCommand::AlignVertical => unreachable!(),
+					BusLayoutCommand::CenterHorizontal => unreachable!(),
+					BusLayoutCommand::CenterVertical => unreachable!(),
+					BusLayoutCommand::MoveHorizontal(x) => {
+						new_bus_pos.0 += x;
+					},
+					BusLayoutCommand::MoveVertical(y) => {
+						new_bus_pos.1 += y;
+					},
+					BusLayoutCommand::Move((x, y)) => {
+						new_bus_pos.0 += x;
+						new_bus_pos.1 += y;
+					},
+					BusLayoutCommand::MoveXTo(x) => {
+						new_bus_pos.0 = *x;
+					},
+					BusLayoutCommand::MoveYTo(y) => {
+						new_bus_pos.1 = *y;
+					},
+					BusLayoutCommand::MoveTo((x, y)) => {
+						new_bus_pos = (*x, *y);
+					},
+				}
+
+				let (x, y) = new_bus_pos;
+				let diff = (new_bus_pos.0 - bus_pos.0, new_bus_pos.1 - bus_pos.1);
 
 				let parallel_len = (diff.0 * diff.0 + diff.1 * diff.1).sqrt();
 				let parallel = (diff.0 / parallel_len, diff.1 / parallel_len);
@@ -100,12 +132,12 @@ pub fn compute_wire_commands(
 
 				for (widx, wire) in result.iter_mut().enumerate() {
 					wire.push(WireLayoutCommand::MoveTo((
-						*x + perpendicular.0 * offsets[widx],
-						*y + perpendicular.1 * offsets[widx],
+						x + perpendicular.0 * offsets[widx],
+						y + perpendicular.1 * offsets[widx],
 					)));
 				}
 
-				bus_pos = (*x, *y);
+				bus_pos = new_bus_pos;
 				prev_parallel = parallel;
 				prev_perpendicular = perpendicular;
 			},
