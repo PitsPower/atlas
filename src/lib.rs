@@ -9,6 +9,7 @@ pub mod editor;
 pub mod gates;
 pub mod graphics;
 pub mod latches;
+pub mod multiplexer;
 pub mod register;
 pub mod transistor;
 pub mod utils;

@@ -4,9 +4,10 @@ use crate::editor_example;
 use crate::adder::Adder;
 use crate::bus::{BusLayoutCommand, compute_wire_commands};
 use crate::core::{Bulb, Circuit, ComponentType, ExternalPin, Junction, MultiSwitch, MultiBulb, PinState, Switch};
-use crate::gates::{AndGate, NorGate, NotGate, OrGate};
+use crate::gates::{AndGate, NandGate, NorGate, NotGate, OrGate};
 use crate::graphics::{BoundingBox, Renderer};
 use crate::latches::MultiDFlipFlop;
+use crate::multiplexer::Multiplexer;
 use crate::transistor::{NTransistor, PTransistor};
 
 #[wasm_bindgen(module="/web/src/updateSelection.js")]
@@ -108,6 +109,7 @@ impl Editor {
 			ComponentType::PTransistor => crate::add!(self.circuit, PTransistor, (x, y)),
 
 			ComponentType::AndGate => crate::add!(self.circuit, AndGate, (x, y)),
+			ComponentType::NandGate => crate::add!(self.circuit, NandGate, (x, y)),
 			ComponentType::NorGate => crate::add!(self.circuit, NorGate, (x, y)),
 			ComponentType::NotGate => crate::add!(self.circuit, NotGate, (x, y)),
 			ComponentType::OrGate => crate::add!(self.circuit, OrGate, (x, y)),
@@ -119,6 +121,8 @@ impl Editor {
 
 			ComponentType::Adder => crate::add!(self.circuit, Adder, (x, y), 8),
 			ComponentType::MultiDFlipFlop => crate::add!(self.circuit, MultiDFlipFlop, (x, y), 8),
+
+			ComponentType::Multiplexer => crate::add!(self.circuit, Multiplexer, (x, y)),
 		};
 
 		self.selected_chip_stacks = vec![vec![index]];

@@ -132,6 +132,7 @@ pub enum ComponentType {
 	PTransistor,
 
 	AndGate,
+	NandGate,
 	NorGate,
 	NotGate,
 	OrGate,
@@ -141,6 +142,8 @@ pub enum ComponentType {
 
 	Adder,
 	MultiDFlipFlop,
+
+	Multiplexer,
 }
 
 /// Returns the name of the given [`ComponentType`].
@@ -155,6 +158,7 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 		ComponentType::PTransistor => String::from("P-type Transistor"),
 
 		ComponentType::AndGate => String::from("AND Gate"),
+		ComponentType::NandGate => String::from("NAND Gate"),
 		ComponentType::NorGate => String::from("NOR Gate"),
 		ComponentType::NotGate => String::from("NOT Gate"),
 		ComponentType::OrGate => String::from("OR Gate"),
@@ -164,6 +168,8 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 
 		ComponentType::Adder => String::from("8-bit Adder"),
 		ComponentType::MultiDFlipFlop => String::from("8-bit D Flip-Flop"),
+
+		ComponentType::Multiplexer => String::from("Multiplexer"),
 	}
 }
 
@@ -179,6 +185,7 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 		ComponentType::PTransistor => String::from("ptransistor"),
 
 		ComponentType::AndGate => String::from("andgate"),
+		ComponentType::NandGate => String::from("nandgate"),
 		ComponentType::NorGate => String::from("norgate"),
 		ComponentType::NotGate => String::from("notgate"),
 		ComponentType::OrGate => String::from("orgate"),
@@ -188,6 +195,8 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 
 		ComponentType::Adder => String::from("adder"),
 		ComponentType::MultiDFlipFlop => String::from("multidflipflop"),
+
+		ComponentType::Multiplexer => String::from("multiplexer"),
 	}
 }
 
@@ -345,6 +354,11 @@ impl Circuit {
 	/// Returns the list of wires in the circuit.
 	pub fn get_wires(&self) -> &Vec<Wire> {
 		&self.wires
+	}
+
+	/// Returns the mutable list of wires in the circuit.
+	pub fn get_wires_mut(&mut self) -> &mut Vec<Wire> {
+		&mut self.wires
 	}
 
 	/// Returns the list of [`Pin`] components in the circuit.

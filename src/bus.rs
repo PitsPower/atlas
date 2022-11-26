@@ -67,8 +67,17 @@ pub fn compute_wire_commands(
 					wire.push(WireLayoutCommand::AlignVertical);
 				}
 			},
-			BusLayoutCommand::CenterHorizontal => todo!(),
-			BusLayoutCommand::CenterVertical => todo!(),
+			BusLayoutCommand::CenterHorizontal => {
+				for wire in &mut result {
+					wire.push(WireLayoutCommand::CenterHorizontal);
+				}
+			},
+			BusLayoutCommand::CenterVertical => {
+				for wire in &mut result {
+					wire.push(WireLayoutCommand::CenterVertical);
+				}
+			},
+
 			BusLayoutCommand::MoveHorizontal(_) | BusLayoutCommand::MoveVertical(_) | BusLayoutCommand::Move(_) | BusLayoutCommand::MoveXTo(_) | BusLayoutCommand::MoveYTo(_) | BusLayoutCommand::MoveTo(_) => {
 				let mut new_bus_pos = bus_pos;
 
