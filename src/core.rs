@@ -144,6 +144,7 @@ pub enum ComponentType {
 	MultiDFlipFlop,
 
 	Multiplexer,
+	TwoBitMultiplexer,
 }
 
 /// Returns the name of the given [`ComponentType`].
@@ -170,6 +171,7 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 		ComponentType::MultiDFlipFlop => String::from("8-bit D Flip-Flop"),
 
 		ComponentType::Multiplexer => String::from("Multiplexer"),
+		ComponentType::TwoBitMultiplexer => String::from("2-bit Multiplexer"),
 	}
 }
 
@@ -197,6 +199,7 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 		ComponentType::MultiDFlipFlop => String::from("multidflipflop"),
 
 		ComponentType::Multiplexer => String::from("multiplexer"),
+		ComponentType::TwoBitMultiplexer => String::from("twobitmultiplexer"),
 	}
 }
 

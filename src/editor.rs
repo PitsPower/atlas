@@ -7,7 +7,7 @@ use crate::core::{Bulb, Circuit, ComponentType, ExternalPin, Junction, MultiSwit
 use crate::gates::{AndGate, NandGate, NorGate, NotGate, OrGate};
 use crate::graphics::{BoundingBox, Renderer};
 use crate::latches::MultiDFlipFlop;
-use crate::multiplexer::Multiplexer;
+use crate::multiplexer::{Multiplexer, TwoBitMultiplexer};
 use crate::transistor::{NTransistor, PTransistor};
 
 #[wasm_bindgen(module="/web/src/updateSelection.js")]
@@ -123,6 +123,7 @@ impl Editor {
 			ComponentType::MultiDFlipFlop => crate::add!(self.circuit, MultiDFlipFlop, (x, y), 8),
 
 			ComponentType::Multiplexer => crate::add!(self.circuit, Multiplexer, (x, y)),
+			ComponentType::TwoBitMultiplexer => crate::add!(self.circuit, TwoBitMultiplexer, (x, y)),
 		};
 
 		self.selected_chip_stacks = vec![vec![index]];
