@@ -7,6 +7,7 @@ use std::f64::consts::PI;
 
 use wasm_bindgen::prelude::*;
 
+use crate::add;
 use crate::adder::*;
 use crate::gates::*;
 use crate::graphics::{
@@ -244,7 +245,7 @@ impl ComponentType {
 				ComponentInternals::Atomic(vec![(0.0, 0.0)])
 			},
 
-			ComponentType::Junction => ComponentInternals::Atomic(vec![(0.0, 0.0); 3]),
+			ComponentType::Junction => ComponentInternals::Atomic(vec![(0.0, 0.0); options.size]),
 
 			ComponentType::NTransistor => {
 				ComponentInternals::Atomic(vec![
@@ -384,6 +385,10 @@ impl ComponentType {
 					circuit_offset.1 += pad_diff * 0.5;
 				}
 
+				if top_pad == 0.0 && bottom_pad == 0.0 {
+					chip_size.1 += 100.0;
+				}
+
 				for component in &mut circuit.components {
 					component.position.0 += circuit_offset.0;
 					component.position.1 += circuit_offset.1;
@@ -415,30 +420,17 @@ impl ComponentType {
 
 		let simulator: Option<Box<dyn ComponentSimulator>> = match self {
 			ComponentType::Bulb => Some(Box::new(BulbSimulator::new())),
-			ComponentType::Junction => Some(Box::new(JunctionSimulator::new(3))),
+			ComponentType::Junction => Some(Box::new(JunctionSimulator::new(options.size))),
 			ComponentType::Pin => Some(Box::new(PinSimulator::new())),
 			ComponentType::Switch => Some(Box::new(SwitchSimulator::new())),
 
 			ComponentType::NTransistor => Some(Box::new(NTransistorSimulator::new())),
 			ComponentType::PTransistor => Some(Box::new(PTransistorSimulator::new())),
 
-			ComponentType::AndGate | ComponentType::NandGate | ComponentType::NorGate | ComponentType::NotGate |
-			ComponentType::OrGate | ComponentType::TriStateBuffer | ComponentType::XorGate => None,
-
 			ComponentType::MultiBulb => Some(Box::new(MultiBulbSimulator::new(options.size))),
 			ComponentType::MultiSwitch => Some(Box::new(MultiSwitchSimulator::new(options.size))),
-
-			ComponentType::HalfAdder => None,
-			ComponentType::FullAdder => None,
-			ComponentType::Adder => None,
-
-			ComponentType::SRLatch => None,
-			ComponentType::DLatch => None,
-			ComponentType::DFlipFlop => None,
-			ComponentType::MultiDFlipFlop => None,
 			
-			ComponentType::Multiplexer => None,
-			ComponentType::TwoBitMultiplexer => None,
+			_ => None,
 		};
 
 		let drawer: Box<dyn ComponentDrawer> = match self {
@@ -1120,11 +1112,11 @@ pub struct Component {
 	pub position: (f64, f64),
 	/// The size of the component.
 	pub size: (f64, f64),
+	/// Options for the component (e.g. size).
+	pub options: ComponentOptions,
 	
 	/// The type of component.
 	ctype: ComponentType,
-	/// Options for the component (e.g. size).
-	options: ComponentOptions,
 	/// The simulation mode of the component.
 	sim_mode: SimulationMode,
 
@@ -1136,6 +1128,11 @@ pub struct Component {
 }
 
 impl Component {
+	/// Returns the type of the component.
+	pub fn get_type(&self) -> ComponentType {
+		self.ctype
+	}
+
 	/// Returns the name of the component as a string.
 	pub fn get_name(&self) -> String {
 		String::from(self.ctype.as_string())

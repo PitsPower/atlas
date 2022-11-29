@@ -99,6 +99,7 @@ impl Editor {
 			size: match component_type {
 				ComponentType::MultiBulb | ComponentType::MultiSwitch |
 				ComponentType::Adder | ComponentType::MultiDFlipFlop => 8,
+				ComponentType::Junction => 3,
 				_ => 1,
 			},
 		});
@@ -422,37 +423,59 @@ impl Editor {
 		code += "let mut circuit = Circuit::new();\n\n";
 
 		for (idx, component) in self.circuit.components.iter().enumerate() {
-			if component.get_name() == "Junction" {
-				code += &format!(
-					"let c{} = add!(circuit, {}, ({:.3}, {:.3}), 3);\n",
-					idx,
-					component.get_name(),
-					component.position.0,
-					component.position.1,
-				);
-			} else {
-				code += &format!(
-					"let c{} = add!(circuit, {}, ({:.3}, {:.3}));\n",
-					idx,
-					component.get_name(),
-					component.position.0,
-					component.position.1,
-				);
+			match component.get_type() {
+				ComponentType::Bulb | ComponentType::Switch => {
+					let string = format!(
+						"let c{} = add!(circuit, Pin, ({:.3}, {:.3}));\n",
+						idx,
+						component.position.0,
+						component.position.1,
+					);
+					code += &string;
+				},
+				_ => {
+					let string = if component.options.size > 1 {
+						format!(
+							"let c{} = add!(circuit, {}, ({:.3}, {:.3}), {});\n",
+							idx,
+							component.get_name(),
+							component.position.0,
+							component.position.1,
+							component.options.size,
+						)
+					} else {
+						format!(
+							"let c{} = add!(circuit, {}, ({:.3}, {:.3}));\n",
+							idx,
+							component.get_name(),
+							component.position.0,
+							component.position.1,
+						)
+					};
+
+					code += &string;
+				},
 			}
 		}
 
 		code += "\n";
+
+		let mut has_set_switch = false;
 
 		for (idx, component) in self.circuit.components.iter().enumerate() {
 			if component.get_switch_count() == 1 && component.get_pin_state(0).unwrap() == PinState::On {
+				has_set_switch = true;
+	
 				code += &format!(
-					"circuit.get_components_mut()[c{}].set_pin_state_external(0, PinState::On).unwrap();\n",
+					"circuit.components[c{}].set_pin_state_external(0, PinState::On).unwrap();\n",
 					idx,
 				);
 			}
 		}
 
-		code += "\n";
+		if has_set_switch {
+			code += "\n";
+		}
 
 		for wire in &self.circuit.wires {
 			code += &format!(
@@ -464,6 +487,8 @@ impl Editor {
 				wire.layout_commands.iter().map(|lc| lc.as_string()).collect::<Vec<_>>().join(", "),
 			);
 		}
+
+		code += "circuit";
 
 		code
 	}
