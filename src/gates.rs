@@ -316,13 +316,13 @@ impl AndGateDrawer {
 }
 
 impl Default for AndGateDrawer {
-    fn default() -> Self {
-        Self::new()
-    }
+	fn default() -> Self {
+		Self::new()
+	}
 }
 
 impl ChipDrawer for AndGateDrawer {
-    fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
+	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
 		ctx.set_fill_style(&"#000".into());
 		
 		let (width, height) = component.size;
@@ -336,9 +336,9 @@ impl ChipDrawer for AndGateDrawer {
 		ctx.close_path();
 
 		ctx.fill();
-    }
+	}
 
-    fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
+	fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
 		ctx.set_line_width(5.0);
 		ctx.set_stroke_style(&"#fff".into());
 
@@ -353,11 +353,11 @@ impl ChipDrawer for AndGateDrawer {
 		ctx.close_path();
 
 		ctx.stroke();
-    }
+	}
 
-    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
+	fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
 		self.draw_front(ctx, component)
-    }
+	}
 }
 
 pub struct NandGateDrawer;
@@ -369,13 +369,13 @@ impl NandGateDrawer {
 }
 
 impl Default for NandGateDrawer {
-    fn default() -> Self {
-        Self::new()
-    }
+	fn default() -> Self {
+		Self::new()
+	}
 }
 
 impl ChipDrawer for NandGateDrawer {
-    fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
+	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
 		ctx.set_fill_style(&"#000".into());
 		
 		let (width, height) = component.size;
@@ -389,9 +389,9 @@ impl ChipDrawer for NandGateDrawer {
 		ctx.close_path();
 
 		ctx.fill();
-    }
+	}
 
-    fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
+	fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
 		ctx.set_line_width(5.0);
 		ctx.set_stroke_style(&"#fff".into());
 		
@@ -406,9 +406,9 @@ impl ChipDrawer for NandGateDrawer {
 		ctx.close_path();
 
 		ctx.stroke();
-    }
+	}
 
-    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
+	fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
 		self.draw_front(ctx, component);
 
 		let width = component.size.0;
@@ -420,7 +420,7 @@ impl ChipDrawer for NandGateDrawer {
 		ctx.arc(width * 0.5 + 12.8, 0.0, 7.0, 0.0, 2.0 * PI).unwrap();
 		ctx.stroke();
 		ctx.fill();
-    }
+	}
 }
 
 pub struct NorGateDrawer;
@@ -432,13 +432,13 @@ impl NorGateDrawer {
 }
 
 impl Default for NorGateDrawer {
-    fn default() -> Self {
-        Self::new()
-    }
+	fn default() -> Self {
+		Self::new()
+	}
 }
 
 impl ChipDrawer for NorGateDrawer {
-    fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
+	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
 		ctx.set_fill_style(&"#000".into());
 		
 		let (width, height) = component.size;
@@ -451,9 +451,9 @@ impl ChipDrawer for NorGateDrawer {
 		ctx.close_path();
 
 		ctx.fill();
-    }
+	}
 
-    fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
+	fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
 		ctx.set_line_width(5.0);
 		ctx.set_stroke_style(&"#fff".into());
 		
@@ -467,9 +467,9 @@ impl ChipDrawer for NorGateDrawer {
 		ctx.close_path();
 
 		ctx.stroke();
-    }
+	}
 
-    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
+	fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
 		self.draw_front(ctx, component);
 
 		let width = component.size.0;
@@ -482,7 +482,7 @@ impl ChipDrawer for NorGateDrawer {
 		ctx.arc(width * 0.5 + 10.0, 0.0, 7.0, 0.0, 2.0 * PI).unwrap();
 		ctx.stroke();
 		ctx.fill();
-    }
+	}
 }
 
 pub struct NotGateDrawer;
@@ -494,13 +494,13 @@ impl NotGateDrawer {
 }
 
 impl Default for NotGateDrawer {
-    fn default() -> Self {
-        Self::new()
-    }
+	fn default() -> Self {
+		Self::new()
+	}
 }
 
 impl ChipDrawer for NotGateDrawer {
-    fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
+	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
 		ctx.set_fill_style(&"#000".into());
 		
 		let (width, height) = component.size;
@@ -512,9 +512,9 @@ impl ChipDrawer for NotGateDrawer {
 		ctx.close_path();
 
 		ctx.fill();
-    }
+	}
 
-    fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
+	fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
 		ctx.set_line_width(5.0);
 		ctx.set_stroke_style(&"#fff".into());
 		
@@ -527,9 +527,9 @@ impl ChipDrawer for NotGateDrawer {
 		ctx.close_path();
 
 		ctx.stroke();
-    }
+	}
 
-    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
+	fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
 		self.draw_front(ctx, component);
 
 		ctx.set_line_width(10.0);
@@ -542,7 +542,7 @@ impl ChipDrawer for NotGateDrawer {
 		ctx.arc(width * 0.5 + 12.8, 0.0, 7.0, 0.0, 2.0 * PI).unwrap();
 		ctx.stroke();
 		ctx.fill();
-    }
+	}
 }
 
 pub struct OrGateDrawer;
@@ -554,13 +554,13 @@ impl OrGateDrawer {
 }
 
 impl Default for OrGateDrawer {
-    fn default() -> Self {
-        Self::new()
-    }
+	fn default() -> Self {
+		Self::new()
+	}
 }
 
 impl ChipDrawer for OrGateDrawer {
-    fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
+	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
 		ctx.set_fill_style(&"#000".into());
 		
 		let (width, height) = component.size;
@@ -573,9 +573,9 @@ impl ChipDrawer for OrGateDrawer {
 		ctx.close_path();
 
 		ctx.fill();
-    }
+	}
 
-    fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
+	fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
 		ctx.set_line_width(5.0);
 		ctx.set_stroke_style(&"#fff".into());
 		
@@ -589,11 +589,11 @@ impl ChipDrawer for OrGateDrawer {
 		ctx.close_path();
 
 		ctx.stroke();
-    }
+	}
 
-    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
+	fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
 		self.draw_front(ctx, component);
-    }
+	}
 }
 
 pub struct TriStateBufferDrawer;
@@ -605,13 +605,13 @@ impl TriStateBufferDrawer {
 }
 
 impl Default for TriStateBufferDrawer {
-    fn default() -> Self {
-        Self::new()
-    }
+	fn default() -> Self {
+		Self::new()
+	}
 }
 
 impl ChipDrawer for TriStateBufferDrawer {
-    fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
+	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
 		ctx.set_fill_style(&"#000".into());
 		
 		let (width, height) = component.size;
@@ -623,9 +623,9 @@ impl ChipDrawer for TriStateBufferDrawer {
 		ctx.close_path();
 
 		ctx.fill();
-    }
+	}
 
-    fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
+	fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
 		ctx.set_line_width(5.0);
 		ctx.set_stroke_style(&"#fff".into());
 		
@@ -638,11 +638,11 @@ impl ChipDrawer for TriStateBufferDrawer {
 		ctx.close_path();
 
 		ctx.stroke();
-    }
+	}
 
-    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
+	fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
 		self.draw_front(ctx, component);
-    }
+	}
 }
 
 pub struct XorGateDrawer;
@@ -654,13 +654,13 @@ impl XorGateDrawer {
 }
 
 impl Default for XorGateDrawer {
-    fn default() -> Self {
-        Self::new()
-    }
+	fn default() -> Self {
+		Self::new()
+	}
 }
 
 impl ChipDrawer for XorGateDrawer {
-    fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
+	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
 		ctx.set_fill_style(&"#000".into());
 		
 		let (width, height) = component.size;
@@ -673,9 +673,9 @@ impl ChipDrawer for XorGateDrawer {
 		ctx.close_path();
 
 		ctx.fill();
-    }
+	}
 
-    fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
+	fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
 		ctx.set_line_width(5.0);
 		ctx.set_stroke_style(&"#fff".into());
 		
@@ -689,9 +689,9 @@ impl ChipDrawer for XorGateDrawer {
 		ctx.close_path();
 
 		ctx.stroke();
-    }
+	}
 
-    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
+	fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &crate::core::Component) {
 		self.draw_front(ctx, component);
 
 		ctx.set_line_width(5.0);
@@ -712,5 +712,5 @@ impl ChipDrawer for XorGateDrawer {
 		);
 
 		ctx.stroke();
-    }
+	}
 }

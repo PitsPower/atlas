@@ -7,7 +7,6 @@ use std::f64::consts::PI;
 
 use wasm_bindgen::prelude::*;
 
-use crate::add;
 use crate::adder::*;
 use crate::gates::*;
 use crate::graphics::{
@@ -130,6 +129,12 @@ pub enum SimulationMode {
 	HighLevel,
 }
 
+/// Options for various components (e.g. size of the component).
+pub struct ComponentOptions {
+	/// The size of the component (e.g. 8-bit, 32-bit, etc.).
+	pub size: usize,
+}
+
 /// The different kinds of component.
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -174,12 +179,6 @@ pub enum ComponentType {
 
 	Multiplexer,
 	TwoBitMultiplexer,
-}
-
-/// Options for various components (e.g. size of the component).
-pub struct ComponentOptions {
-	/// The size of the component (e.g. 8-bit, 32-bit, etc.).
-	pub size: usize,
 }
 
 impl ComponentType {
@@ -270,7 +269,7 @@ impl ComponentType {
 			ComponentType::TriStateBuffer => ComponentInternals::Chip(get_tri_state_buffer_circuit(), 0.04),
 			ComponentType::XorGate => ComponentInternals::Chip(get_xor_gate_circuit(), 0.15),
 			
-    		ComponentType::MultiBulb | ComponentType::MultiSwitch => {
+			ComponentType::MultiBulb | ComponentType::MultiSwitch => {
 				let spacing = 50.0;
 				let size = options.size;
 		
@@ -633,22 +632,22 @@ impl PinSimulator {
 }
 
 impl ComponentSimulator for PinSimulator {
-    fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
 		if idx > 0 {
 			Err(PinError::OutOfRange)
 		} else {
 			Ok(self.inner_state)
 		}
-    }
+	}
 
-    fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
 		if idx > 0 {
 			Err(PinError::OutOfRange)
 		} else {
 			self.outer_state = state;
 			Ok(())
 		}
-    }
+	}
 
 	fn get_pin_state_external(&self, idx: usize) -> Result<PinState, PinError> {
 		if idx > 0 {
@@ -684,7 +683,7 @@ impl SwitchSimulator {
 }
 
 impl ComponentSimulator for SwitchSimulator {
-    fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
 		if idx > 0 {
 			Err(PinError::OutOfRange)
 		} else {
@@ -692,7 +691,7 @@ impl ComponentSimulator for SwitchSimulator {
 		}
 	}
 
-    fn set_pin_state_high_level(&mut self, idx: usize, _state: PinState) -> Result<(), PinError> {
+	fn set_pin_state_high_level(&mut self, idx: usize, _state: PinState) -> Result<(), PinError> {
 		if idx > 0 {
 			Err(PinError::OutOfRange)
 		} else {
@@ -700,7 +699,7 @@ impl ComponentSimulator for SwitchSimulator {
 		}
 	}
 
-    fn set_pin_state_external(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+	fn set_pin_state_external(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
 		if idx > 0 {
 			Err(PinError::OutOfRange)
 		} else {
@@ -727,7 +726,7 @@ impl Default for SwitchDrawer {
 }
 
 impl ComponentDrawer for SwitchDrawer {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox, component: &Component) {
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox, component: &Component) {
 		ctx.set_fill_style(&component.get_pin_state(0).unwrap().get_colour().into());
 
 		let (width, height) = component.size;
@@ -738,7 +737,7 @@ impl ComponentDrawer for SwitchDrawer {
 			width,
 			height,
 		);
-    }
+	}
 }
 
 /// A [`ComponentSimulator`] for a multi-switch.
@@ -757,7 +756,7 @@ impl MultiSwitchSimulator {
 }
 
 impl ComponentSimulator for MultiSwitchSimulator {
-    fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
 		if idx >= self.states.len() {
 			Err(PinError::OutOfRange)
 		} else {
@@ -765,7 +764,7 @@ impl ComponentSimulator for MultiSwitchSimulator {
 		}
 	}
 
-    fn set_pin_state_high_level(&mut self, idx: usize, _state: PinState) -> Result<(), PinError> {
+	fn set_pin_state_high_level(&mut self, idx: usize, _state: PinState) -> Result<(), PinError> {
 		if idx >= self.states.len() {
 			Err(PinError::OutOfRange)
 		} else {
@@ -773,7 +772,7 @@ impl ComponentSimulator for MultiSwitchSimulator {
 		}
 	}
 
-    fn set_pin_state_external(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+	fn set_pin_state_external(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
 		if idx >= self.states.len() {
 			Err(PinError::OutOfRange)
 		} else {
@@ -794,7 +793,7 @@ impl MultiSwitchDrawer {
 }
 
 impl ComponentDrawer for MultiSwitchDrawer {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox, component: &Component) {
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox, component: &Component) {
 		ctx.set_line_width(10.0);
 
 		ctx.set_stroke_style(&"#fff".into());
@@ -826,7 +825,7 @@ impl ComponentDrawer for MultiSwitchDrawer {
 			let extra_width = if i == size-1 { 0.0 } else { 1.0 };
 			ctx.fill_rect((i as f64 - size as f64 * 0.5) * 50.0, height * 0.5 - 50.0, 50.0 + extra_width, 50.0);
 		}
-    }
+	}
 }
 
 /// A [`ComponentSimulator`] for a bulb.
@@ -845,7 +844,7 @@ impl BulbSimulator {
 }
 
 impl ComponentSimulator for BulbSimulator {
-    fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
 		if idx > 0 {
 			Err(PinError::OutOfRange)
 		} else {
@@ -853,7 +852,7 @@ impl ComponentSimulator for BulbSimulator {
 		}
 	}
 
-    fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
 		if idx > 0 {
 			Err(PinError::OutOfRange)
 		} else {
@@ -882,7 +881,7 @@ impl BulbDrawer {
 }
 
 impl ComponentDrawer for BulbDrawer {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox, component: &Component) {
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox, component: &Component) {
 		let state = component.simulator.as_ref().unwrap().get_pin_state_external(0).unwrap();
 
 		ctx.set_fill_style(&state.get_colour().into());
@@ -898,7 +897,7 @@ impl ComponentDrawer for BulbDrawer {
 			2.0 * PI,
 		).unwrap();
 		ctx.fill();
-    }
+	}
 }
 
 
@@ -918,7 +917,7 @@ impl MultiBulbSimulator {
 }
 
 impl ComponentSimulator for MultiBulbSimulator {
-    fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
 		if idx >= self.states.len() {
 			Err(PinError::OutOfRange)
 		} else {
@@ -926,7 +925,7 @@ impl ComponentSimulator for MultiBulbSimulator {
 		}
 	}
 
-    fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
 		if idx >= self.states.len() {
 			Err(PinError::OutOfRange)
 		} else {
@@ -955,7 +954,7 @@ impl MultiBulbDrawer {
 }
 
 impl ComponentDrawer for MultiBulbDrawer {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox, component: &Component) {
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox, component: &Component) {
 		ctx.set_line_width(10.0);
 
 		ctx.set_stroke_style(&"#fff".into());
@@ -988,7 +987,7 @@ impl ComponentDrawer for MultiBulbDrawer {
 			ctx.arc((i as f64 - size as f64 * 0.5) * 50.0 + 25.0, height * 0.5 - 25.0, 20.0, 0.0, 2.0 * PI).unwrap();
 			ctx.fill();
 		}
-    }
+	}
 }
 
 /// A [`ComponentSimulator`] for a junction.
@@ -1012,7 +1011,7 @@ impl JunctionSimulator {
 }
 
 impl ComponentSimulator for JunctionSimulator {
-    fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
 		if idx >= self.states.len() {
 			Err(PinError::OutOfRange)
 		} else if self.states[idx] == PinState::Disconnected {
@@ -1022,7 +1021,7 @@ impl ComponentSimulator for JunctionSimulator {
 		}
 	}
 
-    fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
 		if idx >= self.states.len() {
 			Err(PinError::OutOfRange)
 		} else {
@@ -1031,7 +1030,7 @@ impl ComponentSimulator for JunctionSimulator {
 		}
 	}
 
-    fn get_pin_state_external(&self, idx: usize) -> Result<PinState, PinError> {
+	fn get_pin_state_external(&self, idx: usize) -> Result<PinState, PinError> {
 		if idx >= self.states.len() {
 			Err(PinError::OutOfRange)
 		} else {
@@ -1051,7 +1050,7 @@ impl JunctionDrawer {
 }
 
 impl ComponentDrawer for JunctionDrawer {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox, component: &Component) {
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox, component: &Component) {
 		let state = component.simulator.as_ref().unwrap().get_pin_state_external(0).unwrap();
 
 		ctx.set_fill_style(&state.get_colour().into());
@@ -1067,7 +1066,7 @@ impl ComponentDrawer for JunctionDrawer {
 			2.0 * PI,
 		).unwrap();
 		ctx.fill();
-    }
+	}
 }
 
 /// The data needed to represent the inside of a [`Component`].
@@ -1295,9 +1294,9 @@ impl Component {
 }
 
 impl Drawable for Component {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: BoundingBox) {
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: BoundingBox) {
 		self.drawer.draw(ctx, viewport, self)
-    }
+	}
 }
 
 /// A specifier for a pin on a particular component. This differs from [`Pin`], which is an internal
@@ -1700,9 +1699,9 @@ impl Circuit {
 }
 
 impl Default for Circuit {
-    fn default() -> Self {
-        Self::new()
-    }
+	fn default() -> Self {
+		Self::new()
+	}
 }
 
 impl Drawable for Circuit {

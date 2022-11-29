@@ -31,7 +31,7 @@ pub trait ChipDrawer {
 }
 
 impl<T: ChipDrawer> ComponentDrawer for T {
-    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: BoundingBox, component: &Component) {
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: BoundingBox, component: &Component) {
 		self.draw_back(ctx, component);
 
 		// TODO: Probably merge this with the other implementation!
@@ -62,7 +62,7 @@ impl<T: ChipDrawer> ComponentDrawer for T {
 		
 		ctx.set_global_alpha(1.0);
 		self.draw_edge(ctx, component);
-    }
+	}
 }
 
 /// Information about text to be rendered on the front of a chip.
@@ -87,7 +87,7 @@ impl RectangleChipDrawer {
 }
 
 impl ChipDrawer for RectangleChipDrawer {
-    fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &Component) {
+	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &Component) {
 		// match self.get_mode() {
 		// 	SimulationMode::Circuit => ctx.set_fill_style(&"#000".into()),
 		// 	SimulationMode::HighLevel => ctx.set_fill_style(&"#f00".into()),
@@ -107,13 +107,13 @@ impl ChipDrawer for RectangleChipDrawer {
 		ctx.set_text_baseline("middle");
 
 		ctx.fill_text(self.text_info.text.as_str(), 0.0, 0.0).unwrap();
-    }
+	}
 
-    fn draw_edge(&self, _ctx: &web_sys::CanvasRenderingContext2d, _component: &Component) {
+	fn draw_edge(&self, _ctx: &web_sys::CanvasRenderingContext2d, _component: &Component) {
 		
-    }
+	}
 
-    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &Component) {
+	fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &Component) {
 		ctx.set_line_width(10.0);
 		ctx.set_stroke_style(&"#fff".into());
 		
@@ -131,7 +131,7 @@ impl ChipDrawer for RectangleChipDrawer {
 
 		ctx.stroke();
 		ctx.fill();
-    }
+	}
 }
 
 /// A [`ComponentDrawer`] that doesn't draw anything.
@@ -145,15 +145,15 @@ impl NothingDrawer {
 }
 
 impl Default for NothingDrawer {
-    fn default() -> Self {
+	fn default() -> Self {
 		Self::new()
-    }
+	}
 }
 
 impl ComponentDrawer for NothingDrawer {
-    fn draw(&self, _ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox,_componentt: &Component) {
+	fn draw(&self, _ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox,_componentt: &Component) {
 		// Nothing at all...
-    }
+	}
 }
 
 /// A command used to control how a wire looks.
