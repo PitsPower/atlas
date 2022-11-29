@@ -2,77 +2,38 @@
 
 use std::f64::consts::PI;
 
-use crate::core::{Component, PinError, PinState};
-use crate::graphics::{Drawable, BoundingBox};
+use crate::core::{Component, ComponentSimulator, PinError, PinState};
+use crate::graphics::{BoundingBox, ComponentDrawer};
 
 const WIDTH: f64 = 67.0;
 const HEIGHT: f64 = 110.0;
 const RADIUS: f64 = 11.5;
 
-/// An N-type transistor. This kind of transistor lets a current through when
+/// Simulates an N-type transistor. This kind of transistor lets a current through when
 /// the gate is high.
-pub struct NTransistor {
-	position: (f64, f64),
+pub struct NTransistorSimulator {
 	source_state: PinState,
 	gate_state: PinState,
 }
 
-impl NTransistor {
-	pub fn new(pos: (f64, f64)) -> Self {
+impl NTransistorSimulator {
+	/// Returns a new [`NTransistorSimulator`].
+	pub fn new() -> Self {
 		Self {
-			position: pos,
 			source_state: PinState::Disconnected,
 			gate_state: PinState::Disconnected,
 		}
 	}
 }
 
-impl Drawable for NTransistor {
-	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
-		ctx.set_line_width(7.0);
-		ctx.set_line_cap("square");
-		ctx.set_stroke_style(&"#fff".into());
-
-		ctx.begin_path();
-		ctx.move_to(WIDTH * 0.5, HEIGHT * 0.5);
-		ctx.line_to(-WIDTH * 0.5, HEIGHT * 0.5);
-		ctx.line_to(-WIDTH * 0.5, -HEIGHT * 0.5);
-		ctx.line_to(WIDTH * 0.5, -HEIGHT * 0.5);
-		ctx.stroke();
-
-		ctx.begin_path();
-		ctx.move_to(-WIDTH * 0.5 - 15.0, HEIGHT * 0.5);
-		ctx.line_to(-WIDTH * 0.5 - 15.0, -HEIGHT * 0.5);
-		ctx.stroke();
-	}
+impl Default for NTransistorSimulator {
+    fn default() -> Self {
+		Self::new()
+    }
 }
 
-impl Component for NTransistor {
-	fn get_name(&self) -> String {
-		String::from("NTransistor")
-	}
-
-	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
-		vec![
-			(-WIDTH * 0.5 - 15.0, 0.0),
-			(WIDTH * 0.5, HEIGHT * 0.5),
-			(WIDTH * 0.5, -HEIGHT * 0.5),
-		]
-	}
-
-	fn get_position(&self) -> (f64, f64) {
-		self.position
-	}
-
-	fn set_position(&mut self, pos: (f64, f64)) {
-		self.position = pos;
-	}
-
-	fn get_size(&self) -> (f64, f64) {
-		(WIDTH, HEIGHT)
-	}
-
-	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
+impl ComponentSimulator for NTransistorSimulator {
+    fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
 		match idx {
 			0 => Ok(PinState::Disconnected),
 			1 => Ok(PinState::Disconnected),
@@ -87,7 +48,7 @@ impl Component for NTransistor {
 		}
 	}
 
-	fn set_pin_state(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+    fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
 		match idx {
 			0 => { self.gate_state = state; Ok(()) },
 			1 => { self.source_state = state; Ok(()) },
@@ -97,26 +58,24 @@ impl Component for NTransistor {
 	}
 }
 
-/// A P-type transistor. This kind of transistor lets a current through when
-/// the gate is low.
-pub struct PTransistor {
-	position: (f64, f64),
-	source_state: PinState,
-	gate_state: PinState,
-}
+/// Draws an N-type transistor.
+pub struct NTransistorDrawer;
 
-impl PTransistor {
-	pub fn new(pos: (f64, f64)) -> Self {
-		Self {
-			position: pos,
-			source_state: PinState::Disconnected,
-			gate_state: PinState::Disconnected,
-		}
+impl NTransistorDrawer {
+	/// Returns a new [`NTransistorDrawer`].
+	pub fn new() -> Self {
+		Self
 	}
 }
 
-impl Drawable for PTransistor {
-	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
+impl Default for NTransistorDrawer {
+    fn default() -> Self {
+		Self::new()
+    }
+}
+
+impl ComponentDrawer for NTransistorDrawer {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox, _component: &Component) {
 		ctx.set_line_width(7.0);
 		ctx.set_line_cap("square");
 		ctx.set_stroke_style(&"#fff".into());
@@ -132,39 +91,34 @@ impl Drawable for PTransistor {
 		ctx.move_to(-WIDTH * 0.5 - 15.0, HEIGHT * 0.5);
 		ctx.line_to(-WIDTH * 0.5 - 15.0, -HEIGHT * 0.5);
 		ctx.stroke();
+    }
+}
 
-		ctx.begin_path();
-		ctx.arc(-WIDTH * 0.5 - 15.0 - RADIUS - 4.0, 0.0, RADIUS, 0.0, 2.0 * PI).unwrap();
-		ctx.stroke();
+/// Simulates an P-type transistor. This kind of transistor lets a current through when
+/// the gate is low.
+pub struct PTransistorSimulator {
+	source_state: PinState,
+	gate_state: PinState,
+}
+
+impl PTransistorSimulator {
+	/// Returns a new [`PTransistorSimulator`].
+	pub fn new() -> Self {
+		Self {
+			source_state: PinState::Disconnected,
+			gate_state: PinState::Disconnected,
+		}
 	}
 }
 
-impl Component for PTransistor {
-	fn get_name(&self) -> String {
-		String::from("PTransistor")
-	}
+impl Default for PTransistorSimulator {
+    fn default() -> Self {
+		Self::new()
+    }
+}
 
-	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
-		vec![
-			(-WIDTH * 0.5 - 15.0 - RADIUS * 2.0 - 4.0, 0.0),
-			(WIDTH * 0.5, -HEIGHT * 0.5),
-			(WIDTH * 0.5, HEIGHT * 0.5),
-		]
-	}
-	
-	fn get_position(&self) -> (f64, f64) {
-		self.position
-	}
-
-	fn set_position(&mut self, pos: (f64, f64)) {
-		self.position = pos;
-	}
-
-	fn get_size(&self) -> (f64, f64) {
-		(WIDTH, HEIGHT)
-	}
-
-	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
+impl ComponentSimulator for PTransistorSimulator {
+    fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
 		match idx {
 			0 => Ok(PinState::Disconnected),
 			1 => Ok(PinState::Disconnected),
@@ -179,7 +133,7 @@ impl Component for PTransistor {
 		}
 	}
 
-	fn set_pin_state(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+    fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
 		match idx {
 			0 => { self.gate_state = state; Ok(()) },
 			1 => { self.source_state = state; Ok(()) },
@@ -187,4 +141,47 @@ impl Component for PTransistor {
 			_ => Err(PinError::OutOfRange),
 		}
 	}
+}
+
+/// Draws an P-type transistor.
+pub struct PTransistorDrawer;
+
+impl PTransistorDrawer {
+	/// Returns a new [`PTransistorDrawer`].
+	pub fn new() -> Self {
+		Self
+	}
+}
+
+impl Default for PTransistorDrawer {
+    fn default() -> Self {
+		Self::new()
+    }
+}
+
+impl ComponentDrawer for PTransistorDrawer {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox, _component: &Component) {
+		ctx.set_line_width(7.0);
+		ctx.set_line_cap("square");
+		ctx.set_stroke_style(&"#fff".into());
+
+		ctx.begin_path();
+		ctx.move_to(WIDTH * 0.5, HEIGHT * 0.5);
+		ctx.line_to(-WIDTH * 0.5, HEIGHT * 0.5);
+		ctx.line_to(-WIDTH * 0.5, -HEIGHT * 0.5);
+		ctx.line_to(WIDTH * 0.5, -HEIGHT * 0.5);
+		ctx.stroke();
+
+		ctx.begin_path();
+		ctx.move_to(-WIDTH * 0.5 - 15.0, HEIGHT * 0.5);
+		ctx.line_to(-WIDTH * 0.5 - 15.0, -HEIGHT * 0.5);
+		ctx.stroke();
+		
+		ctx.set_fill_style(&"#000".into());
+
+		ctx.begin_path();
+		ctx.arc(-WIDTH * 0.5 - 15.0 - RADIUS - 4.0, 0.0, RADIUS, 0.0, 2.0 * PI).unwrap();
+		ctx.fill();
+		ctx.stroke();
+    }
 }

@@ -4,12 +4,156 @@
 
 use wasm_bindgen::prelude::*;
 
-use crate::core::{ChipInternals, Circuit, Component, ExternalPin, SimulationMode};
+use crate::core::{ComponentInternals, Circuit, Component, ExternalPin, SimulationMode};
 
 /// A thing that can be drawn on the screen.
 pub trait Drawable {
 	/// Draws an object.
 	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: BoundingBox);
+}
+
+/// A thing that can draw a component.
+pub trait ComponentDrawer {
+	/// Draws a component.
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: BoundingBox, component: &Component);
+}
+
+/// A thing that can draw a chip.
+pub trait ChipDrawer {
+	/// Draws the front of the chip.
+	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &Component);
+
+	/// Draws the edge of the chip.
+	fn draw_edge(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &Component);
+
+	/// Draws the back of the chip.
+	fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &Component);
+}
+
+impl<T: ChipDrawer> ComponentDrawer for T {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: BoundingBox, component: &Component) {
+		self.draw_back(ctx, component);
+
+		// TODO: Probably merge this with the other implementation!
+		let start_ratio = 0.3;
+		let end_ratio = 0.5;
+
+		// let start_ratio = 0.0;
+		// let end_ratio = 0.0;
+
+		let height = component.size.1;
+		let height_ratio = height / viewport.get_size().1;
+
+		if let ComponentInternals::Chip(_, inner_scale) = component.internals {
+			if component.intersects(&viewport) && height_ratio > start_ratio {
+				let new_viewport = viewport.transform_in_to_chip(
+					component.position,
+					inner_scale,
+				);
+	
+				component.internals.draw(ctx, new_viewport);
+			}
+		}
+		
+		let opacity = ((end_ratio - height_ratio) / (end_ratio - start_ratio)).max(0.0);
+		ctx.set_global_alpha(opacity);
+		
+		self.draw_front(ctx, component);
+		
+		ctx.set_global_alpha(1.0);
+		self.draw_edge(ctx, component);
+    }
+}
+
+/// Information about text to be rendered on the front of a chip.
+pub struct TextInfo {
+	/// The text.
+	pub text: String,
+	/// The size of the text.
+	pub size: u32,
+}
+
+/// A thing that can draw a rectangular chip.
+pub struct RectangleChipDrawer {
+	text_info: TextInfo,
+}
+
+impl RectangleChipDrawer {
+	pub fn new(text_info: TextInfo) -> Self {
+		Self {
+			text_info,
+		}
+	}
+}
+
+impl ChipDrawer for RectangleChipDrawer {
+    fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &Component) {
+		// match self.get_mode() {
+		// 	SimulationMode::Circuit => ctx.set_fill_style(&"#000".into()),
+		// 	SimulationMode::HighLevel => ctx.set_fill_style(&"#f00".into()),
+		// }
+
+		ctx.set_fill_style(&"#000".into());
+		
+		let (width, height) = component.size;
+
+		ctx.begin_path();
+		ctx.rect(-width * 0.5, -height * 0.5, width, height);
+		ctx.fill();
+
+		ctx.set_fill_style(&"#fff".into());
+		ctx.set_font(format!("bold {}px monospace", self.text_info.size).as_str());
+		ctx.set_text_align("center");
+		ctx.set_text_baseline("middle");
+
+		ctx.fill_text(self.text_info.text.as_str(), 0.0, 0.0).unwrap();
+    }
+
+    fn draw_edge(&self, _ctx: &web_sys::CanvasRenderingContext2d, _component: &Component) {
+		
+    }
+
+    fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &Component) {
+		ctx.set_line_width(10.0);
+		ctx.set_stroke_style(&"#fff".into());
+		
+		// match self.get_mode() {
+		// 	SimulationMode::Circuit => ctx.set_fill_style(&"#000".into()),
+		// 	SimulationMode::HighLevel => ctx.set_fill_style(&"#f00".into()),
+		// }
+
+		ctx.set_fill_style(&"#000".into());
+		
+		let (width, height) = component.size;
+
+		ctx.begin_path();
+		ctx.rect(-width * 0.5, -height * 0.5, width, height);
+
+		ctx.stroke();
+		ctx.fill();
+    }
+}
+
+/// A [`ComponentDrawer`] that doesn't draw anything.
+pub struct NothingDrawer;
+
+impl NothingDrawer {
+	/// Returns a new [`NothingDrawer`].
+	pub fn new() -> Self {
+		Self
+	}
+}
+
+impl Default for NothingDrawer {
+    fn default() -> Self {
+		Self::new()
+    }
+}
+
+impl ComponentDrawer for NothingDrawer {
+    fn draw(&self, _ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox,_componentt: &Component) {
+		// Nothing at all...
+    }
 }
 
 /// A command used to control how a wire looks.
@@ -94,10 +238,8 @@ impl BoundingBox {
 
 	/// Returns a new bounding box that sees the same thing as the old one when the given chip internals
 	/// are scaled to full size.
-	pub fn transform_in_to_chip(&self, position: (f64, f64), internals: &ChipInternals) -> BoundingBox {
+	pub fn transform_in_to_chip(&self, position: (f64, f64), scale: f64) -> BoundingBox {
 		let mut result = *self;
-
-		let scale = internals.inner_scale;
 	
 		result.position.0 -= position.0;
 		result.position.1 -= position.1;
@@ -112,10 +254,8 @@ impl BoundingBox {
 	
 	/// Returns a new bounding box that sees the same thing as the old one when the given chip internals
 	/// are scaled back down to regular size.
-	fn transform_out_of_chip(&self, position: (f64, f64), internals: &ChipInternals) -> BoundingBox {
+	fn transform_out_of_chip(&self, position: (f64, f64), scale: f64) -> BoundingBox {
 		let mut result = *self;
-
-		let scale = internals.inner_scale;
 
 		result.position.0 *= scale;
 		result.position.1 *= scale;
@@ -145,23 +285,23 @@ impl BoundingBox {
 
 /// Returns the stack of component indices over a given [`Viewport`].
 fn get_chip_stack_from_viewport(circuit: &Circuit, cursor: BoundingBox, viewport: BoundingBox) -> Vec<usize> {
-	for (idx, component) in circuit.get_components().iter().enumerate().rev() {
+	for (idx, component) in circuit.components.iter().enumerate().rev() {
 		if component.intersects(&cursor) {
 			if !component.are_internals_visible(&viewport) {
 				return vec![idx];
 			}
 
-			if let Some(internals) = component.get_internals() {
+			if let ComponentInternals::Chip(circuit, inner_scale) = &component.internals {
 				let new_cursor = cursor.transform_in_to_chip(
-					component.get_position(),
-					internals,
+					component.position,
+					*inner_scale,
 				);
 				let new_viewport = viewport.transform_in_to_chip(
-					component.get_position(),
-					internals,
+					component.position,
+					*inner_scale,
 				);
 
-				let mut result = get_chip_stack_from_viewport(&internals.circuit, new_cursor, new_viewport);
+				let mut result = get_chip_stack_from_viewport(circuit, new_cursor, new_viewport);
 				result.insert(0, idx);
 
 				return result;
@@ -176,19 +316,19 @@ fn get_chip_stack_from_viewport(circuit: &Circuit, cursor: BoundingBox, viewport
 
 /// Updates the simulation modes for a given circuit and a given viewport.
 fn update_sim_modes_with_viewport(circuit: &mut Circuit, viewport: BoundingBox) {
-	for component in circuit.get_components_mut() {
+	for component in &mut circuit.components {
 		if component.are_internals_visible(&viewport) {
 			component.set_mode(SimulationMode::Circuit);
 			
-			let pos = component.get_position();
+			let pos = component.position;
 
-			if let Some(internals) = component.get_internals_mut() {
+			if let ComponentInternals::Chip(circuit, inner_scale) = &mut component.internals {
 				let new_viewport = viewport.transform_in_to_chip(
 					pos,
-					internals,
+					*inner_scale,
 				);
 
-				update_sim_modes_with_viewport(&mut internals.circuit, new_viewport);
+				update_sim_modes_with_viewport(circuit, new_viewport);
 			}
 		} else {
 			component.set_mode(SimulationMode::HighLevel);
@@ -286,7 +426,7 @@ impl Renderer {
 		let mut result = circuit;
 
 		for index in &self.chip_stack {
-			result = &result.get_components()[*index].get_internals().unwrap().circuit;
+			result = result.components[*index].internals.get_circuit().unwrap();
 		}
 		
 		result
@@ -297,7 +437,7 @@ impl Renderer {
 		let mut result = circuit;
 
 		for index in &self.chip_stack {
-			result = &mut result.get_components_mut()[*index].get_internals_mut().unwrap().circuit;
+			result = result.components[*index].internals.get_circuit_mut().unwrap();
 		}
 		
 		result
@@ -305,19 +445,19 @@ impl Renderer {
 
 	/// Returns the [`Chip`] that houses the current [`Circuit`], unless the current [`Circuit`]
 	/// is at the top level.
-	fn get_parent_chip<'a>(&self, circuit: &'a Circuit) -> Option<&'a dyn Component> {
+	fn get_parent_chip<'a>(&self, circuit: &'a Circuit) -> Option<&'a Component> {
 		if self.chip_stack.is_empty() {
 			return None;
 		}
 
-		let mut result = &circuit.get_components()[self.chip_stack[0]];
+		let mut result = &circuit.components[self.chip_stack[0]];
 
 		for i in 1..self.chip_stack.len() {
 			let index = self.chip_stack[i];
-			result = &result.get_internals().unwrap().circuit.get_components()[index];
+			result = &result.internals.get_circuit().unwrap().components[index];
 		}
 		
-		Some(result.as_ref())
+		Some(result)
 	}
 
 	/// Updates the simulation modes for a given circuit.
@@ -371,16 +511,17 @@ impl Renderer {
 		let mut current_circuit = circuit;
 
 		for (i, idx) in stack.iter().enumerate().take(stack.len() - 1) {
-			let internals = &current_circuit.get_components()[*idx].get_internals().unwrap();
+			let circuit = &current_circuit.components[*idx].internals.get_circuit().unwrap();
+			let inner_scale = current_circuit.components[*idx].internals.get_inner_scale().unwrap();
 
 			if i >= self.chip_stack.len() {
 				viewport = viewport.transform_in_to_chip(
-					current_circuit.get_components()[*idx].get_position(),
-					internals,
+					current_circuit.components[*idx].position,
+					inner_scale,
 				);
 			}
 
-			current_circuit = &internals.circuit;
+			current_circuit = circuit;
 		}
 
 		viewport
@@ -397,17 +538,17 @@ impl Renderer {
 			cursor_y * self.viewport.size.1 / height - self.viewport.size.1 * 0.5 + self.viewport.position.1,
 		);
 
-		for (cidx, component) in circuit.get_components().iter().enumerate() {
+		for (cidx, component) in circuit.components.iter().enumerate() {
 			for (pidx, pin_pos) in component.get_pin_positions().iter().enumerate() {
 				let con = ExternalPin { component_idx: cidx, pin_idx: pidx };
 
-				if circuit.get_wires().iter().any(|w| w.pin1 == con || w.pin2 == con) {
+				if circuit.wires.iter().any(|w| w.pin1 == con || w.pin2 == con) {
 					continue;
 				}
 
 				let true_pin_pos = (
-					component.get_position().0 + pin_pos.0,
-					component.get_position().1 + pin_pos.1,
+					component.position.0 + pin_pos.0,
+					component.position.1 + pin_pos.1,
 				);
 
 				if (true_pin_pos.0 - cursor_vec.0).powf(2.0) + (true_pin_pos.1 - cursor_vec.1).powf(2.0) <= 100.0 {
@@ -424,24 +565,26 @@ impl Renderer {
 		let ctx = &self.ctx;
 		let mut circuit = self.get_current_circuit(root_circuit);
 
-		for i in 0..circuit.get_components().len() {
-			if circuit.get_components()[i].contains(&self.viewport) {
-				let chip = &circuit.get_components()[i];
+		for i in 0..circuit.components.len() {
+			if circuit.components[i].contains(&self.viewport) {
+				let chip = &circuit.components[i];
 
-				let new_viewport = self.viewport
-					.transform_in_to_chip(chip.get_position(), chip.get_internals().unwrap());
-
-				self.chip_stack.push(i);
-				self.viewport = new_viewport;
-				circuit = self.get_current_circuit(root_circuit);
-
-				break;
+				if let ComponentInternals::Chip(_, inner_scale) = chip.internals {
+					let new_viewport = self.viewport
+						.transform_in_to_chip(chip.position, inner_scale);
+	
+					self.chip_stack.push(i);
+					self.viewport = new_viewport;
+					circuit = self.get_current_circuit(root_circuit);
+	
+					break;
+				}
 			}
 		}
 
 		while let Some(parent_chip) = self.get_parent_chip(root_circuit) {
 			let new_viewport = self.viewport
-				.transform_out_of_chip(parent_chip.get_position(), parent_chip.get_internals().unwrap());
+				.transform_out_of_chip(parent_chip.position, parent_chip.internals.get_inner_scale().unwrap());
 
 			if !parent_chip.contains(&new_viewport) {
 				self.chip_stack.pop();

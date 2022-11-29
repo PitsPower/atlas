@@ -7,7 +7,15 @@ use std::f64::consts::PI;
 
 use wasm_bindgen::prelude::*;
 
-use crate::graphics::{BoundingBox, Drawable, WireLayoutCommand};
+use crate::adder::*;
+use crate::gates::*;
+use crate::graphics::{
+	BoundingBox, ComponentDrawer, Drawable, NothingDrawer,
+	RectangleChipDrawer, TextInfo, WireLayoutCommand,
+};
+use crate::latches::*;
+use crate::multiplexer::*;
+use crate::transistor::*;
 
 /// A pin state.
 /// 
@@ -113,7 +121,7 @@ pub enum PinError {
 }
 
 /// How a chip should be simulated.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub enum SimulationMode {
 	/// Simulate the circuit in the chip.
 	Circuit,
@@ -123,9 +131,19 @@ pub enum SimulationMode {
 
 /// The different kinds of component.
 #[wasm_bindgen]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ComponentType {
+	/// A bulb that shows a single state.
 	Bulb,
+	/// A [`Component`] for splitting a signal onto many different wires.
+	/// Any [`Wire`] at a junction can act as either input or output at any time.
 	Junction,
+	/// An "internal" pin. Used for connecting an internal [`Circuit`] to a [`Chip`].
+	/// 
+	/// Internal pins have two states since we need to be able to get the state of an input pin
+	/// from within the [`Circuit`] without it leaking to the outside of the [`Chip`].
+	Pin,
+	/// A switch that can be turned on and off.
 	Switch,
 	
 	NTransistor,
@@ -136,15 +154,364 @@ pub enum ComponentType {
 	NorGate,
 	NotGate,
 	OrGate,
+	TriStateBuffer,
+	XorGate,
 
-	MultiSwitch,
+	/// A collection of bulbs that can be turned on and off.	
 	MultiBulb,
+	/// A collection of switches that can be turned on and off.	
+	MultiSwitch,
 
+	HalfAdder,
+	FullAdder,
 	Adder,
+
+	SRLatch,
+	DLatch,
+	DFlipFlop,
 	MultiDFlipFlop,
 
 	Multiplexer,
 	TwoBitMultiplexer,
+}
+
+/// Options for various components (e.g. size of the component).
+pub struct ComponentOptions {
+	/// The size of the component (e.g. 8-bit, 32-bit, etc.).
+	pub size: usize,
+}
+
+impl ComponentType {
+	/// Returns the value of the component type as a string.
+	fn as_string(&self) -> &'static str {
+		match self {
+			ComponentType::Bulb => "Bulb",
+			ComponentType::Junction => "Junction",
+			ComponentType::Pin => "Pin",
+			ComponentType::Switch => "Switch",
+
+			ComponentType::NTransistor => "NTransistor",
+			ComponentType::PTransistor => "PTransistor",
+
+			ComponentType::AndGate => "AndGate",
+			ComponentType::NandGate => "NandGate",
+			ComponentType::NorGate => "NorGate",
+			ComponentType::NotGate => "NotGate",
+			ComponentType::OrGate => "OrGate",
+			ComponentType::TriStateBuffer => "TriStateBuffer",
+			ComponentType::XorGate => "XorGate",
+
+			ComponentType::MultiBulb => "MultiBulb",
+			ComponentType::MultiSwitch => "MultiSwitch",
+
+			ComponentType::HalfAdder => "Half Adder",
+			ComponentType::FullAdder => "Full Adder",
+			ComponentType::Adder => "Adder",
+
+			ComponentType::SRLatch => "SRLatch",
+			ComponentType::DLatch => "DLatch",
+			ComponentType::DFlipFlop => "DFlipFlop",
+			ComponentType::MultiDFlipFlop => "MultiDFlipFlop",
+
+			ComponentType::Multiplexer => "Multiplexer",
+			ComponentType::TwoBitMultiplexer => "TwoBitMultiplexer",
+		}
+	}
+
+	/// Returns whether or not the component has switches.
+	fn has_switches(&self) -> bool {
+		matches!(self, ComponentType::MultiSwitch | ComponentType::Switch)
+	}
+
+	/// Whether the circuit should become full-sized when zooming in.
+	/// This should be disabled for components that have weird shapes.
+	fn should_expand_circuit(&self) -> bool {
+		!matches!(
+			self,
+			ComponentType::AndGate | ComponentType::NandGate | ComponentType::NorGate |
+			ComponentType::NotGate | ComponentType::OrGate | ComponentType::TriStateBuffer |
+			ComponentType::XorGate
+		)
+	}
+
+	/// Returns a new [`Component`] of the given type.
+	pub fn create(&self, position: (f64, f64), options: ComponentOptions) -> Component {
+		let transistor_width = 67.0;
+		let transistor_height = 110.0;
+
+		let mut internals = match self {
+			ComponentType::Bulb | ComponentType::Pin | ComponentType::Switch => {
+				ComponentInternals::Atomic(vec![(0.0, 0.0)])
+			},
+
+			ComponentType::Junction => ComponentInternals::Atomic(vec![(0.0, 0.0); 3]),
+
+			ComponentType::NTransistor => {
+				ComponentInternals::Atomic(vec![
+					(-transistor_width * 0.5 - 15.0, 0.0),
+					(transistor_width * 0.5, transistor_height * 0.5),
+					(transistor_width * 0.5, -transistor_height * 0.5),
+				])
+			},
+			ComponentType::PTransistor => {
+				ComponentInternals::Atomic(vec![
+					(-transistor_width * 0.5 - 15.0, 0.0),
+					(transistor_width * 0.5, -transistor_height * 0.5),
+					(transistor_width * 0.5, transistor_height * 0.5),
+				])
+			},
+
+			ComponentType::AndGate => ComponentInternals::Chip(get_and_gate_circuit(), 0.15),
+			ComponentType::NandGate => ComponentInternals::Chip(get_nand_gate_circuit(), 0.07),
+			ComponentType::NorGate => ComponentInternals::Chip(get_nor_gate_circuit(), 0.07),
+			ComponentType::NotGate => ComponentInternals::Chip(get_not_gate_circuit(), 0.07),
+			ComponentType::OrGate => ComponentInternals::Chip(get_or_gate_circuit(), 0.15),
+			ComponentType::TriStateBuffer => ComponentInternals::Chip(get_tri_state_buffer_circuit(), 0.04),
+			ComponentType::XorGate => ComponentInternals::Chip(get_xor_gate_circuit(), 0.15),
+			
+    		ComponentType::MultiBulb | ComponentType::MultiSwitch => {
+				let spacing = 50.0;
+				let size = options.size;
+		
+				let pin_positions = (0..size)
+					.map(|i| (i as f64 - size as f64 * 0.5 + 0.5) * spacing)
+					.map(|x| (x, 100.0))
+					.collect();
+
+				ComponentInternals::Atomic(pin_positions)
+			},
+
+			ComponentType::HalfAdder => ComponentInternals::Chip(get_half_adder_circuit(), 0.4),
+			ComponentType::FullAdder => ComponentInternals::Chip(get_full_adder_circuit(), 0.4),
+			ComponentType::Adder => ComponentInternals::Chip(get_adder_circuit(options.size), 0.3),
+			
+			ComponentType::SRLatch => ComponentInternals::Chip(get_sr_latch_circuit(), 0.8),
+			ComponentType::DLatch => ComponentInternals::Chip(get_d_latch_circuit(), 0.5),
+			ComponentType::DFlipFlop => ComponentInternals::Chip(get_d_flip_flop_circuit(), 0.3),
+			ComponentType::MultiDFlipFlop => ComponentInternals::Chip(get_multi_d_flip_flop_circuit(options.size), 0.19),
+
+			ComponentType::Multiplexer => ComponentInternals::Chip(get_multiplexer_circuit(), 0.4),
+			ComponentType::TwoBitMultiplexer => ComponentInternals::Chip(get_two_bit_multiplexer_circuit(), 0.4),
+		};
+
+		let size = match self {
+			ComponentType::Pin => (0.0, 0.0),
+			ComponentType::Junction => (20.0, 20.0),
+			ComponentType::Bulb | ComponentType::Switch => (100.0, 100.0),
+
+			ComponentType::NTransistor | ComponentType::PTransistor => (transistor_width, transistor_height),
+
+			ComponentType::AndGate | ComponentType::NandGate | ComponentType::NorGate | ComponentType::NotGate |
+			ComponentType::OrGate | ComponentType::TriStateBuffer | ComponentType::XorGate => (110.0, 110.0),
+
+			ComponentType::HalfAdder => (200.0, 200.0),
+			ComponentType::FullAdder => (400.0, 200.0),
+			ComponentType::Adder => (400.0, options.size as f64 * 100.0),
+			
+			ComponentType::SRLatch => (400.0, 400.0),
+			ComponentType::DLatch => (600.0, 400.0),
+			ComponentType::DFlipFlop => (600.0, 400.0),
+			ComponentType::MultiDFlipFlop => (400.0, options.size as f64 * 100.0),
+
+			ComponentType::MultiBulb | ComponentType::MultiSwitch => {
+				let width = 50.0 * options.size as f64;
+				let height = 200.0;
+				(width, height)
+			},
+
+			_ => {
+				let inner_scale = internals.get_inner_scale().unwrap();
+				let circuit = internals.get_circuit_mut().unwrap();
+
+				let mut min_x = f64::INFINITY;
+				let mut min_y = f64::INFINITY;
+				let mut max_x = f64::NEG_INFINITY;
+				let mut max_y = f64::NEG_INFINITY;
+
+				for component in &circuit.components {
+					if component.is_pin() {
+						let pos = component.position;
+						
+						if min_x > pos.0 {
+							min_x = pos.0;
+						}
+						if min_y > pos.1 {
+							min_y = pos.1;
+						}
+						if max_x < pos.0 {
+							max_x = pos.0;
+						}
+						if max_y < pos.1 {
+							max_y = pos.1;
+						}
+					}
+				}
+
+				let mut min_side_y = f64::INFINITY;
+				let mut max_side_y = f64::NEG_INFINITY;
+
+				for component in &circuit.components {
+					if component.is_pin() {
+						let pos = component.position;
+
+						if pos.0 == min_x || pos.0 == max_x {
+							if min_side_y > pos.1 {
+								min_side_y = pos.1;
+							}
+							if max_side_y < pos.1 {
+								max_side_y = pos.1;
+							}
+						}
+					}
+				}
+
+				let top_pad = min_y - min_side_y;
+				let bottom_pad = max_y - max_side_y;
+
+				let mut chip_size = (
+					(max_x - min_x) * inner_scale,
+					(max_y - min_y) * inner_scale,
+				);
+
+				let mut circuit_offset = (
+					-(max_x - min_x) * 0.5 - min_x,
+					-(max_y - min_y) * 0.5 - min_y,
+				);
+
+				if bottom_pad > top_pad {
+					let pad_diff = bottom_pad - top_pad;
+					chip_size.1 += pad_diff * inner_scale;
+					circuit_offset.1 += pad_diff * 0.5;
+				}
+
+				for component in &mut circuit.components {
+					component.position.0 += circuit_offset.0;
+					component.position.1 += circuit_offset.1;
+				}
+
+				for wire in &mut circuit.wires {
+					for i in 0..wire.layout_commands.len() {
+						match wire.layout_commands[i] {
+							WireLayoutCommand::MoveXTo(x) => {
+								wire.layout_commands[i] = WireLayoutCommand::MoveXTo(x + circuit_offset.0);
+							},
+							WireLayoutCommand::MoveYTo(y) => {
+								wire.layout_commands[i] = WireLayoutCommand::MoveYTo(y + circuit_offset.1);
+							},
+							WireLayoutCommand::MoveTo((x, y)) => {
+								wire.layout_commands[i] = WireLayoutCommand::MoveTo((
+									x + circuit_offset.0,
+									y + circuit_offset.1,
+								));
+							},
+							_ => {},
+						};
+					}
+				}
+
+				chip_size
+			},
+		};
+
+		let simulator: Option<Box<dyn ComponentSimulator>> = match self {
+			ComponentType::Bulb => Some(Box::new(BulbSimulator::new())),
+			ComponentType::Junction => Some(Box::new(JunctionSimulator::new(3))),
+			ComponentType::Pin => Some(Box::new(PinSimulator::new())),
+			ComponentType::Switch => Some(Box::new(SwitchSimulator::new())),
+
+			ComponentType::NTransistor => Some(Box::new(NTransistorSimulator::new())),
+			ComponentType::PTransistor => Some(Box::new(PTransistorSimulator::new())),
+
+			ComponentType::AndGate | ComponentType::NandGate | ComponentType::NorGate | ComponentType::NotGate |
+			ComponentType::OrGate | ComponentType::TriStateBuffer | ComponentType::XorGate => None,
+
+			ComponentType::MultiBulb => Some(Box::new(MultiBulbSimulator::new(options.size))),
+			ComponentType::MultiSwitch => Some(Box::new(MultiSwitchSimulator::new(options.size))),
+
+			ComponentType::HalfAdder => None,
+			ComponentType::FullAdder => None,
+			ComponentType::Adder => None,
+
+			ComponentType::SRLatch => None,
+			ComponentType::DLatch => None,
+			ComponentType::DFlipFlop => None,
+			ComponentType::MultiDFlipFlop => None,
+			
+			ComponentType::Multiplexer => None,
+			ComponentType::TwoBitMultiplexer => None,
+		};
+
+		let drawer: Box<dyn ComponentDrawer> = match self {
+			ComponentType::Bulb => Box::new(BulbDrawer::new()),
+			ComponentType::Junction => Box::new(JunctionDrawer::new()),
+			ComponentType::Pin => Box::new(NothingDrawer::new()),
+			ComponentType::Switch => Box::new(SwitchDrawer::new()),
+
+			ComponentType::NTransistor => Box::new(NTransistorDrawer::new()),
+			ComponentType::PTransistor => Box::new(PTransistorDrawer::new()),
+
+			ComponentType::AndGate => Box::new(AndGateDrawer::new()),
+			ComponentType::NandGate => Box::new(NandGateDrawer::new()),
+			ComponentType::NorGate => Box::new(NorGateDrawer::new()),
+			ComponentType::NotGate => Box::new(NotGateDrawer::new()),
+			ComponentType::OrGate => Box::new(OrGateDrawer::new()),
+			ComponentType::TriStateBuffer => Box::new(TriStateBufferDrawer::new()),
+			ComponentType::XorGate => Box::new(XorGateDrawer::new()),
+			
+			ComponentType::MultiBulb => Box::new(MultiBulbDrawer::new()),
+			ComponentType::MultiSwitch => Box::new(MultiSwitchDrawer::new()),
+
+			ComponentType::HalfAdder => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: String::from("Half Adder"),
+				size: 27,
+			})),
+			ComponentType::FullAdder => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: String::from("Full Adder"),
+				size: 50,
+			})),
+			ComponentType::Adder => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: format!("{}-bit Adder", options.size),
+				size: 50,
+			})),
+
+			ComponentType::SRLatch => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: String::from("SR Latch"),
+				size: 70,
+			})),
+			ComponentType::DLatch => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: String::from("D Latch"),
+				size: 70,
+			})),
+			ComponentType::DFlipFlop => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: String::from("D Flip-Flop"),
+				size: 70,
+			})),
+			ComponentType::MultiDFlipFlop => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: format!("{}-bit D Flip-Flop", options.size),
+				size: 40,
+			})),
+			
+			ComponentType::Multiplexer => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: String::from("Multiplexer"),
+				size: 27,
+			})),
+			ComponentType::TwoBitMultiplexer => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: String::from("2-bit Multiplexer"),
+				size: 27,
+			})),
+		};
+
+		Component {
+			internals,
+			options,
+			position,
+			size,
+			ctype: *self,
+			sim_mode: if simulator.is_none() { SimulationMode::Circuit } else { SimulationMode::HighLevel },
+			simulator,
+			drawer,
+		}
+	}
 }
 
 /// Returns the name of the given [`ComponentType`].
@@ -153,6 +520,7 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 	match ct {
 		ComponentType::Bulb => String::from("Bulb"),
 		ComponentType::Junction => String::from("Junction"),
+		ComponentType::Pin => String::from("Pin"),
 		ComponentType::Switch => String::from("Switch"),
 
 		ComponentType::NTransistor => String::from("N-type Transistor"),
@@ -163,11 +531,19 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 		ComponentType::NorGate => String::from("NOR Gate"),
 		ComponentType::NotGate => String::from("NOT Gate"),
 		ComponentType::OrGate => String::from("OR Gate"),
+		ComponentType::TriStateBuffer => String::from("Tri-State Buffer"),
+		ComponentType::XorGate => String::from("XOR Gate"),
 
-		ComponentType::MultiSwitch => String::from("Multi Switch"),
 		ComponentType::MultiBulb => String::from("Multi Bulb"),
+		ComponentType::MultiSwitch => String::from("Multi Switch"),
 
+		ComponentType::HalfAdder => String::from("Half Adder"),
+		ComponentType::FullAdder => String::from("Full Adder"),
 		ComponentType::Adder => String::from("8-bit Adder"),
+
+		ComponentType::SRLatch => String::from("SR Latch"),
+		ComponentType::DLatch => String::from("D Latch"),
+		ComponentType::DFlipFlop => String::from("D Flip-Flop"),
 		ComponentType::MultiDFlipFlop => String::from("8-bit D Flip-Flop"),
 
 		ComponentType::Multiplexer => String::from("Multiplexer"),
@@ -181,6 +557,7 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 	match ct {
 		ComponentType::Bulb => String::from("bulb"),
 		ComponentType::Junction => String::from("junction"),
+		ComponentType::Pin => String::from("pin"),
 		ComponentType::Switch => String::from("switch"),
 
 		ComponentType::NTransistor => String::from("ntransistor"),
@@ -191,11 +568,19 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 		ComponentType::NorGate => String::from("norgate"),
 		ComponentType::NotGate => String::from("notgate"),
 		ComponentType::OrGate => String::from("orgate"),
+		ComponentType::TriStateBuffer => String::from("tristatebuffer"),
+		ComponentType::XorGate => String::from("xorgate"),
 
-		ComponentType::MultiSwitch => String::from("multiswitch"),
 		ComponentType::MultiBulb => String::from("multibulb"),
+		ComponentType::MultiSwitch => String::from("multiswitch"),
 
+		ComponentType::HalfAdder => String::from("halfadder"),
+		ComponentType::FullAdder => String::from("fulladder"),
 		ComponentType::Adder => String::from("adder"),
+
+		ComponentType::SRLatch => String::from("srlatch"),
+		ComponentType::DLatch => String::from("dlatch"),
+		ComponentType::DFlipFlop => String::from("dflipflop"),
 		ComponentType::MultiDFlipFlop => String::from("multidflipflop"),
 
 		ComponentType::Multiplexer => String::from("multiplexer"),
@@ -203,85 +588,692 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 	}
 }
 
-/// Something that can go in a circuit. A [`Component`] may be connected to another [`Component`] using a [`Wire`].
-pub trait Component: Drawable {
-	/// Returns the name of the component as a string.
-	fn get_name(&self) -> String;
+/// Something that simulates the behaviour of a component.
+pub trait ComponentSimulator {
+	/// Switches the simulation mode to [`SimulationMode::HighLevel`].
+	fn set_mode_to_high_level(&mut self) {
 
-	/// Returns the component's internals. This is used for components that contain a [`Circuit`].
-	fn get_internals(&self) -> Option<&ChipInternals> {
-		None
 	}
 
-	/// Returns the component's internals as mutable.
-	fn get_internals_mut(&mut self) -> Option<&mut ChipInternals> {
-		None
-	}
+	/// Switches the simulation mode to [`SimulationMode::Circuit`].
+	fn set_mode_to_circuit(&mut self, _circuit: &mut Circuit) {
 
-	/// Returns how many switches are in the component.
-	fn get_switch_count(&self) -> usize {
-		0
-	}
-
-	/// Returns whether the component is a [`Pin`] component or not.
-	fn is_pin(&self) -> bool {
-		false
-	}
-
-	/// Returns the positions of each internal pin.
-	fn get_pin_positions(&self) -> Vec<(f64, f64)>;
-
-	/// Returns the number of pins the component has.
-	fn get_pin_count(&self) -> usize {
-		self.get_pin_positions().len()
 	}
 
 	/// Returns the state of a pin.
-	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError>;
+	fn get_pin_state_high_level(&self, _idx: usize) -> Result<PinState, PinError> {
+		panic!("Unexpected get_pin_state_high_level");
+	}
 
 	/// Sets the state of a pin.
-	fn set_pin_state(&mut self, idx: usize, state: PinState) -> Result<(), PinError>;
+	fn set_pin_state_high_level(&mut self, _idx: usize, _state: PinState) -> Result<(), PinError> {
+		panic!("Unexpected set_pin_state_high_level");
+	}
 
 	/// Returns the state of a pin when accessed externally. This is used for accessing a [`Pin`] from
 	/// the [`Chip`] it's in.
 	fn get_pin_state_external(&self, idx: usize) -> Result<PinState, PinError> {
-		self.get_pin_state(idx)
+		self.get_pin_state_high_level(idx)
 	}
 
 	/// Sets the state of a pin externally. This is used to manually modify pins (e.g. when turning on a switch).
 	fn set_pin_state_external(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		self.set_pin_state(idx, state)
+		self.set_pin_state_high_level(idx, state)
+	}
+}
+
+/// A [`ComponentSimulator`] for an internal pin.
+struct PinSimulator {
+	/// The state accessible by the [`Circuit`].
+	inner_state: PinState,
+	/// The state accessible by the [`Chip`].
+	outer_state: PinState,
+}
+
+impl PinSimulator {
+	/// Returns a new [`PinSimulator`].
+	fn new() -> Self {
+		Self {
+			inner_state: PinState::Disconnected,
+			outer_state: PinState::Disconnected,
+		}
+	}
+}
+
+impl ComponentSimulator for PinSimulator {
+    fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		if idx > 0 {
+			Err(PinError::OutOfRange)
+		} else {
+			Ok(self.inner_state)
+		}
+    }
+
+    fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		if idx > 0 {
+			Err(PinError::OutOfRange)
+		} else {
+			self.outer_state = state;
+			Ok(())
+		}
+    }
+
+	fn get_pin_state_external(&self, idx: usize) -> Result<PinState, PinError> {
+		if idx > 0 {
+			Err(PinError::OutOfRange)
+		} else {
+			Ok(self.outer_state)
+		}
 	}
 
-	/// Returns the position of the component.
-	fn get_position(&self) -> (f64, f64);
-	
-	/// Sets the position of the component.
-	fn set_position(&mut self, pos: (f64, f64));
-
-	/// Translates the component.
-	fn translate(&mut self, offset: (f64, f64)) {
-		let old_pos = self.get_position();
-		self.set_position((old_pos.0 + offset.0, old_pos.1 + offset.1));
+	fn set_pin_state_external(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		if idx > 0 {
+			Err(PinError::OutOfRange)
+		} else {
+			self.inner_state = state;
+			Ok(())
+		}
 	}
+}
+
+/// A simulator for a switch.
+struct SwitchSimulator {
+	/// The state of the switch
+	state: PinState,
+}
+
+impl SwitchSimulator {
+	/// Returns a new [`SwitchSimulator`].
+	fn new() -> Self {
+		Self {
+			state: PinState::Off,
+		}
+	}
+}
+
+impl ComponentSimulator for SwitchSimulator {
+    fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		if idx > 0 {
+			Err(PinError::OutOfRange)
+		} else {
+			Ok(self.state)
+		}
+	}
+
+    fn set_pin_state_high_level(&mut self, idx: usize, _state: PinState) -> Result<(), PinError> {
+		if idx > 0 {
+			Err(PinError::OutOfRange)
+		} else {
+			Ok(())
+		}
+	}
+
+    fn set_pin_state_external(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		if idx > 0 {
+			Err(PinError::OutOfRange)
+		} else {
+			self.state = state;
+			Ok(())
+		}
+	}
+}
+
+/// A [`ComponentDrawer`] that draws a switch.
+pub struct SwitchDrawer;
+
+impl SwitchDrawer {
+	/// Returns a new [`SwitchDrawer`].
+	pub fn new() -> Self {
+		Self
+	}
+}
+
+impl Default for SwitchDrawer {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
+impl ComponentDrawer for SwitchDrawer {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox, component: &Component) {
+		ctx.set_fill_style(&component.get_pin_state(0).unwrap().get_colour().into());
+
+		let (width, height) = component.size;
+
+		ctx.fill_rect(
+			-width * 0.5,
+			-height * 0.5,
+			width,
+			height,
+		);
+    }
+}
+
+/// A [`ComponentSimulator`] for a multi-switch.
+struct MultiSwitchSimulator {
+	/// The states of each switch.
+	states: Vec<PinState>,
+}
+
+impl MultiSwitchSimulator {
+	/// Returns a new [`MultiSwitchSimulator`].
+	fn new(size: usize) -> Self {
+		Self {
+			states: vec![PinState::Off; size],
+		}
+	}
+}
+
+impl ComponentSimulator for MultiSwitchSimulator {
+    fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		if idx >= self.states.len() {
+			Err(PinError::OutOfRange)
+		} else {
+			Ok(self.states[idx])
+		}
+	}
+
+    fn set_pin_state_high_level(&mut self, idx: usize, _state: PinState) -> Result<(), PinError> {
+		if idx >= self.states.len() {
+			Err(PinError::OutOfRange)
+		} else {
+			Ok(())
+		}
+	}
+
+    fn set_pin_state_external(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		if idx >= self.states.len() {
+			Err(PinError::OutOfRange)
+		} else {
+			self.states[idx] = state;
+			Ok(())
+		}
+	}
+}
+
+/// A [`ComponentDrawer`] that draws a multi-switch.
+struct MultiSwitchDrawer;
+
+impl MultiSwitchDrawer {
+	/// Returns a new [`MultiSwitchDrawer`].
+	fn new() -> Self {
+		Self
+	} 
+}
+
+impl ComponentDrawer for MultiSwitchDrawer {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox, component: &Component) {
+		ctx.set_line_width(10.0);
+
+		ctx.set_stroke_style(&"#fff".into());
+		ctx.set_fill_style(&"#000".into());
+
+		let (width, height) = component.size;
+
+		ctx.stroke_rect(-width * 0.5, -height * 0.5, width, height);
+		ctx.fill_rect(-width * 0.5, -height * 0.5, width, height);
+		
+		ctx.set_fill_style(&"#fff".into());
+		ctx.set_font("bold 70px monospace");
+		ctx.set_text_align("center");
+		ctx.set_text_baseline("middle");
+
+		let size = component.options.size;
+
+		let states: Vec<_> = (0..size)
+			.map(|i| component.get_pin_state(i).unwrap())
+			.collect();
+		
+		let num = states_to_num(&states);
+
+		ctx.fill_text(format!("{}", num).as_str(), 0.0, -height * 0.1).unwrap();
+
+		for (i, state) in states.iter().enumerate().take(size) {
+			ctx.set_fill_style(&state.get_colour().into());
+
+			let extra_width = if i == size-1 { 0.0 } else { 1.0 };
+			ctx.fill_rect((i as f64 - size as f64 * 0.5) * 50.0, height * 0.5 - 50.0, 50.0 + extra_width, 50.0);
+		}
+    }
+}
+
+/// A [`ComponentSimulator`] for a bulb.
+struct BulbSimulator {
+	/// The bulb's state.
+	state: PinState,
+}
+
+impl BulbSimulator {
+	/// Returns a new [`BulbSimulator`].
+	fn new() -> Self {
+		Self {
+			state: PinState::Disconnected,
+		}
+	}
+}
+
+impl ComponentSimulator for BulbSimulator {
+    fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		if idx > 0 {
+			Err(PinError::OutOfRange)
+		} else {
+			Ok(PinState::Disconnected)
+		}
+	}
+
+    fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		if idx > 0 {
+			Err(PinError::OutOfRange)
+		} else {
+			self.state = state;
+			Ok(())
+		}
+	}
+
+	fn get_pin_state_external(&self, idx: usize) -> Result<PinState, PinError> {
+		if idx > 0 {
+			Err(PinError::OutOfRange)
+		} else {
+			Ok(self.state)
+		}
+	}
+}
+
+/// A [`ComponentDrawer`] that draws a bulb.
+struct BulbDrawer;
+
+impl BulbDrawer {
+	/// Returns a new [`BulbDrawer`].
+	fn new() -> Self {
+		Self
+	}
+}
+
+impl ComponentDrawer for BulbDrawer {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox, component: &Component) {
+		let state = component.simulator.as_ref().unwrap().get_pin_state_external(0).unwrap();
+
+		ctx.set_fill_style(&state.get_colour().into());
+		
+		let radius = 50.0;
+
+		ctx.begin_path();
+		ctx.arc(
+			0.0,
+			0.0,
+			radius,
+			0.0,
+			2.0 * PI,
+		).unwrap();
+		ctx.fill();
+    }
+}
+
+
+/// A [`ComponentSimulator`] for a multi-bulb.
+struct MultiBulbSimulator {
+	/// The bulb states.
+	states: Vec<PinState>,
+}
+
+impl MultiBulbSimulator {
+	/// Returns a new [`MultiBulbSimulator`].
+	fn new(size: usize) -> Self {
+		Self {
+			states: vec![PinState::Disconnected; size],
+		}
+	}
+}
+
+impl ComponentSimulator for MultiBulbSimulator {
+    fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		if idx >= self.states.len() {
+			Err(PinError::OutOfRange)
+		} else {
+			Ok(PinState::Disconnected)
+		}
+	}
+
+    fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		if idx >= self.states.len() {
+			Err(PinError::OutOfRange)
+		} else {
+			self.states[idx] = state;
+			Ok(())
+		}
+	}
+
+	fn get_pin_state_external(&self, idx: usize) -> Result<PinState, PinError> {
+		if idx >= self.states.len() {
+			Err(PinError::OutOfRange)
+		} else {
+			Ok(self.states[idx])
+		}
+	}
+}
+
+/// A [`ComponentDrawer`] that draws a bulb.
+struct MultiBulbDrawer;
+
+impl MultiBulbDrawer {
+	/// Returns a new [`MultiBulbDrawer`].
+	fn new() -> Self {
+		Self
+	}
+}
+
+impl ComponentDrawer for MultiBulbDrawer {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox, component: &Component) {
+		ctx.set_line_width(10.0);
+
+		ctx.set_stroke_style(&"#fff".into());
+		ctx.set_fill_style(&"#000".into());
+
+		let size = component.options.size;
+
+		let states: Vec<_> = (0..size)
+			.map(|i| component.simulator.as_ref().unwrap().get_pin_state_external(i).unwrap())
+			.collect();
+
+		let (width, height) = component.size;
+
+		ctx.stroke_rect(-width * 0.5, -height * 0.5, width, height);
+		ctx.fill_rect(-width * 0.5, -height * 0.5, width, height);
+		
+		ctx.set_fill_style(&"#fff".into());
+		ctx.set_font("bold 70px monospace");
+		ctx.set_text_align("center");
+		ctx.set_text_baseline("middle");
+		
+		let num = states_to_num(&states);
+
+		ctx.fill_text(format!("{}", num).as_str(), 0.0, -height * 0.1).unwrap();
+
+		for (i, state) in states.iter().enumerate().take(size) {
+			ctx.set_fill_style(&state.get_colour().into());
+
+			ctx.begin_path();
+			ctx.arc((i as f64 - size as f64 * 0.5) * 50.0 + 25.0, height * 0.5 - 25.0, 20.0, 0.0, 2.0 * PI).unwrap();
+			ctx.fill();
+		}
+    }
+}
+
+/// A [`ComponentSimulator`] for a junction.
+struct JunctionSimulator {
+	/// The junction's states.
+	states: Vec<PinState>,
+}
+
+impl JunctionSimulator {
+	/// Returns a new [`JunctionSimulator`].
+	fn new(size: usize) -> Self {
+		Self {
+			states: vec![PinState::Disconnected; size],
+		}
+	}
+
+	/// Returns the output state of the junction.
+	fn get_state(&self) -> PinState {
+		*self.states.iter().reduce(|accum, state| accum.combine(state)).unwrap()
+	}
+}
+
+impl ComponentSimulator for JunctionSimulator {
+    fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		if idx >= self.states.len() {
+			Err(PinError::OutOfRange)
+		} else if self.states[idx] == PinState::Disconnected {
+			Ok(self.get_state())
+		} else {
+			Ok(PinState::Disconnected)
+		}
+	}
+
+    fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		if idx >= self.states.len() {
+			Err(PinError::OutOfRange)
+		} else {
+			self.states[idx] = state;
+			Ok(())
+		}
+	}
+
+    fn get_pin_state_external(&self, idx: usize) -> Result<PinState, PinError> {
+		if idx >= self.states.len() {
+			Err(PinError::OutOfRange)
+		} else {
+			Ok(self.get_state())
+		}
+	}
+}
+
+/// A [`ComponentDrawer`] that draws a junction.
+struct JunctionDrawer;
+
+impl JunctionDrawer {
+	/// Returns a new [`JunctionDrawer`].
+	fn new() -> Self {
+		Self
+	}
+}
+
+impl ComponentDrawer for JunctionDrawer {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox, component: &Component) {
+		let state = component.simulator.as_ref().unwrap().get_pin_state_external(0).unwrap();
+
+		ctx.set_fill_style(&state.get_colour().into());
+		
+		let radius = 10.0;
+
+		ctx.begin_path();
+		ctx.arc(
+			0.0,
+			0.0,
+			radius,
+			0.0,
+			2.0 * PI,
+		).unwrap();
+		ctx.fill();
+    }
+}
+
+/// The data needed to represent the inside of a [`Component`].
+pub enum ComponentInternals {
+	/// A list of pin positions defined manually.
+	Atomic(Vec<(f64, f64)>),
+	/// A chip defined by a circuit and a scale.
+	Chip(Circuit, f64),
+}
+
+impl ComponentInternals {
+	/// Returns the mutable circuit in the component, if any.
+	pub fn get_circuit(&self) -> Option<&Circuit> {
+		match self {
+			ComponentInternals::Atomic(_) => None,
+			ComponentInternals::Chip(circuit, _) => Some(circuit),
+		}
+	}
+
+	/// Returns the mutable circuit in the component, if any.
+	pub fn get_circuit_mut(&mut self) -> Option<&mut Circuit> {
+		match self {
+			ComponentInternals::Atomic(_) => None,
+			ComponentInternals::Chip(circuit, _) => Some(circuit),
+		}
+	}
+
+	/// Returns the inner scale of the circuit in the component, if any.
+	pub fn get_inner_scale(&self) -> Option<f64> {
+		match self {
+			ComponentInternals::Atomic(_) => None,
+			ComponentInternals::Chip(_, scale) => Some(*scale),
+		}
+	}
+}
+
+/// Something that can go in a circuit. A [`Component`] may be connected to another [`Component`] using a [`Wire`].
+pub struct Component {
+	/// The [`ComponentInternals`] used to implement the component.
+	pub internals: ComponentInternals,
+	/// The position of the component.
+	pub position: (f64, f64),
+	/// The size of the component.
+	pub size: (f64, f64),
 	
-	/// Returns the size of the component.
-	fn get_size(&self) -> (f64, f64);
+	/// The type of component.
+	ctype: ComponentType,
+	/// Options for the component (e.g. size).
+	options: ComponentOptions,
+	/// The simulation mode of the component.
+	sim_mode: SimulationMode,
 
-	/// Sets the simulation mode of the chip to the given mode.
-	fn set_mode(&mut self, _mode: SimulationMode) {
+	/// A [`ComponentSimulator`] instance. Used to simulate the component's functionality.
+	/// If [`None`], the internal circuit is used exclusively.
+	simulator: Option<Box<dyn ComponentSimulator>>,
+	/// A [`ComponentDrawer`] instance. Used to draw the component.
+	drawer: Box<dyn ComponentDrawer>,
+}
 
+impl Component {
+	/// Returns the name of the component as a string.
+	pub fn get_name(&self) -> String {
+		String::from(self.ctype.as_string())
+	}
+
+	/// Returns how many switches are in the component.
+	pub fn get_switch_count(&self) -> usize {
+		if self.ctype.has_switches() {
+			self.options.size
+		} else {
+			0
+		}
+	}
+
+	/// Returns the list of pin positions.
+	pub fn get_pin_positions(&self) -> Vec<(f64, f64)> {
+		match &self.internals {
+			ComponentInternals::Atomic(pin_positions) => pin_positions.clone(),
+			ComponentInternals::Chip(circuit, inner_scale) => {
+				circuit.get_pin_positions().iter()
+					.map(|(x, y)| (x * inner_scale, y * inner_scale))
+					.collect()
+			},
+		}
+	}
+
+	/// Returns how many pins the component has.
+	fn get_pin_count(&self) -> usize {
+		self.get_pin_positions().len()
+	}
+
+	/// Returns whether the component is an internal pin.
+	fn is_pin(&self) -> bool {
+		self.ctype == ComponentType::Pin
+	}
+
+	/// Returns the current simulation mode.
+	fn get_mode(&self) -> SimulationMode {
+		self.sim_mode
+	}
+
+	/// Sets the current simulation mode.
+	pub fn set_mode(&mut self, mode: SimulationMode) {
+		if let Some(simulator) = self.simulator.as_mut() {
+			if self.sim_mode == SimulationMode::HighLevel && mode == SimulationMode::Circuit {
+				if let ComponentInternals::Chip(circuit, _) = &mut self.internals {
+					simulator.set_mode_to_circuit(circuit);
+					self.sim_mode = mode;
+				}
+			}
+			else if self.sim_mode == SimulationMode::Circuit && mode == SimulationMode::HighLevel {
+				simulator.set_mode_to_high_level();
+				self.sim_mode = mode;
+			}
+		} else {
+			self.sim_mode = SimulationMode::Circuit;
+		}
+	}
+
+	/// Returns the state of a pin.
+	pub fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
+		if let ComponentInternals::Chip(circuit, _) = &self.internals {
+			match self.get_mode() {
+				SimulationMode::Circuit => {
+					let maybe_pin_component = circuit.components.iter()
+						.filter(|c| c.is_pin())
+						.nth(idx);
+			
+					match maybe_pin_component {
+						Some(pin_component) => {
+							pin_component.simulator.as_ref().unwrap().get_pin_state_external(0)
+						},
+						None => Err(PinError::OutOfRange),
+					}
+				},
+				SimulationMode::HighLevel => self.simulator.as_ref().unwrap().get_pin_state_high_level(idx),
+			}
+		} else {
+			self.simulator.as_ref().unwrap().get_pin_state_high_level(idx)
+		}
+	}
+
+	/// Sets the state of a pin.
+	fn set_pin_state(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		let mode = self.get_mode();
+
+		if let ComponentInternals::Chip(circuit, _) = &mut self.internals {
+			match mode {
+				SimulationMode::Circuit => {
+					let maybe_component_idx = circuit.components.iter_mut()
+						.enumerate()
+						.filter(|(_, c)| c.is_pin())
+						.nth(idx)
+						.map(|(i, _)| i);
+	
+					match maybe_component_idx {
+						Some(component_idx) => {
+							let connection = ExternalPin {
+								component_idx,
+								pin_idx: 0,
+							};
+							circuit.update_component(&connection, state, true);
+							Ok(())
+						},
+						None => Err(PinError::OutOfRange),
+					}
+				},
+				SimulationMode::HighLevel => self.simulator.as_mut().unwrap().set_pin_state_high_level(idx, state),
+			}
+		} else {
+			self.simulator.as_mut().unwrap().set_pin_state_high_level(idx, state)
+		}
 	}
 
 	/// Returns whether the given viewport is fully contained within the component.
-	fn contains(&self, _viewport: &BoundingBox) -> bool {
-		false
+	pub fn contains(&self, viewport: &BoundingBox) -> bool {
+		if self.ctype.should_expand_circuit() {
+			let position = self.position;
+			let size = self.size;
+	
+			let contains_x =
+				position.0 + size.0 * 0.5 >= viewport.get_position().0 + viewport.get_size().0 * 0.5 &&
+				position.0 - size.0 * 0.5 <= viewport.get_position().0 - viewport.get_size().0 * 0.5;
+	
+			let contains_y =
+				position.1 + size.1 * 0.5 >= viewport.get_position().1 + viewport.get_size().1 * 0.5 &&
+				position.1 - size.1 * 0.5 <= viewport.get_position().1 - viewport.get_size().1 * 0.5;
+	
+			contains_x && contains_y
+		} else {
+			false
+		}
 	}
 
 	/// Returns whether the given viewport is partially contained within the component.
-	fn intersects(&self, viewport: &BoundingBox) -> bool {
-		let position = self.get_position();
-		let size = self.get_size();
+	pub fn intersects(&self, viewport: &BoundingBox) -> bool {
+		let position = self.position;
+		let size = self.size;
 
 		let intersects_x =
 			position.0 + size.0 * 0.5 >= viewport.get_position().0 - viewport.get_size().0 * 0.5 &&
@@ -295,14 +1287,20 @@ pub trait Component: Drawable {
 	}
 
 	/// Returns whether the given viewport can see the internals of the component.
-	fn are_internals_visible(&self, viewport: &BoundingBox) -> bool {
+	pub fn are_internals_visible(&self, viewport: &BoundingBox) -> bool {
 		let start_ratio = 0.3;
 
-		let height = self.get_size().1;
+		let height = self.size.1;
 		let height_ratio = height / viewport.get_size().1;
 
 		self.intersects(viewport) && height_ratio > start_ratio
 	}
+}
+
+impl Drawable for Component {
+    fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: BoundingBox) {
+		self.drawer.draw(ctx, viewport, self)
+    }
 }
 
 /// A specifier for a pin on a particular component. This differs from [`Pin`], which is an internal
@@ -335,41 +1333,19 @@ pub struct Wire {
 }
 
 /// A circuit that consists of components connected by wires.
-#[wasm_bindgen]
 pub struct Circuit {
 	/// The list of components.
-	components: Vec<Box<dyn Component>>,
+	pub components: Vec<Component>,
 	/// The list of wires connecting the components.
-	wires: Vec<Wire>,
+	pub wires: Vec<Wire>,
 }
 
 impl Circuit {
-	/// Returns the list of components in the circuit.
-	pub fn get_components(&self) -> &Vec<Box<dyn Component>> {
-		&self.components
-	}
-
-	/// Returns the mutable list of components in the circuit.
-	pub fn get_components_mut(&mut self) -> &mut Vec<Box<dyn Component>> {
-		&mut self.components
-	}
-
-	/// Returns the list of wires in the circuit.
-	pub fn get_wires(&self) -> &Vec<Wire> {
-		&self.wires
-	}
-
-	/// Returns the mutable list of wires in the circuit.
-	pub fn get_wires_mut(&mut self) -> &mut Vec<Wire> {
-		&mut self.wires
-	}
-
-	/// Returns the list of [`Pin`] components in the circuit.
-	pub fn get_pins(&self) -> Vec<&dyn Component> {
+	/// Returns the `i`th [`Pin`] component in the circuit.
+	pub fn get_pin(&self, i: usize) -> Option<&Component> {
 		self.components.iter()
 			.filter(|c| c.is_pin())
-			.map(|c| c.as_ref())
-			.collect()
+			.nth(i)
 	}
 
 	/// Sets a [`Pin`] component to a given [`PinState`].
@@ -387,7 +1363,7 @@ impl Circuit {
 	}
 
 	/// Adds a component to the circuit.
-	pub fn add(&mut self, component: Box<dyn Component>) -> usize {
+	pub fn add(&mut self, component: Component) -> usize {
 		let idx = self.components.len();
 		self.components.push(component);
 		idx
@@ -464,7 +1440,7 @@ impl Circuit {
 			.collect();
 
 		if set_manually {
-			component.set_pin_state_external(pin.pin_idx, state).unwrap();
+			component.simulator.as_mut().unwrap().set_pin_state_external(pin.pin_idx, state).unwrap();
 		} else {
 			component.set_pin_state(pin.pin_idx, state).unwrap();
 		}
@@ -530,15 +1506,15 @@ impl Circuit {
 	}
 
 	/// Returns a component given a chip stack.
-	fn get_component_from_chip_stack(&mut self, stack: &[usize]) -> Option<&mut Box<dyn Component>> {
+	fn get_component_from_chip_stack(&mut self, stack: &[usize]) -> Option<&mut Component> {
 		match stack.len() {
 			0 => None,
 			1 => Some(&mut self.components[stack[0]]),
-			_ => self.components[stack[0]]
-					.get_internals_mut()
-					.unwrap()
-					.circuit
-					.get_component_from_chip_stack(&stack[1..]),
+			_ => match &mut self.components[stack[0]].internals {
+				ComponentInternals::Atomic(_) => None,
+				ComponentInternals::Chip(circuit, _) =>
+					circuit.get_component_from_chip_stack(&stack[1..]),
+			},
 		}
 	}
 
@@ -591,7 +1567,7 @@ impl Circuit {
 	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
 		self.components.iter()
 			.filter(|c| c.is_pin())
-			.map(|c| c.get_position())
+			.map(|c| c.position)
 			.collect()
 	}
 
@@ -601,8 +1577,8 @@ impl Circuit {
 
 		for (cidx, component) in self.components.iter().enumerate() {
 			if first_indices.contains(&cidx) {
-				let (x, y) = component.get_position();
-				let (mut width, mut height) = component.get_size();
+				let (x, y) = component.position;
+				let (mut width, mut height) = component.size;
 
 				width += 30.0;
 				height += 30.0;
@@ -619,13 +1595,13 @@ impl Circuit {
 		for (cidx, component) in self.components.iter().enumerate() {
 			ctx.save();
 			
-			let (x, y) = component.get_position();
+			let (x, y) = component.position;
 			ctx.translate(x, y).unwrap();
 
 			for (pidx, pin_pos) in component.get_pin_positions().iter().enumerate().rev() {
 				let con = ExternalPin { component_idx: cidx, pin_idx: pidx };
 
-				if self.get_wires().iter().any(|w| w.pin1 == con || w.pin2 == con) {
+				if self.wires.iter().any(|w| w.pin1 == con || w.pin2 == con) {
 					continue;
 				}
 
@@ -685,26 +1661,20 @@ impl Circuit {
 	/// Returns the coordinates of a component given the chip stack.
 	pub fn get_pos_from_chip_stack(&mut self, stack: &[usize]) -> Option<(f64, f64)> {
 		let component = self.get_component_from_chip_stack(stack)?;
-		Some(component.get_position())
+		Some(component.position)
 	}
 
 	/// Sets the x coordinate of a component given the chip stack.
 	pub fn set_x_from_chip_stack(&mut self, stack: &[usize], x: f64) {
 		if let Some(component) = self.get_component_from_chip_stack(stack) {
-			component.set_position((
-				x,
-				component.get_position().1,
-			));
+			component.position.0 = x;
 		}
 	}
 
 	/// Sets the y coordinate of a component given the chip stack.
 	pub fn set_y_from_chip_stack(&mut self, stack: &[usize], y: f64) {
 		if let Some(component) = self.get_component_from_chip_stack(stack) {
-			component.set_position((
-				component.get_position().0,
-				y,
-			));
+			component.position.1 = y;
 		}
 	}
 
@@ -718,7 +1688,7 @@ impl Circuit {
 	/// Sets a component's position given a chip stack.
 	pub fn set_component_pos_from_chip_stack(&mut self, stack: &[usize], x: f64, y: f64) {
 		if let Some(component) = self.get_component_from_chip_stack(stack) {
-			component.set_position((x, y));
+			component.position = (x, y);
 		}
 	}
 
@@ -747,8 +1717,8 @@ impl Drawable for Circuit {
 			let comp1 = &self.components[con1.component_idx];
 			let comp2 = &self.components[con2.component_idx];
 
-			let c1 = comp1.get_position();
-			let c2 = comp2.get_position();
+			let c1 = comp1.position;
+			let c2 = comp2.position;
 
 			let p1 = comp1.get_pin_positions()[con1.pin_idx];
 			let p2 = comp2.get_pin_positions()[con2.pin_idx];
@@ -819,7 +1789,7 @@ impl Drawable for Circuit {
 		for component in &self.components {
 			ctx.save();
 			
-			let (x, y) = component.get_position();
+			let (x, y) = component.position;
 			ctx.translate(x, y).unwrap();
 
 			component.draw(ctx, viewport);
@@ -829,915 +1799,18 @@ impl Drawable for Circuit {
 	}
 }
 
-/// The data needed to represent the inside of a [`Chip`].
-pub struct ChipInternals {
-	/// The [`Circuit`] in the [`Chip`].
-	pub circuit: Circuit,
-	/// The scale of the [`Circuit`]. A bigger value here means the circuit will appear bigger.
-	pub inner_scale: f64,
-}
-
-impl Drawable for ChipInternals {
+impl Drawable for ComponentInternals {
 	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: BoundingBox) {
-		ctx.save();
-		ctx.scale(self.inner_scale, self.inner_scale).unwrap();
-
-		self.circuit.draw(ctx, viewport);
-
-		ctx.restore();
-	}
-}
-
-/// A kind of [`Component`] that contains a [`Circuit`]. The behaviour of the chip is
-/// governed by the behaviour of the circuit.
-pub trait Chip {
-	/// Returns the name of the chip as a string.
-	fn get_chip_name(&self) -> String;
-
-	/// Returns the chip internals.
-	fn get_chip_internals(&self) -> &ChipInternals;
-
-	/// Returns the mutable chip internals.
-	fn get_chip_internals_mut(&mut self) -> &mut ChipInternals;
-
-	/// Returns the position of the chip.
-	fn get_chip_position(&self) -> (f64, f64);
-
-	/// Sets the position of the chip.
-	fn set_chip_position(&mut self, pos: (f64, f64));
-
-	/// Returns the size of the chip.
-	fn get_chip_size(&self) -> (f64, f64);
-
-	/// Returns the text info for the chip.
-	fn get_text_info(&self) -> Option<&TextInfo>;
-	
-	/// Return the current simulation mode.
-	fn get_mode(&self) -> SimulationMode {
-		SimulationMode::Circuit
-	}
-	
-	/// Sets the simulation mode of the chip to the given mode.
-	fn set_mode(&mut self, _mode: SimulationMode) {
-
-	}
-
-	/// Returns the state of a pin.
-	fn get_pin_state_high_level(&self, _idx: usize) -> Result<PinState, PinError> {
-		panic!("Unexpected get_pin_state_high_level");
-	}
-
-	/// Sets the state of a pin.
-	fn set_pin_state_high_level(&mut self, _idx: usize, _state: PinState) -> Result<(), PinError> {
-		panic!("Unexpected set_pin_state_high_level");
-	}
-
-	/// Returns whether the given viewport is fully contained within the chip.
-	fn contains(&self, viewport: &BoundingBox) -> bool;
-
-	/// Returns whether the given viewport is partially contained within the chip.
-	fn intersects(&self, viewport: &BoundingBox) -> bool;
-
-	/// Draws the front of the chip (the part that fades away when zooming in).
-	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d);
-
-	/// Draws the edge of the chip.
-	fn draw_edge(&self, _ctx: &web_sys::CanvasRenderingContext2d) {
-
-	}
-
-	/// Draws the back of the chip.
-	fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d);
-}
-
-impl<T: Chip> Drawable for T {
-	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, viewport: BoundingBox) {
-		self.draw_back(ctx);
-
-		// TODO: Probably merge this with the other implementation!
-		let start_ratio = 0.3;
-		let end_ratio = 0.5;
-
-		// let start_ratio = 0.0;
-		// let end_ratio = 0.0;
-
-		let height = self.get_size().1;
-		let height_ratio = height / viewport.get_size().1;
-
-		if self.intersects(&viewport) && height_ratio > start_ratio {
-			let new_viewport = viewport.transform_in_to_chip(
-				self.get_chip_position(),
-				self.get_chip_internals(),
-			);
-
-			self.get_chip_internals().draw(ctx, new_viewport);
-		}
+		match self {
+			ComponentInternals::Atomic(_) => {},
+			ComponentInternals::Chip(circuit, inner_scale) => {
+				ctx.save();
+				ctx.scale(*inner_scale, *inner_scale).unwrap();
 		
-		let opacity = ((end_ratio - height_ratio) / (end_ratio - start_ratio)).max(0.0);
-		ctx.set_global_alpha(opacity);
+				circuit.draw(ctx, viewport);
 		
-		self.draw_front(ctx);
-		
-		ctx.set_global_alpha(1.0);
-		self.draw_edge(ctx);
-	}
-}
-
-impl<T: Chip> Component for T {
-	fn get_name(&self) -> String {
-		self.get_chip_name()
-	}
-
-	fn get_internals(&self) -> Option<&ChipInternals> {
-		Some(self.get_chip_internals())
-	}
-
-	fn get_internals_mut(&mut self) -> Option<&mut ChipInternals> {
-		Some(self.get_chip_internals_mut())
-	}
-
-	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
-		self.get_chip_internals().circuit.get_pin_positions()
-			.iter()
-			.map(|p| {
-				let scale = self.get_chip_internals().inner_scale;
-				(p.0 * scale, p.1 * scale)
-			})
-			.collect()
-	}
-
-	fn get_position(&self) -> (f64, f64) {
-		self.get_chip_position()
-	}
-
-	fn set_position(&mut self, pos: (f64, f64)) {
-		self.set_chip_position(pos);
-	}
-
-	fn get_size(&self) -> (f64, f64) {
-		self.get_chip_size()
-	}
-
-	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
-		match self.get_mode() {
-			SimulationMode::Circuit => {
-				let maybe_pin_component = self.get_chip_internals().circuit.components.iter()
-					.filter(|c| c.is_pin())
-					.nth(idx);
-		
-				match maybe_pin_component {
-					Some(pin_component) => {
-						pin_component.get_pin_state_external(0)
-					},
-					None => Err(PinError::OutOfRange),
-				}
+				ctx.restore();
 			},
-			SimulationMode::HighLevel => self.get_pin_state_high_level(idx),
-		}
-	}
-
-	fn set_pin_state(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		match self.get_mode() {
-			SimulationMode::Circuit => {
-				let maybe_component_idx = self.get_chip_internals_mut().circuit.components.iter_mut()
-					.enumerate()
-					.filter(|(_, c)| c.is_pin())
-					.nth(idx)
-					.map(|(i, _)| i);
-
-				match maybe_component_idx {
-					Some(component_idx) => {
-						let connection = ExternalPin {
-							component_idx,
-							pin_idx: 0,
-						};
-						self.get_chip_internals_mut().circuit.update_component(&connection, state, true);
-						Ok(())
-					},
-					None => Err(PinError::OutOfRange),
-				}
-			},
-			SimulationMode::HighLevel => self.set_pin_state_high_level(idx, state),
-		}
-	}
-	
-	fn set_mode(&mut self, mode: SimulationMode) {
-		self.set_mode(mode);
-	}
-
-	fn contains(&self, viewport: &BoundingBox) -> bool {
-		self.contains(viewport)
-	}
-
-	fn intersects(&self, viewport: &BoundingBox) -> bool {
-		self.intersects(viewport)
-	}
-}
-
-/// Information about text to be rendered on the front of a [`Chip`].
-pub struct TextInfo {
-	/// The text.
-	pub text: String,
-	/// The size of the text.
-	pub size: u32,
-}
-
-/// A [`Chip`] that looks like a rectangle.
-pub trait RectangleChip {
-	/// Returns the name of the chip as a string.
-	fn get_chip_name(&self) -> String;
-
-	/// Returns the chip internals.
-	fn get_chip_internals(&self) -> &ChipInternals;
-
-	/// Returns the mutable chip internals.
-	fn get_chip_internals_mut(&mut self) -> &mut ChipInternals;
-
-	/// Returns the position of the chip.
-	fn get_chip_position(&self) -> (f64, f64);
-
-	/// Sets the position of the chip.
-	fn set_chip_position(&mut self, pos: (f64, f64));
-
-	/// Returns the size of the chip.
-	fn get_chip_size(&self) -> (f64, f64);
-
-	/// Returns the text info for the chip.
-	fn get_text_info(&self) -> Option<&TextInfo>;
-	
-	/// Return the current simulation mode.
-	fn get_mode(&self) -> SimulationMode;
-	
-	/// Sets the simulation mode of the chip to the given mode.
-	fn set_mode(&mut self, mode: SimulationMode);
-
-	/// Returns the state of a pin.
-	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError>;
-
-	/// Sets the state of a pin.
-	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError>;
-}
-
-impl<T: RectangleChip> Chip for T {
-	fn get_chip_name(&self) -> String {
-		self.get_chip_name()
-	}
-
-	fn get_chip_internals(&self) -> &ChipInternals {
-		self.get_chip_internals()
-	}
-	
-	fn get_chip_internals_mut(&mut self) -> &mut ChipInternals {
-		self.get_chip_internals_mut()
-	}
-
-	fn get_chip_position(&self) -> (f64, f64) {
-		self.get_chip_position()
-	}
-
-	fn set_chip_position(&mut self, pos: (f64, f64)) {
-		self.set_chip_position(pos);
-	}
-
-	fn get_chip_size(&self) -> (f64, f64) {
-		self.get_chip_size()
-	}
-
-	fn get_text_info(&self) -> Option<&TextInfo> {
-		self.get_text_info()
-	}
-	
-	fn get_mode(&self) -> SimulationMode {
-		self.get_mode()
-	}
-
-	fn set_mode(&mut self, mode: SimulationMode) {
-		self.set_mode(mode)
-	}
-
-	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
-		self.get_pin_state_high_level(idx)
-	}
-
-	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		self.set_pin_state_high_level(idx, state)
-	}
-
-	fn contains(&self, viewport: &BoundingBox) -> bool {
-		let position = self.get_position();
-		let size = self.get_size();
-
-		let contains_x =
-			position.0 + size.0 * 0.5 >= viewport.get_position().0 + viewport.get_size().0 * 0.5 &&
-			position.0 - size.0 * 0.5 <= viewport.get_position().0 - viewport.get_size().0 * 0.5;
-
-		let contains_y =
-			position.1 + size.1 * 0.5 >= viewport.get_position().1 + viewport.get_size().1 * 0.5 &&
-			position.1 - size.1 * 0.5 <= viewport.get_position().1 - viewport.get_size().1 * 0.5;
-
-		contains_x && contains_y
-	}
-
-	fn intersects(&self, viewport: &BoundingBox) -> bool {
-		let position = self.get_position();
-		let size = self.get_size();
-
-		let intersects_x =
-			position.0 + size.0 * 0.5 >= viewport.get_position().0 - viewport.get_size().0 * 0.5 &&
-			position.0 - size.0 * 0.5 <= viewport.get_position().0 + viewport.get_size().0 * 0.5;
-
-		let intersects_y =
-			position.1 + size.1 * 0.5 >= viewport.get_position().1 - viewport.get_size().1 * 0.5 &&
-			position.1 - size.1 * 0.5 <= viewport.get_position().1 + viewport.get_size().1 * 0.5;
-
-		intersects_x && intersects_y
-	}
-
-	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d) {
-		// match self.get_mode() {
-		// 	SimulationMode::Circuit => ctx.set_fill_style(&"#000".into()),
-		// 	SimulationMode::HighLevel => ctx.set_fill_style(&"#f00".into()),
-		// }
-
-		ctx.set_fill_style(&"#000".into());
-		
-		let (width, height) = self.get_size();
-
-		ctx.begin_path();
-		ctx.rect(-width * 0.5, -height * 0.5, width, height);
-		ctx.fill();
-
-		if let Some(info) = &self.get_text_info() {
-			ctx.set_fill_style(&"#fff".into());
-			ctx.set_font(format!("bold {}px monospace", info.size).as_str());
-			ctx.set_text_align("center");
-			ctx.set_text_baseline("middle");
-
-			ctx.fill_text(info.text.as_str(), 0.0, 0.0).unwrap();
-		}
-	}
-
-	fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d) {
-		ctx.set_line_width(10.0);
-		ctx.set_stroke_style(&"#fff".into());
-		
-		// match self.get_mode() {
-		// 	SimulationMode::Circuit => ctx.set_fill_style(&"#000".into()),
-		// 	SimulationMode::HighLevel => ctx.set_fill_style(&"#f00".into()),
-		// }
-
-		ctx.set_fill_style(&"#000".into());
-		
-		let (width, height) = self.get_size();
-
-		ctx.begin_path();
-		ctx.rect(-width * 0.5, -height * 0.5, width, height);
-
-		ctx.stroke();
-		ctx.fill();
-	}
-}
-
-// pub struct RectangleChip {
-// 	/// The chip internals.
-// 	pub internals: ChipInternals,
-// 	/// The position of the chip.
-// 	pub position: (f64, f64),
-// 	/// The size of the chip.
-// 	pub size: (f64, f64),
-// 	/// The text on the chip, if any.
-// 	pub text: Option<TextInfo>,
-// }
-
-/// An "internal" pin. Used for connecting an internal [`Circuit`] to a [`Chip`].
-/// 
-/// Internal pins have two states since we need to be able to get the state of an input pin
-/// from within the [`Circuit`] without it leaking to the outside of the [`Chip`].
-pub struct Pin {
-	/// The position of the pin.
-	position: (f64, f64),
-	/// The state accessible by the [`Circuit`].
-	inner_state: PinState,
-	/// The state accessible by the [`Chip`].
-	outer_state: PinState,
-}
-
-impl Pin {
-	/// Returns a new pin.
-	pub fn new(pos: (f64, f64)) -> Self {
-		Self {
-			position: pos,
-			inner_state: PinState::Disconnected,
-			outer_state: PinState::Disconnected,
-		}
-	}
-}
-
-impl Drawable for Pin {
-	fn draw(&self, _ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
-		
-	}
-}
-
-impl Component for Pin {
-	fn get_name(&self) -> String {
-		String::from("Pin")
-	}
-
-	fn is_pin(&self) -> bool {
-		true
-	}
-
-	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
-		vec![(0.0, 0.0)]
-	}
-	
-	fn get_position(&self) -> (f64, f64) {
-		self.position
-	}
-
-	fn set_position(&mut self, pos: (f64, f64)) {
-		self.position = pos;
-	}
-
-	fn get_size(&self) -> (f64, f64) {
-		(0.0, 0.0)
-	}
-
-	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
-		if idx > 0 {
-			Err(PinError::OutOfRange)
-		} else {
-			Ok(self.inner_state)
-		}
-	}
-
-	fn set_pin_state(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		if idx > 0 {
-			Err(PinError::OutOfRange)
-		} else {
-			self.outer_state = state;
-			Ok(())
-		}
-	}
-
-	fn get_pin_state_external(&self, idx: usize) -> Result<PinState, PinError> {
-		if idx > 0 {
-			Err(PinError::OutOfRange)
-		} else {
-			Ok(self.outer_state)
-		}
-	}
-
-	fn set_pin_state_external(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		if idx > 0 {
-			Err(PinError::OutOfRange)
-		} else {
-			self.inner_state = state;
-			Ok(())
-		}
-	}
-}
-
-/// A switch that can be turned on and off.
-pub struct Switch {
-	position: (f64, f64),
-	state: PinState,
-}
-
-impl Switch {
-	/// Returns a new switch.
-	pub fn new(pos: (f64, f64)) -> Self {
-		Self {
-			position: pos,
-			state: PinState::Off,
-		}
-	}
-}
-
-impl Drawable for Switch {
-	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
-		ctx.set_fill_style(&self.state.get_colour().into());
-
-		let (width, height) = self.get_size();
-
-		ctx.fill_rect(
-			-width * 0.5,
-			-height * 0.5,
-			width,
-			height,
-		);
-	}
-}
-
-impl Component for Switch {
-	fn get_name(&self) -> String {
-		String::from("Switch")
-	}
-
-	fn get_switch_count(&self) -> usize {
-		1
-	}
-
-	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
-		vec![(0.0, 0.0)]
-	}
-	
-	fn get_position(&self) -> (f64, f64) {
-		self.position
-	}
-
-	fn set_position(&mut self, pos: (f64, f64)) {
-		self.position = pos;
-	}
-
-	fn get_size(&self) -> (f64, f64) {
-		(100.0, 100.0)
-	}
-
-	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
-		if idx > 0 {
-			Err(PinError::OutOfRange)
-		} else {
-			Ok(self.state)
-		}
-	}
-
-	fn set_pin_state(&mut self, idx: usize, _state: PinState) -> Result<(), PinError> {
-		if idx > 0 {
-			Err(PinError::OutOfRange)
-		} else {
-			Ok(())
-		}
-	}
-
-	fn set_pin_state_external(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		if idx > 0 {
-			Err(PinError::OutOfRange)
-		} else {
-			self.state = state;
-			Ok(())
-		}
-	}
-}
-
-/// A collection of switches that can be turned on and off.
-pub struct MultiSwitch {
-	position: (f64, f64),
-	size: usize,
-	states: Vec<PinState>,
-}
-
-impl MultiSwitch {
-	/// Returns a new set of switches.
-	pub fn new(pos: (f64, f64), size: usize) -> Self {
-		Self {
-			position: pos,
-			size,
-			states: vec![PinState::Off; size],
-		}
-	}
-}
-
-impl Drawable for MultiSwitch {
-	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
-		ctx.set_line_width(10.0);
-
-		ctx.set_stroke_style(&"#fff".into());
-		ctx.set_fill_style(&"#000".into());
-
-		let size = self.states.len();
-
-		let (width, height) = self.get_size();
-
-		ctx.stroke_rect(-width * 0.5, -height * 0.5, width, height);
-		ctx.fill_rect(-width * 0.5, -height * 0.5, width, height);
-		
-		ctx.set_fill_style(&"#fff".into());
-		ctx.set_font("bold 70px monospace");
-		ctx.set_text_align("center");
-		ctx.set_text_baseline("middle");
-		
-		let num = states_to_num(&self.states);
-
-		ctx.fill_text(format!("{}", num).as_str(), 0.0, -height * 0.1).unwrap();
-
-		for i in 0..size {
-			ctx.set_fill_style(&self.states[i].get_colour().into());
-
-			let extra_width = if i == size-1 { 0.0 } else { 1.0 };
-			ctx.fill_rect((i as f64 - size as f64 * 0.5) * 50.0, height * 0.5 - 50.0, 50.0 + extra_width, 50.0);
-		}
-	}
-}
-
-impl Component for MultiSwitch {
-	fn get_name(&self) -> String {
-		String::from("MultiSwitch")
-	}
-
-	fn get_switch_count(&self) -> usize {
-		self.states.len()
-	}
-
-	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
-		let spacing = 50.0;
-		let size = self.states.len();
-
-		(0..size)
-			.map(|i| (i as f64 - size as f64 * 0.5 + 0.5) * spacing)
-			.map(|x| (x, 100.0))
-			.collect()
-	}
-	
-	fn get_position(&self) -> (f64, f64) {
-		self.position
-	}
-
-	fn set_position(&mut self, pos: (f64, f64)) {
-		self.position = pos;
-	}
-	
-	fn get_size(&self) -> (f64, f64) {
-		let width = 50.0 * self.size as f64;
-		let height = 200.0;
-		(width, height)
-	}
-	
-	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
-		if idx >= self.states.len() {
-			Err(PinError::OutOfRange)
-		} else {
-			Ok(self.states[idx])
-		}
-	}
-
-	fn set_pin_state(&mut self, idx: usize, _state: PinState) -> Result<(), PinError> {
-		if idx >= self.states.len() {
-			Err(PinError::OutOfRange)
-		} else {
-			Ok(())
-		}
-	}
-
-	fn set_pin_state_external(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		if idx >= self.states.len() {
-			Err(PinError::OutOfRange)
-		} else {
-			self.states[idx] = state;
-			Ok(())
-		}
-	}
-}
-
-/// A bulb that shows a single state.
-pub struct Bulb {
-	position: (f64, f64),
-	state: PinState,
-}
-
-impl Bulb {
-	/// Returns a new bulb.
-	pub fn new(pos: (f64, f64)) -> Self {
-		Self {
-			position: pos,
-			state: PinState::Disconnected,
-		}
-	}
-}
-
-impl Drawable for Bulb {
-	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
-		ctx.set_fill_style(&self.state.get_colour().into());
-		
-		let radius = 50.0;
-
-		ctx.begin_path();
-		ctx.arc(
-			0.0,
-			0.0,
-			radius,
-			0.0,
-			2.0 * PI,
-		).unwrap();
-		ctx.fill();
-	}
-}
-
-impl Component for Bulb {
-	fn get_name(&self) -> String {
-		String::from("Bulb")
-	}
-
-	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
-		vec![(0.0, 0.0)]
-	}
-
-	fn get_position(&self) -> (f64, f64) {
-		self.position
-	}
-
-	fn set_position(&mut self, pos: (f64, f64)) {
-		self.position = pos;
-	}
-
-	fn get_size(&self) -> (f64, f64) {
-		(100.0, 100.0)
-	}
-
-	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
-		if idx > 0 {
-			Err(PinError::OutOfRange)
-		} else {
-			Ok(PinState::Disconnected)
-		}
-	}
-
-	fn set_pin_state(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		if idx > 0 {
-			Err(PinError::OutOfRange)
-		} else {
-			self.state = state;
-			Ok(())
-		}
-	}
-}
-
-/// A collection of bulbs.
-pub struct MultiBulb {
-	position: (f64, f64),
-	size: usize,
-	states: Vec<PinState>,
-}
-
-impl MultiBulb {
-	/// Returns a new set of bulbs.
-	pub fn new(pos: (f64, f64), size: usize) -> Self {
-		Self {
-			position: pos,
-			size,
-			states: vec![PinState::Disconnected; size],
-		}
-	}
-}
-
-impl Drawable for MultiBulb {
-	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
-		ctx.set_line_width(10.0);
-
-		ctx.set_stroke_style(&"#fff".into());
-		ctx.set_fill_style(&"#000".into());
-
-		let size = self.states.len();
-
-		let (width, height) = self.get_size();
-
-		ctx.stroke_rect(-width * 0.5, -height * 0.5, width, height);
-		ctx.fill_rect(-width * 0.5, -height * 0.5, width, height);
-		
-		ctx.set_fill_style(&"#fff".into());
-		ctx.set_font("bold 70px monospace");
-		ctx.set_text_align("center");
-		ctx.set_text_baseline("middle");
-		
-		let num = states_to_num(&self.states);
-
-		ctx.fill_text(format!("{}", num).as_str(), 0.0, -height * 0.1).unwrap();
-
-		for i in 0..size {
-			ctx.set_fill_style(&self.states[i].get_colour().into());
-
-			ctx.begin_path();
-			ctx.arc((i as f64 - size as f64 * 0.5) * 50.0 + 25.0, height * 0.5 - 25.0, 20.0, 0.0, 2.0 * PI).unwrap();
-			ctx.fill();
-		}
-	}
-}
-
-impl Component for MultiBulb {
-	fn get_name(&self) -> String {
-		String::from("MultiBulb")
-	}
-
-	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
-		let spacing = 50.0;
-		let size = self.states.len();
-
-		(0..size)
-			.map(|i| (i as f64 - size as f64 * 0.5 + 0.5) * spacing)
-			.map(|x| (x, 100.0))
-			.collect()
-	}
-
-	fn get_position(&self) -> (f64, f64) {
-		self.position
-	}
-
-	fn set_position(&mut self, pos: (f64, f64)) {
-		self.position = pos;
-	}
-
-	fn get_size(&self) -> (f64, f64) {
-		let width = 50.0 * self.size as f64;
-		let height = 200.0;
-		(width, height)
-	}
-
-	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
-		if idx >= self.states.len() {
-			Err(PinError::OutOfRange)
-		} else {
-			Ok(PinState::Disconnected)
-		}
-	}
-
-	fn set_pin_state(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		if idx >= self.states.len() {
-			Err(PinError::OutOfRange)
-		} else {
-			self.states[idx] = state;
-			Ok(())
-		}
-	}
-}
-
-/// A [`Component`] for splitting a signal onto many different wires.
-/// Any [`Wire`] at a junction can act as either input or output at any time.
-pub struct Junction {
-	position: (f64, f64),
-	states: Vec<PinState>,
-}
-
-impl Junction {
-	/// Returns a new junction.
-	pub fn new(pos: (f64, f64), pin_count: usize) -> Self {
-		Self {
-			position: pos,
-			states: vec![PinState::Disconnected; pin_count],
-		}
-	}
-
-	/// Returns the output state of the junction.
-	fn get_state(&self) -> PinState {
-		*self.states.iter().reduce(|accum, state| accum.combine(state)).unwrap()
-	}
-}
-
-impl Drawable for Junction {
-	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox) {
-		ctx.set_fill_style(&self.get_state().get_colour().into());
-		
-		let radius = 10.0;
-
-		ctx.begin_path();
-		ctx.arc(
-			0.0,
-			0.0,
-			radius,
-			0.0,
-			2.0 * PI,
-		).unwrap();
-		ctx.fill();
-	}
-}
-
-impl Component for Junction {
-	fn get_name(&self) -> String {
-		String::from("Junction")
-	}
-
-	fn get_pin_positions(&self) -> Vec<(f64, f64)> {
-		vec![(0.0, 0.0); self.states.len()]
-	}
-
-	fn get_position(&self) -> (f64, f64) {
-		self.position
-	}
-
-	fn set_position(&mut self, pos: (f64, f64)) {
-		self.position = pos;
-	}
-
-	fn get_size(&self) -> (f64, f64) {
-		(20.0, 20.0)
-	}
-
-	fn get_pin_state(&self, idx: usize) -> Result<PinState, PinError> {
-		if idx >= self.states.len() {
-			Err(PinError::OutOfRange)
-		} else if self.states[idx] == PinState::Disconnected {
-			Ok(self.get_state())
-		} else {
-			Ok(PinState::Disconnected)
-		}
-	}
-
-	fn set_pin_state(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		if idx >= self.states.len() {
-			Err(PinError::OutOfRange)
-		} else {
-			self.states[idx] = state;
-			Ok(())
 		}
 	}
 }

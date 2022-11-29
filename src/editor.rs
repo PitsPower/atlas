@@ -1,14 +1,9 @@
 use wasm_bindgen::prelude::*;
 
 use crate::editor_example;
-use crate::adder::Adder;
 use crate::bus::{BusLayoutCommand, compute_wire_commands};
-use crate::core::{Bulb, Circuit, ComponentType, ExternalPin, Junction, MultiSwitch, MultiBulb, PinState, Switch};
-use crate::gates::{AndGate, NandGate, NorGate, NotGate, OrGate};
+use crate::core::{Circuit, ComponentOptions, ComponentType, ExternalPin, PinState};
 use crate::graphics::{BoundingBox, Renderer};
-use crate::latches::MultiDFlipFlop;
-use crate::multiplexer::{Multiplexer, TwoBitMultiplexer};
-use crate::transistor::{NTransistor, PTransistor};
 
 #[wasm_bindgen(module="/web/src/updateSelection.js")]
 extern "C" {
@@ -99,32 +94,16 @@ impl Editor {
 
 		let x = 0.0;
 		let y = 0.0;
+		
+		let component = component_type.create((x, y), ComponentOptions {
+			size: match component_type {
+				ComponentType::MultiBulb | ComponentType::MultiSwitch |
+				ComponentType::Adder | ComponentType::MultiDFlipFlop => 8,
+				_ => 1,
+			},
+		});
 
-		let index = match component_type {
-			ComponentType::Bulb => crate::add!(self.circuit, Bulb, (x, y)),
-			ComponentType::Junction => crate::add!(self.circuit, Junction, (x, y), 3),
-			ComponentType::Switch => crate::add!(self.circuit, Switch, (x, y)),
-
-			ComponentType::NTransistor => crate::add!(self.circuit, NTransistor, (x, y)),
-			ComponentType::PTransistor => crate::add!(self.circuit, PTransistor, (x, y)),
-
-			ComponentType::AndGate => crate::add!(self.circuit, AndGate, (x, y)),
-			ComponentType::NandGate => crate::add!(self.circuit, NandGate, (x, y)),
-			ComponentType::NorGate => crate::add!(self.circuit, NorGate, (x, y)),
-			ComponentType::NotGate => crate::add!(self.circuit, NotGate, (x, y)),
-			ComponentType::OrGate => crate::add!(self.circuit, OrGate, (x, y)),
-
-			// TODO: Let any number be added
-
-			ComponentType::MultiSwitch => crate::add!(self.circuit, MultiSwitch, (x, y), 8),
-			ComponentType::MultiBulb => crate::add!(self.circuit, MultiBulb, (x, y), 8),
-
-			ComponentType::Adder => crate::add!(self.circuit, Adder, (x, y), 8),
-			ComponentType::MultiDFlipFlop => crate::add!(self.circuit, MultiDFlipFlop, (x, y), 8),
-
-			ComponentType::Multiplexer => crate::add!(self.circuit, Multiplexer, (x, y)),
-			ComponentType::TwoBitMultiplexer => crate::add!(self.circuit, TwoBitMultiplexer, (x, y)),
-		};
+		let index = self.circuit.add(component);
 
 		self.selected_chip_stacks = vec![vec![index]];
 		updateSelection(true, 0.0, 0.0);
@@ -176,8 +155,8 @@ impl Editor {
 	fn update_wire_layout(&mut self) {
 		let start_positions = self.start_pins.iter()
 			.map(|p| {
-				let component = &self.circuit.get_components()[p.component_idx];
-				let comp_pos = component.get_position();
+				let component = &self.circuit.components[p.component_idx];
+				let comp_pos = component.position;
 				let pin_pos = component.get_pin_positions()[p.pin_idx];
 
 				(comp_pos.0 + pin_pos.0, comp_pos.1 + pin_pos.1)
@@ -442,29 +421,29 @@ impl Editor {
 
 		code += "let mut circuit = Circuit::new();\n\n";
 
-		for (idx, component) in self.circuit.get_components().iter().enumerate() {
+		for (idx, component) in self.circuit.components.iter().enumerate() {
 			if component.get_name() == "Junction" {
 				code += &format!(
 					"let c{} = add!(circuit, {}, ({:.3}, {:.3}), 3);\n",
 					idx,
 					component.get_name(),
-					component.get_position().0,
-					component.get_position().1,
+					component.position.0,
+					component.position.1,
 				);
 			} else {
 				code += &format!(
 					"let c{} = add!(circuit, {}, ({:.3}, {:.3}));\n",
 					idx,
 					component.get_name(),
-					component.get_position().0,
-					component.get_position().1,
+					component.position.0,
+					component.position.1,
 				);
 			}
 		}
 
 		code += "\n";
 
-		for (idx, component) in self.circuit.get_components().iter().enumerate() {
+		for (idx, component) in self.circuit.components.iter().enumerate() {
 			if component.get_switch_count() == 1 && component.get_pin_state(0).unwrap() == PinState::On {
 				code += &format!(
 					"circuit.get_components_mut()[c{}].set_pin_state_external(0, PinState::On).unwrap();\n",
@@ -475,7 +454,7 @@ impl Editor {
 
 		code += "\n";
 
-		for wire in self.circuit.get_wires() {
+		for wire in &self.circuit.wires {
 			code += &format!(
 				"circuit.connect((c{}, {}), (c{}, {}), vec![{}]);\n",
 				wire.pin1.component_idx,
