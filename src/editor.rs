@@ -103,7 +103,8 @@ impl Editor {
 		let component = component_type.create((x, y), ComponentOptions {
 			size: match component_type {
 				ComponentType::MultiBulb | ComponentType::MultiSwitch | ComponentType::MultiJunction |
-				ComponentType::Adder | ComponentType::MultiDFlipFlop => 8,
+				ComponentType::Adder | ComponentType::MultiDFlipFlop |
+				ComponentType::MultiTriStateBuffer => 8,
 				ComponentType::Junction => 3,
 				_ => 1,
 			},
@@ -174,7 +175,7 @@ impl Editor {
 
 	/// Update the wire layout.
 	fn update_wire_layout(&mut self) {
-		let start_positions = self.start_pins.iter()
+		let start_positions: Vec<_> = self.start_pins.iter()
 			.map(|p| {
 				let component = &self.circuit.components[p.component_idx];
 				let comp_pos = component.position;
@@ -185,7 +186,7 @@ impl Editor {
 			.collect();
 
 			
-		let end_positions = self.end_pins.iter()
+		let end_positions: Vec<_> = self.end_pins.iter()
 			.map(|p| {
 				let component = &self.circuit.components[p.component_idx];
 				let comp_pos = component.position;
@@ -195,13 +196,13 @@ impl Editor {
 			})
 			.collect();
 
-		let wire_commands = compute_wire_commands(&self.layout_commands, start_positions, end_positions);
+		let wire_commands = compute_wire_commands(&self.layout_commands, &start_positions, &end_positions);
 
 		for ((start, end), wc) in self.start_pins.iter().zip(&self.end_pins).zip(wire_commands) {
 			self.circuit.connect(
 				(start.component_idx, start.pin_idx),
 				(end.component_idx, end.pin_idx),
-				wc,
+				&wc,
 			);
 		}
 	}
@@ -466,39 +467,26 @@ impl Editor {
 		code += "let mut circuit = Circuit::new();\n\n";
 
 		for (idx, component) in self.circuit.components.iter().enumerate() {
-			match component.get_type() {
-				ComponentType::Bulb | ComponentType::Switch => {
-					let string = format!(
-						"let c{} = add!(circuit, Pin, ({:.3}, {:.3}));\n",
-						idx,
-						component.position.0,
-						component.position.1,
-					);
-					code += &string;
-				},
-				_ => {
-					let string = if component.options.size > 1 {
-						format!(
-							"let c{} = add!(circuit, {}, ({:.3}, {:.3}), {});\n",
-							idx,
-							component.get_name(),
-							component.position.0,
-							component.position.1,
-							component.options.size,
-						)
-					} else {
-						format!(
-							"let c{} = add!(circuit, {}, ({:.3}, {:.3}));\n",
-							idx,
-							component.get_name(),
-							component.position.0,
-							component.position.1,
-						)
-					};
+			let string = if component.options.size > 1 {
+				format!(
+					"let c{} = add!(circuit, {}, ({:.3}, {:.3}), {});\n",
+					idx,
+					component.get_name(),
+					component.position.0,
+					component.position.1,
+					component.options.size,
+				)
+			} else {
+				format!(
+					"let c{} = add!(circuit, {}, ({:.3}, {:.3}));\n",
+					idx,
+					component.get_name(),
+					component.position.0,
+					component.position.1,
+				)
+			};
 
-					code += &string;
-				},
-			}
+			code += &string;
 		}
 
 		code += "\n";
@@ -510,7 +498,7 @@ impl Editor {
 				has_set_switch = true;
 	
 				code += &format!(
-					"circuit.components[c{}].set_pin_state_external(0, PinState::On).unwrap();\n",
+					"circuit.components[c{}].simulator.as_mut().unwrap().set_pin_state_external(0, PinState::On).unwrap();\n",
 					idx,
 				);
 			}
@@ -522,7 +510,7 @@ impl Editor {
 
 		for wire in &self.circuit.wires {
 			code += &format!(
-				"circuit.connect((c{}, {}), (c{}, {}), vec![{}]);\n",
+				"circuit.connect((c{}, {}), (c{}, {}), &[{}]);\n",
 				wire.pin1.component_idx,
 				wire.pin1.pin_idx,
 				wire.pin2.component_idx,

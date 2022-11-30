@@ -28,7 +28,7 @@ pub enum BusLayoutCommand {
 
 /// Computes the wire layouts given the bus layout and the positions of the pins.
 pub fn compute_wire_commands(
-	bus_commands: &[BusLayoutCommand], start_positions: Vec<(f64, f64)>, end_positions: Vec<(f64, f64)>,
+	bus_commands: &[BusLayoutCommand], start_positions: &[(f64, f64)], end_positions: &[(f64, f64)],
 ) -> Vec<Vec<WireLayoutCommand>> {
 	// The starting position of the bus is the average of
 	// the middle two pin starting positions

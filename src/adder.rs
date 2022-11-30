@@ -19,29 +19,29 @@ pub fn get_half_adder_circuit() -> Circuit {
 	let output1 = add!(circuit, Pin, (250.0, -150.0));
 	let output2 = add!(circuit, Pin, (250.0, 150.0));
 
-	circuit.connect((input1, 0), (junc1, 0), vec![]);
-	circuit.connect((junc1, 1), (and, 0), vec![
+	circuit.connect((input1, 0), (junc1, 0), &[]);
+	circuit.connect((junc1, 1), (and, 0), &[
 		WireLayoutCommand::CenterHorizontal,
 		WireLayoutCommand::AlignHorizontal,
 	]);
-	circuit.connect((junc1, 2), (xor, 0), vec![
+	circuit.connect((junc1, 2), (xor, 0), &[
 		WireLayoutCommand::AlignHorizontal,
 	]);
 	
-	circuit.connect((input2, 0), (junc2, 0), vec![]);
-	circuit.connect((junc2, 1), (and, 1), vec![
+	circuit.connect((input2, 0), (junc2, 0), &[]);
+	circuit.connect((junc2, 1), (and, 1), &[
 		WireLayoutCommand::AlignHorizontal,
 	]);
-	circuit.connect((junc2, 2), (xor, 1), vec![
+	circuit.connect((junc2, 2), (xor, 1), &[
 		WireLayoutCommand::CenterHorizontal,
 		WireLayoutCommand::AlignHorizontal,
 	]);
 
-	circuit.connect((and, 2), (output1, 0), vec![
+	circuit.connect((and, 2), (output1, 0), &[
 		WireLayoutCommand::CenterHorizontal,
 		WireLayoutCommand::AlignHorizontal,
 	]);
-	circuit.connect((xor, 2), (output2, 0), vec![
+	circuit.connect((xor, 2), (output2, 0), &[
 		WireLayoutCommand::CenterHorizontal,
 		WireLayoutCommand::AlignHorizontal,
 	]);
@@ -66,41 +66,41 @@ pub fn get_full_adder_circuit() -> Circuit {
 	let output = add!(circuit, Pin, (500.0, 0.0));
 	let carry_out = add!(circuit, Pin, (0.0, -250.0));
 
-	circuit.connect((input1, 0), (half_adder_1, 0), vec![
+	circuit.connect((input1, 0), (half_adder_1, 0), &[
 		WireLayoutCommand::CenterHorizontal,
 		WireLayoutCommand::AlignHorizontal,
 	]);
-	circuit.connect((input2, 0), (half_adder_1, 1), vec![
+	circuit.connect((input2, 0), (half_adder_1, 1), &[
 		WireLayoutCommand::CenterHorizontal,
 		WireLayoutCommand::AlignHorizontal,
 	]);
 
-	circuit.connect((half_adder_1, 3), (half_adder_2, 0), vec![
+	circuit.connect((half_adder_1, 3), (half_adder_2, 0), &[
 		WireLayoutCommand::CenterHorizontal,
 		WireLayoutCommand::AlignHorizontal,
 	]);
-	circuit.connect((carry_in, 0), (half_adder_2, 1), vec![
+	circuit.connect((carry_in, 0), (half_adder_2, 1), &[
 		WireLayoutCommand::MoveVertical(-50.0),
 		WireLayoutCommand::MoveHorizontal(50.0),
 		WireLayoutCommand::AlignHorizontal,
 	]);
 
-	circuit.connect((half_adder_2, 3), (output, 0), vec![
+	circuit.connect((half_adder_2, 3), (output, 0), &[
 		WireLayoutCommand::CenterHorizontal,
 		WireLayoutCommand::AlignHorizontal,
 	]);
 
-	circuit.connect((half_adder_1, 2), (or_gate, 1), vec![
+	circuit.connect((half_adder_1, 2), (or_gate, 1), &[
 		WireLayoutCommand::CenterHorizontal,
 		WireLayoutCommand::AlignHorizontal,
 	]);
-	circuit.connect((half_adder_2, 2), (or_gate, 0), vec![
+	circuit.connect((half_adder_2, 2), (or_gate, 0), &[
 		WireLayoutCommand::MoveHorizontal(50.0),
 		WireLayoutCommand::MoveVertical(-80.0),
 		WireLayoutCommand::MoveHorizontal(-500.0),
 		WireLayoutCommand::AlignHorizontal,
 	]);
-	circuit.connect((or_gate, 2), (carry_out, 0), vec![
+	circuit.connect((or_gate, 2), (carry_out, 0), &[
 		WireLayoutCommand::MoveHorizontal(50.0),
 		WireLayoutCommand::MoveVertical(-80.0),
 		WireLayoutCommand::AlignVertical,
@@ -132,17 +132,17 @@ pub fn get_adder_circuit(size: usize) -> Circuit {
 		.collect();
 
 	for i in 0..size {
-		circuit.connect((input_group_1[i as usize], 0), (adders[i as usize], 0), vec![
+		circuit.connect((input_group_1[i as usize], 0), (adders[i as usize], 0), &[
 			WireLayoutCommand::CenterHorizontal,
 			WireLayoutCommand::MoveHorizontal(i as f64 * 30.0),
 			WireLayoutCommand::AlignHorizontal,
 		]);
-		circuit.connect((input_group_2[i as usize], 0), (adders[i as usize], 1), vec![
+		circuit.connect((input_group_2[i as usize], 0), (adders[i as usize], 1), &[
 			WireLayoutCommand::MoveHorizontal(10.0),
 			WireLayoutCommand::MoveHorizontal((size as f64 - i as f64) * 30.0),
 			WireLayoutCommand::AlignHorizontal,
 		]);
-		circuit.connect((adders[i as usize], 3), (output_group[i as usize], 0), vec![
+		circuit.connect((adders[i as usize], 3), (output_group[i as usize], 0), &[
 			WireLayoutCommand::MoveHorizontal(30.0),
 			WireLayoutCommand::MoveHorizontal(((i as f64 - size as f64 * 0.5) * 30.0 + 15.0).abs()),
 			WireLayoutCommand::AlignHorizontal,
@@ -150,7 +150,7 @@ pub fn get_adder_circuit(size: usize) -> Circuit {
 	}
 
 	for i in 0..size-1 {
-		circuit.connect((adders[i as usize], 4), (adders[(i+1) as usize], 2), vec![]);
+		circuit.connect((adders[i as usize], 4), (adders[(i+1) as usize], 2), &[]);
 	}
 
 	circuit

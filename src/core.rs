@@ -170,6 +170,8 @@ pub enum ComponentType {
 	/// A collection of switches that can be turned on and off.	
 	MultiSwitch,
 
+	MultiTriStateBuffer,
+
 	HalfAdder,
 	FullAdder,
 	Adder,
@@ -206,6 +208,8 @@ impl ComponentType {
 			ComponentType::MultiBulb => "MultiBulb",
 			ComponentType::MultiJunction => "MultiJunction",
 			ComponentType::MultiSwitch => "MultiSwitch",
+			
+			ComponentType::MultiTriStateBuffer => "MultiTriStateBuffer",
 
 			ComponentType::HalfAdder => "Half Adder",
 			ComponentType::FullAdder => "Full Adder",
@@ -235,6 +239,14 @@ impl ComponentType {
 			ComponentType::NotGate | ComponentType::OrGate | ComponentType::TriStateBuffer |
 			ComponentType::XorGate
 		)
+	}
+
+	/// The top/bottom padding size.
+	fn get_pad_size(&self) -> f64 {
+		match self {
+			// ComponentType::MultiTriStateBuffer => 300.0,
+			_ => 100.0,
+		}
 	}
 
 	/// Returns a new [`Component`] of the given type.
@@ -294,6 +306,11 @@ impl ComponentType {
 
 				ComponentInternals::Atomic(pin_positions)
 			},
+
+			ComponentType::MultiTriStateBuffer => ComponentInternals::Chip(
+				get_multi_tri_state_buffer_circuit(options.size),
+				0.3,
+			),
 
 			ComponentType::HalfAdder => ComponentInternals::Chip(get_half_adder_circuit(), 0.4),
 			ComponentType::FullAdder => ComponentInternals::Chip(get_full_adder_circuit(), 0.4),
@@ -396,14 +413,17 @@ impl ComponentType {
 					-(max_y - min_y) * 0.5 - min_y,
 				);
 
-				if bottom_pad > top_pad {
-					let pad_diff = bottom_pad - top_pad;
-					chip_size.1 += pad_diff * inner_scale;
+				let pad_diff = bottom_pad - top_pad;
+				chip_size.1 += pad_diff * inner_scale;
+
+				if bottom_pad > -top_pad {
 					circuit_offset.1 += pad_diff * 0.5;
+				} else {
+					circuit_offset.1 -= pad_diff * 0.5;
 				}
 
 				if top_pad == 0.0 && bottom_pad == 0.0 {
-					chip_size.1 += 100.0;
+					chip_size.1 += self.get_pad_size();
 				}
 
 				for component in &mut circuit.components {
@@ -471,6 +491,11 @@ impl ComponentType {
 			ComponentType::MultiBulb => Box::new(MultiBulbDrawer::new()),
 			ComponentType::MultiJunction => Box::new(MultiJunctionDrawer::new()),
 			ComponentType::MultiSwitch => Box::new(MultiSwitchDrawer::new()),
+			
+			ComponentType::MultiTriStateBuffer => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: format!("{}-bit Tri-State Buffer", options.size),
+				size: 17,
+			})),
 
 			ComponentType::HalfAdder => Box::new(RectangleChipDrawer::new(TextInfo {
 				text: String::from("Half Adder"),
@@ -559,6 +584,8 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 		ComponentType::MultiBulb => String::from("Multi Bulb"),
 		ComponentType::MultiJunction => String::from("Multi Junction"),
 		ComponentType::MultiSwitch => String::from("Multi Switch"),
+			
+		ComponentType::MultiTriStateBuffer => String::from("Multi Tri-State Buffer"),
 
 		ComponentType::HalfAdder => String::from("Half Adder"),
 		ComponentType::FullAdder => String::from("Full Adder"),
@@ -597,6 +624,8 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 		ComponentType::MultiBulb => String::from("multibulb"),
 		ComponentType::MultiJunction => String::from("multijunction"),
 		ComponentType::MultiSwitch => String::from("multiswitch"),
+			
+		ComponentType::MultiTriStateBuffer => String::from("multitristatebuffer"),
 
 		ComponentType::HalfAdder => String::from("halfadder"),
 		ComponentType::FullAdder => String::from("fulladder"),
@@ -1241,7 +1270,7 @@ pub struct Component {
 
 	/// A [`ComponentSimulator`] instance. Used to simulate the component's functionality.
 	/// If [`None`], the internal circuit is used exclusively.
-	simulator: Option<Box<dyn ComponentSimulator>>,
+	pub simulator: Option<Box<dyn ComponentSimulator>>,
 	/// A [`ComponentDrawer`] instance. Used to draw the component.
 	drawer: Box<dyn ComponentDrawer>,
 }
@@ -1505,14 +1534,14 @@ impl Circuit {
 	pub fn connect(
 		&mut self, (comp1_idx, pin1_idx): (usize, usize),
 		(comp2_idx, pin2_idx): (usize, usize),
-		wire_commands: Vec<WireLayoutCommand>,
+		wire_commands: &[WireLayoutCommand],
 	) {
 		let pin1 = ExternalPin { component_idx: comp1_idx, pin_idx: pin1_idx };
 		let pin2 = ExternalPin { component_idx: comp2_idx, pin_idx: pin2_idx };
 
 		for wire in &mut self.wires {
 			if wire.pin1 == pin1 && wire.pin2 == pin2 {
-				wire.layout_commands = wire_commands;
+				wire.layout_commands = wire_commands.to_vec();
 				return;
 			}
 		}
@@ -1540,7 +1569,7 @@ impl Circuit {
 		self.wires.push(Wire {
 			pin1: start_con,
 			pin2: end_con,
-			layout_commands: wire_commands,
+			layout_commands: wire_commands.to_vec(),
 			state1: start_state,
 			state2: end_state,
 		});
@@ -1814,7 +1843,7 @@ impl Circuit {
 		&mut self, comp1_idx: usize, pin1_idx: usize,
 		comp2_idx: usize, pin2_idx: usize,
 	) {
-		self.connect((comp1_idx, pin1_idx), (comp2_idx, pin2_idx), vec![]);
+		self.connect((comp1_idx, pin1_idx), (comp2_idx, pin2_idx), &[]);
 	}
 }
 

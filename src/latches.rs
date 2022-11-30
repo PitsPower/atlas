@@ -19,28 +19,28 @@ pub fn get_sr_latch_circuit() -> Circuit {
 	let output1 = add!(circuit, Pin, (250.0, -100.0));
 	let output2 = add!(circuit, Pin, (250.0, 100.0));
 
-	circuit.connect((input1, 0), (nor1, 0), vec![
+	circuit.connect((input1, 0), (nor1, 0), &[
 		WireLayoutCommand::CenterHorizontal,
 		WireLayoutCommand::AlignHorizontal,
 	]);
-	circuit.connect((input2, 0), (nor2, 1), vec![
+	circuit.connect((input2, 0), (nor2, 1), &[
 		WireLayoutCommand::CenterHorizontal,
 		WireLayoutCommand::AlignHorizontal,
 	]);
 	
-	circuit.connect((nor1, 2), (junction1, 0), vec![]);
-	circuit.connect((junction1, 1), (output1, 0), vec![]);
+	circuit.connect((nor1, 2), (junction1, 0), &[]);
+	circuit.connect((junction1, 1), (output1, 0), &[]);
 	
-	circuit.connect((nor2, 2), (junction2, 0), vec![]);
-	circuit.connect((junction2, 1), (output2, 0), vec![]);
+	circuit.connect((nor2, 2), (junction2, 0), &[]);
+	circuit.connect((junction2, 1), (output2, 0), &[]);
 
 	// Order matters here. This order ensures that the latch is off by default.
-	circuit.connect((junction2, 2), (nor1, 1), vec![
+	circuit.connect((junction2, 2), (nor1, 1), &[
 		WireLayoutCommand::MoveVertical(-35.0),
 		WireLayoutCommand::Move((-250.0, -100.0)),
 		WireLayoutCommand::AlignHorizontal,
 	]);
-	circuit.connect((junction1, 2), (nor2, 0), vec![
+	circuit.connect((junction1, 2), (nor2, 0), &[
 		WireLayoutCommand::MoveVertical(35.0),
 		WireLayoutCommand::Move((-250.0, 100.0)),
 		WireLayoutCommand::AlignHorizontal,
@@ -73,34 +73,34 @@ pub fn get_d_latch_circuit() -> Circuit {
 	let output1 = add!(circuit, Pin, (offset + 400.0, -200.0));
 	let output2 = add!(circuit, Pin, (offset + 400.0, 200.0));
 
-	circuit.connect((input, 0), (input_junc, 0), vec![
+	circuit.connect((input, 0), (input_junc, 0), &[
 		WireLayoutCommand::AlignVertical,
 	]);
-	circuit.connect((input_junc, 1), (not, 0), vec![]);
-	circuit.connect((not, 1), (and1, 0), vec![
+	circuit.connect((input_junc, 1), (not, 0), &[]);
+	circuit.connect((not, 1), (and1, 0), &[
 		WireLayoutCommand::CenterHorizontal,
 		WireLayoutCommand::AlignHorizontal,
 	]);
-	circuit.connect((input_junc, 2), (and2, 0), vec![
+	circuit.connect((input_junc, 2), (and2, 0), &[
 		WireLayoutCommand::AlignHorizontal,
 	]);
 
-	circuit.connect((clock, 0), (clock_junc, 0), vec![
+	circuit.connect((clock, 0), (clock_junc, 0), &[
 		WireLayoutCommand::AlignVertical,
 	]);
-	circuit.connect((clock_junc, 1), (and1, 1), vec![
+	circuit.connect((clock_junc, 1), (and1, 1), &[
 		WireLayoutCommand::AlignHorizontal,
 	]);
-	circuit.connect((clock_junc, 2), (and2, 1), vec![]);
+	circuit.connect((clock_junc, 2), (and2, 1), &[]);
 	
-	circuit.connect((and1, 2), (latch, 0), vec![]);
-	circuit.connect((and2, 2), (latch, 1), vec![]);
+	circuit.connect((and1, 2), (latch, 0), &[]);
+	circuit.connect((and2, 2), (latch, 1), &[]);
 	
-	circuit.connect((latch, 2), (output1, 0), vec![
+	circuit.connect((latch, 2), (output1, 0), &[
 		WireLayoutCommand::CenterHorizontal,
 		WireLayoutCommand::AlignHorizontal,
 	]);
-	circuit.connect((latch, 3), (output2, 0), vec![
+	circuit.connect((latch, 3), (output2, 0), &[
 		WireLayoutCommand::CenterHorizontal,
 		WireLayoutCommand::AlignHorizontal,
 	]);
@@ -128,32 +128,32 @@ pub fn get_d_flip_flop_circuit() -> Circuit {
 	let output1 = add!(circuit, Pin, (offset + 900.0, -300.0));
 	let output2 = add!(circuit, Pin, (offset + 900.0, 300.0));
 
-	circuit.connect((input, 0), (latch1, 0), vec![
+	circuit.connect((input, 0), (latch1, 0), &[
 		WireLayoutCommand::CenterHorizontal,
 		WireLayoutCommand::AlignHorizontal,
 	]);
-	circuit.connect((clock, 0), (clock_junc, 0), vec![
+	circuit.connect((clock, 0), (clock_junc, 0), &[
 		WireLayoutCommand::CenterHorizontal,
 		WireLayoutCommand::AlignHorizontal,
 	]);
 	
-	circuit.connect((clock_junc, 1), (latch2, 1), vec![
+	circuit.connect((clock_junc, 1), (latch2, 1), &[
 		WireLayoutCommand::MoveHorizontal(960.0),
 		WireLayoutCommand::AlignHorizontal,
 	]);
 
-	circuit.connect((clock_junc, 2), (not, 0), vec![
+	circuit.connect((clock_junc, 2), (not, 0), &[
 		WireLayoutCommand::AlignHorizontal,
 	]);
-	circuit.connect((not, 1), (latch1, 1), vec![]);
+	circuit.connect((not, 1), (latch1, 1), &[]);
 
-	circuit.connect((latch1, 2), (latch2, 0), vec![]);
+	circuit.connect((latch1, 2), (latch2, 0), &[]);
 	
-	circuit.connect((latch2, 2), (output1, 0), vec![
+	circuit.connect((latch2, 2), (output1, 0), &[
 		WireLayoutCommand::CenterHorizontal,
 		WireLayoutCommand::AlignHorizontal,
 	]);
-	circuit.connect((latch2, 3), (output2, 0), vec![
+	circuit.connect((latch2, 3), (output2, 0), &[
 		WireLayoutCommand::CenterHorizontal,
 		WireLayoutCommand::AlignHorizontal,
 	]);
@@ -189,21 +189,21 @@ pub fn get_multi_d_flip_flop_circuit(size: usize) -> Circuit {
 		.map(|i| add!(circuit, Pin, (width * 0.5 / scale, -((i as f64 - (size as f64) * 0.5 + 0.5) * wire_spacing))))
 		.collect();
 
-	circuit.connect((clock_juncs[size-2], 1), (flip_flops[size-1], 1), vec![
+	circuit.connect((clock_juncs[size-2], 1), (flip_flops[size-1], 1), &[
 		WireLayoutCommand::AlignHorizontal,
 	]);
-	circuit.connect((clock, 0), (clock_juncs[0], 0), vec![
+	circuit.connect((clock, 0), (clock_juncs[0], 0), &[
 		WireLayoutCommand::MoveVertical(-70.0),
 		WireLayoutCommand::AlignVertical,
 	]);
 
 	for i in 0..size {
-		circuit.connect((input_group[i], 0), (flip_flops[i], 0), vec![
+		circuit.connect((input_group[i], 0), (flip_flops[i], 0), &[
 			WireLayoutCommand::CenterHorizontal,
 			WireLayoutCommand::MoveHorizontal((if i < size/2 { i } else { size - i - 1 }) as f64 * 30.0),
 			WireLayoutCommand::AlignHorizontal,
 		]);
-		circuit.connect((flip_flops[i], 2), (output_group[i], 0), vec![
+		circuit.connect((flip_flops[i], 2), (output_group[i], 0), &[
 			WireLayoutCommand::MoveHorizontal(150.0),
 			WireLayoutCommand::MoveHorizontal((if i < size/2 { size - i - 1 } else { i }) as f64 * 30.0),
 			WireLayoutCommand::AlignHorizontal,
@@ -211,10 +211,10 @@ pub fn get_multi_d_flip_flop_circuit(size: usize) -> Circuit {
 	}
 
 	for i in 0..size-1 {
-		circuit.connect((clock_juncs[i], 2), (flip_flops[i], 1), vec![]);
+		circuit.connect((clock_juncs[i], 2), (flip_flops[i], 1), &[]);
 	}
 	for i in 0..size-2 {
-		circuit.connect((clock_juncs[i], 1), (clock_juncs[i+1], 0), vec![]);
+		circuit.connect((clock_juncs[i], 1), (clock_juncs[i+1], 0), &[]);
 	}
 
 	circuit
