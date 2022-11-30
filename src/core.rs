@@ -243,10 +243,7 @@ impl ComponentType {
 
 	/// The top/bottom padding size.
 	fn get_pad_size(&self) -> f64 {
-		match self {
-			// ComponentType::MultiTriStateBuffer => 300.0,
-			_ => 100.0,
-		}
+		100.0
 	}
 
 	/// Returns a new [`Component`] of the given type.

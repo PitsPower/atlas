@@ -17,7 +17,7 @@ use wasm_bindgen::prelude::*;
 
 use utils::set_panic_hook;
 
-use crate::core::{Circuit, ComponentOptions, ComponentType, PinState};
+use crate::core::{Circuit, ComponentOptions, ComponentType};
 use crate::graphics::WireLayoutCommand;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
