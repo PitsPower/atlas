@@ -21,6 +21,9 @@ Object.values(wasm.ComponentType).forEach((ct) => {
 	if (typeof ct === "string") {
 		return;
 	}
+	if (!wasm.is_ct_spawnable(ct)) {
+		return;
+	}
 
 	const img = document.createElement("img");
 	img.src = `./img/component_icons/${wasm.get_ct_slug(ct)}.png`;

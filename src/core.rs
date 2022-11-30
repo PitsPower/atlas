@@ -284,7 +284,7 @@ impl ComponentType {
 				ComponentInternals::Atomic(pin_positions)
 			},
 			ComponentType::MultiJunction => {
-				let spacing = 50.0;
+				let spacing = 30.0;
 				let size = options.size;
 		
 				let pin_positions = (0..size)
@@ -333,7 +333,7 @@ impl ComponentType {
 				(width, height)
 			},
 			ComponentType::MultiJunction => {
-				let size = 50.0 * options.size as f64;
+				let size = 30.0 * options.size as f64;
 				(size, size)
 			},
 
@@ -523,6 +523,17 @@ impl ComponentType {
 			drawer,
 		}
 	}
+}
+
+/// Returns whether or not the component should be displayed in the editor toolbar.
+#[wasm_bindgen]
+pub fn is_ct_spawnable(ct: ComponentType) -> bool {
+	!matches!(
+		ct,
+		ComponentType::Pin |
+		ComponentType::HalfAdder | ComponentType::FullAdder | ComponentType::Adder |
+		ComponentType::SRLatch | ComponentType::DLatch | ComponentType::DFlipFlop
+	)
 }
 
 /// Returns the name of the given [`ComponentType`].
@@ -1160,9 +1171,10 @@ impl ComponentDrawer for MultiJunctionDrawer {
 		for (idx, state) in states.enumerate() {
 			ctx.set_fill_style(&state.get_colour().into());
 			
+			let spacing = 30.0;
 			let radius = 10.0;
 
-			let x = (idx as f64 - size as f64 * 0.5) * 50.0 + 25.0;
+			let x = (idx as f64 - size as f64 * 0.5 + 0.5) * spacing;
 	
 			ctx.begin_path();
 			ctx.arc(
