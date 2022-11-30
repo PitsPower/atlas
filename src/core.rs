@@ -1,7 +1,6 @@
 //! Core ATLAS functionality.
 //! 
-//! Provides core data structures such as [`Circuit`] and some basic components like [`Switch`], [`Bulb`], and
-//! [`Junction`].
+//! Provides core data structures such as [`Circuit`] and some basic components like switches, bulbs and junctions.
 
 use std::f64::consts::PI;
 
@@ -28,7 +27,7 @@ pub enum PinState {
 	/// Analogous to a low signal (e.g. 0V).
 	Off,
 	/// Analogous to a disconnected signal. In a lot of cases this functions in the same way as low,
-	/// but with the [`Junction`] component it behaves differently.
+	/// but with the junction component it behaves differently.
 	Disconnected,
 }
 
@@ -145,10 +144,10 @@ pub enum ComponentType {
 	/// A [`Component`] for splitting a signal onto many different wires.
 	/// Any [`Wire`] at a junction can act as either input or output at any time.
 	Junction,
-	/// An "internal" pin. Used for connecting an internal [`Circuit`] to a [`Chip`].
+	/// An "internal" pin. Used for connecting an internal [`Circuit`] to a chip.
 	/// 
 	/// Internal pins have two states since we need to be able to get the state of an input pin
-	/// from within the [`Circuit`] without it leaking to the outside of the [`Chip`].
+	/// from within the [`Circuit`] without it leaking to the outside of the chip.
 	Pin,
 	/// A switch that can be turned on and off.
 	Switch,
@@ -602,8 +601,8 @@ pub trait ComponentSimulator {
 		panic!("Unexpected set_pin_state_high_level");
 	}
 
-	/// Returns the state of a pin when accessed externally. This is used for accessing a [`Pin`] from
-	/// the [`Chip`] it's in.
+	/// Returns the state of a pin when accessed externally. This is used for accessing a pin from
+	/// the chip it's in.
 	fn get_pin_state_external(&self, idx: usize) -> Result<PinState, PinError> {
 		self.get_pin_state_high_level(idx)
 	}
@@ -711,7 +710,7 @@ impl ComponentSimulator for SwitchSimulator {
 }
 
 /// A [`ComponentDrawer`] that draws a switch.
-pub struct SwitchDrawer;
+struct SwitchDrawer;
 
 impl SwitchDrawer {
 	/// Returns a new [`SwitchDrawer`].
@@ -1300,8 +1299,8 @@ impl Drawable for Component {
 	}
 }
 
-/// A specifier for a pin on a particular component. This differs from [`Pin`], which is an internal
-/// pin used in a [`Circuit`] within a [`Chip`].
+/// A specifier for a pin on a particular component. This differs from the pin component, which is an internal
+/// pin used in a [`Circuit`] within a chip.
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ExternalPin {
@@ -1338,14 +1337,14 @@ pub struct Circuit {
 }
 
 impl Circuit {
-	/// Returns the `i`th [`Pin`] component in the circuit.
+	/// Returns the `i`th pin component in the circuit.
 	pub fn get_pin(&self, i: usize) -> Option<&Component> {
 		self.components.iter()
 			.filter(|c| c.is_pin())
 			.nth(i)
 	}
 
-	/// Sets a [`Pin`] component to a given [`PinState`].
+	/// Sets a pin component to a given [`PinState`].
 	pub fn set_pin(&mut self, idx: usize, state: PinState) {
 		let true_idx = self.components.iter()
 			.enumerate()
@@ -1632,7 +1631,7 @@ impl Circuit {
 		}
 	}
 
-	/// Toggles a [`Switch`] in the circuit.
+	/// Toggles a switch in the circuit.
 	pub fn toggle_switch(&mut self, idx: usize) {
 		let mut component_idx = 0;
 		let mut pin_idx = idx;

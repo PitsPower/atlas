@@ -4,7 +4,7 @@
 
 use wasm_bindgen::prelude::*;
 
-use crate::core::{ComponentInternals, Circuit, Component, ExternalPin, SimulationMode};
+use crate::core::{ComponentInternals, Circuit, Component, ExternalPin, SimulationMode, Wire};
 
 /// A thing that can be drawn on the screen.
 pub trait Drawable {
@@ -354,7 +354,7 @@ pub struct Renderer {
 	show_viewport: bool,
 	/// If true, external pins will be shown with green circles.
 	show_pins: bool,
-	/// The stack of [`Chip`] indices that are being zoomed into. Used for infinite zoom.
+	/// The stack of chip indices that are being zoomed into. Used for infinite zoom.
 	chip_stack: Vec<usize>,
 }
 
