@@ -165,6 +165,8 @@ pub enum ComponentType {
 
 	/// A collection of bulbs that can be turned on and off.	
 	MultiBulb,
+	/// A collection of junctions.
+	MultiJunction,
 	/// A collection of switches that can be turned on and off.	
 	MultiSwitch,
 
@@ -202,6 +204,7 @@ impl ComponentType {
 			ComponentType::XorGate => "XorGate",
 
 			ComponentType::MultiBulb => "MultiBulb",
+			ComponentType::MultiJunction => "MultiJunction",
 			ComponentType::MultiSwitch => "MultiSwitch",
 
 			ComponentType::HalfAdder => "Half Adder",
@@ -280,6 +283,17 @@ impl ComponentType {
 
 				ComponentInternals::Atomic(pin_positions)
 			},
+			ComponentType::MultiJunction => {
+				let spacing = 50.0;
+				let size = options.size;
+		
+				let pin_positions = (0..size)
+					.map(|i| (i as f64 - size as f64 * 0.5 + 0.5) * spacing)
+					.flat_map(|x| [(x, x); 3])
+					.collect();
+
+				ComponentInternals::Atomic(pin_positions)
+			},
 
 			ComponentType::HalfAdder => ComponentInternals::Chip(get_half_adder_circuit(), 0.4),
 			ComponentType::FullAdder => ComponentInternals::Chip(get_full_adder_circuit(), 0.4),
@@ -296,7 +310,7 @@ impl ComponentType {
 
 		let size = match self {
 			ComponentType::Pin => (0.0, 0.0),
-			ComponentType::Junction => (20.0, 20.0),
+			ComponentType::Junction => (50.0, 50.0),
 			ComponentType::Bulb | ComponentType::Switch => (100.0, 100.0),
 
 			ComponentType::NTransistor | ComponentType::PTransistor => (transistor_width, transistor_height),
@@ -317,6 +331,10 @@ impl ComponentType {
 				let width = 50.0 * options.size as f64;
 				let height = 200.0;
 				(width, height)
+			},
+			ComponentType::MultiJunction => {
+				let size = 50.0 * options.size as f64;
+				(size, size)
 			},
 
 			_ => {
@@ -427,6 +445,7 @@ impl ComponentType {
 			ComponentType::PTransistor => Some(Box::new(PTransistorSimulator::new())),
 
 			ComponentType::MultiBulb => Some(Box::new(MultiBulbSimulator::new(options.size))),
+			ComponentType::MultiJunction => Some(Box::new(MultiJunctionSimulator::new(options.size))),
 			ComponentType::MultiSwitch => Some(Box::new(MultiSwitchSimulator::new(options.size))),
 			
 			_ => None,
@@ -450,6 +469,7 @@ impl ComponentType {
 			ComponentType::XorGate => Box::new(XorGateDrawer::new()),
 			
 			ComponentType::MultiBulb => Box::new(MultiBulbDrawer::new()),
+			ComponentType::MultiJunction => Box::new(MultiJunctionDrawer::new()),
 			ComponentType::MultiSwitch => Box::new(MultiSwitchDrawer::new()),
 
 			ComponentType::HalfAdder => Box::new(RectangleChipDrawer::new(TextInfo {
@@ -526,6 +546,7 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 		ComponentType::XorGate => String::from("XOR Gate"),
 
 		ComponentType::MultiBulb => String::from("Multi Bulb"),
+		ComponentType::MultiJunction => String::from("Multi Junction"),
 		ComponentType::MultiSwitch => String::from("Multi Switch"),
 
 		ComponentType::HalfAdder => String::from("Half Adder"),
@@ -563,6 +584,7 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 		ComponentType::XorGate => String::from("xorgate"),
 
 		ComponentType::MultiBulb => String::from("multibulb"),
+		ComponentType::MultiJunction => String::from("multijunction"),
 		ComponentType::MultiSwitch => String::from("multiswitch"),
 
 		ComponentType::HalfAdder => String::from("halfadder"),
@@ -1066,6 +1088,92 @@ impl ComponentDrawer for JunctionDrawer {
 			2.0 * PI,
 		).unwrap();
 		ctx.fill();
+	}
+}
+
+/// A [`ComponentSimulator`] for a multi-junction.
+struct MultiJunctionSimulator {
+	/// The set of states for each junction.
+	states: Vec<Vec<PinState>>,
+}
+
+impl MultiJunctionSimulator {
+	/// Returns a new [`MultiJunctionSimulator`].
+	fn new(size: usize) -> Self {
+		Self {
+			states: vec![vec![PinState::Disconnected; 3]; size],
+		}
+	}
+
+	/// Returns the output state of the junction.
+	fn get_state(&self, idx: usize) -> PinState {
+		*self.states[idx].iter().reduce(|accum, state| accum.combine(state)).unwrap()
+	}
+}
+
+impl ComponentSimulator for MultiJunctionSimulator {
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		if idx >= self.states.len() * 3 {
+			Err(PinError::OutOfRange)
+		} else if self.states[idx / 3][idx % 3] == PinState::Disconnected {
+			Ok(self.get_state(idx / 3))
+		} else {
+			Ok(PinState::Disconnected)
+		}
+	}
+
+	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		if idx >= self.states.len() * 3 {
+			Err(PinError::OutOfRange)
+		} else {
+			self.states[idx / 3][idx % 3] = state;
+			Ok(())
+		}
+	}
+
+	fn get_pin_state_external(&self, idx: usize) -> Result<PinState, PinError> {
+		if idx >= self.states.len() * 3 {
+			Err(PinError::OutOfRange)
+		} else {
+			Ok(self.get_state(idx / 3))
+		}
+	}
+}
+
+/// A [`ComponentDrawer`] that draws a multi-junction.
+struct MultiJunctionDrawer;
+
+impl MultiJunctionDrawer {
+	/// Returns a new [`MultiJunctionDrawer`].
+	fn new() -> Self {
+		Self
+	}
+}
+
+impl ComponentDrawer for MultiJunctionDrawer {
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox, component: &Component) {
+		let size = component.options.size;
+
+		let states = (0..size)
+			.map(|i| component.simulator.as_ref().unwrap().get_pin_state_external(i * 3).unwrap());
+
+		for (idx, state) in states.enumerate() {
+			ctx.set_fill_style(&state.get_colour().into());
+			
+			let radius = 10.0;
+
+			let x = (idx as f64 - size as f64 * 0.5) * 50.0 + 25.0;
+	
+			ctx.begin_path();
+			ctx.arc(
+				x,
+				x,
+				radius,
+				0.0,
+				2.0 * PI,
+			).unwrap();
+			ctx.fill();
+		}
 	}
 }
 

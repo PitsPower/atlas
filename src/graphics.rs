@@ -4,7 +4,7 @@
 
 use wasm_bindgen::prelude::*;
 
-use crate::core::{ComponentInternals, Circuit, Component, ExternalPin, SimulationMode, Wire};
+use crate::core::{ComponentInternals, Circuit, Component, ExternalPin, SimulationMode};
 
 /// A thing that can be drawn on the screen.
 pub trait Drawable {

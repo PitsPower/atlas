@@ -102,7 +102,7 @@ impl Editor {
 		
 		let component = component_type.create((x, y), ComponentOptions {
 			size: match component_type {
-				ComponentType::MultiBulb | ComponentType::MultiSwitch |
+				ComponentType::MultiBulb | ComponentType::MultiSwitch | ComponentType::MultiJunction |
 				ComponentType::Adder | ComponentType::MultiDFlipFlop => 8,
 				ComponentType::Junction => 3,
 				_ => 1,
