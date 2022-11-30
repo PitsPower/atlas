@@ -184,7 +184,18 @@ impl Editor {
 			})
 			.collect();
 
-		let wire_commands = compute_wire_commands(&self.layout_commands, start_positions);
+			
+		let end_positions = self.end_pins.iter()
+			.map(|p| {
+				let component = &self.circuit.components[p.component_idx];
+				let comp_pos = component.position;
+				let pin_pos = component.get_pin_positions()[p.pin_idx];
+
+				(comp_pos.0 + pin_pos.0, comp_pos.1 + pin_pos.1)
+			})
+			.collect();
+
+		let wire_commands = compute_wire_commands(&self.layout_commands, start_positions, end_positions);
 
 		for ((start, end), wc) in self.start_pins.iter().zip(&self.end_pins).zip(wire_commands) {
 			self.circuit.connect(
