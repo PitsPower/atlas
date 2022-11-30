@@ -531,7 +531,7 @@ pub fn is_ct_spawnable(ct: ComponentType) -> bool {
 	!matches!(
 		ct,
 		ComponentType::Pin |
-		ComponentType::HalfAdder | ComponentType::FullAdder | ComponentType::Adder |
+		ComponentType::HalfAdder | ComponentType::FullAdder |
 		ComponentType::SRLatch | ComponentType::DLatch | ComponentType::DFlipFlop
 	)
 }
