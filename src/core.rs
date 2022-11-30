@@ -1729,6 +1729,8 @@ impl Drawable for Circuit {
 			let mut current_pos = start;
 
 			for (idx, command) in wire.layout_commands.iter().enumerate() {
+				let prev_pos = current_pos;
+
 				match command {
 					WireLayoutCommand::AlignHorizontal => {
 						current_pos.1 = end.1;
@@ -1762,12 +1764,35 @@ impl Drawable for Circuit {
 						current_pos = (*x, *y);
 					},
 					WireLayoutCommand::DontRenderPrevious => {},
+					WireLayoutCommand::DontRenderPreviousHorizontal => {},
+					WireLayoutCommand::DontRenderPreviousVertical => {},
 				}
 
-				if command != &WireLayoutCommand::DontRenderPrevious &&
-					(idx == wire.layout_commands.len() - 1 || 
-					wire.layout_commands[idx + 1] != WireLayoutCommand::DontRenderPrevious) {
+				if matches!(
+					*command,
+					WireLayoutCommand::DontRenderPrevious |
+					WireLayoutCommand::DontRenderPreviousHorizontal |
+					WireLayoutCommand::DontRenderPreviousVertical
+				) {
+					continue;
+				}
+
+				if idx == wire.layout_commands.len() - 1 {
 					ctx.line_to(current_pos.0, current_pos.1);
+					continue;
+				}
+
+				match wire.layout_commands[idx + 1] {
+					WireLayoutCommand::DontRenderPrevious => {},
+					WireLayoutCommand::DontRenderPreviousHorizontal => {
+						ctx.line_to(prev_pos.0, current_pos.1);
+					},
+					WireLayoutCommand::DontRenderPreviousVertical => {
+						ctx.line_to(current_pos.0, prev_pos.1);
+					},
+					_ => {
+						ctx.line_to(current_pos.0, current_pos.1);
+					},
 				}
 			}
 

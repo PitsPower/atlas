@@ -41,8 +41,8 @@ pub fn compute_wire_commands(
 	if size % 2 == 0 {
 		let p1 = start_positions[mid - 1];
 		let p2 = start_positions[mid];
-		bus_pos.0 = (p1.0 + p2.0) / 2.0;
-		bus_pos.1 = (p1.1 + p2.1) / 2.0;
+		bus_pos.0 = (p1.0 + p2.0) * 0.5;
+		bus_pos.1 = (p1.1 + p2.1) * 0.5;
 	} else {
 		bus_pos = start_positions[mid];
 	}
@@ -55,8 +55,8 @@ pub fn compute_wire_commands(
 	if end_size % 2 == 0 {
 		let p1 = end_positions[end_mid - 1];
 		let p2 = end_positions[end_mid];
-		end_bus_pos.0 = (p1.0 + p2.0) / 2.0;
-		end_bus_pos.1 = (p1.1 + p2.1) / 2.0;
+		end_bus_pos.0 = (p1.0 + p2.0) * 0.5;
+		end_bus_pos.1 = (p1.1 + p2.1) * 0.5;
 	} else {
 		end_bus_pos = end_positions[end_mid];
 	}
@@ -109,56 +109,63 @@ pub fn compute_wire_commands(
 		let (x, y) = new_bus_pos;
 		let diff = (new_bus_pos.0 - bus_pos.0, new_bus_pos.1 - bus_pos.1);
 
-		let parallel_len = (diff.0 * diff.0 + diff.1 * diff.1).sqrt();
-		let parallel = (diff.0 / parallel_len, diff.1 / parallel_len);
-		let perpendicular = (-parallel.1, parallel.0);
-
-		if cidx == 0 {
-			// Calculate offsets on the first bus line segment
-			for i in 0..size {
-				let pin_offset = (start_positions[i].0 - bus_pos.0, start_positions[i].1 - bus_pos.1);
-				offsets[i] = pin_offset.0 * perpendicular.0 + pin_offset.1 * perpendicular.1;
+		// Fixes NaN bug
+		if diff != (0.0, 0.0) {
+			let parallel_len = (diff.0 * diff.0 + diff.1 * diff.1).sqrt();
+			let parallel = (diff.0 / parallel_len, diff.1 / parallel_len);
+			let perpendicular = (-parallel.1, parallel.0);
+	
+			if cidx == 0 {
+				// Calculate offsets on the first bus line segment
+				for i in 0..size {
+					let pin_offset = (start_positions[i].0 - bus_pos.0, start_positions[i].1 - bus_pos.1);
+					offsets[i] = pin_offset.0 * perpendicular.0 + pin_offset.1 * perpendicular.1;
+				}
+			} else {
+				// For the rest, move the wires so that the offset is maintained
+				for i in 0..size {
+					let current_pos = (
+						bus_pos.0 + prev_perpendicular.0 * offsets[i],
+						bus_pos.1 + prev_perpendicular.1 * offsets[i],
+					);
+	
+					let mut parallel_offset = offsets[i] + (x - current_pos.0) * perpendicular.0 + (y - current_pos.1) * perpendicular.1;
+					
+					// Fixes NaN bug
+					if parallel_offset != 0.0 {
+						parallel_offset /= perpendicular.0 * prev_parallel.0 + perpendicular.1 * prev_parallel.1;
+					}
+					
+					result[i].push(WireLayoutCommand::DontRenderPrevious);
+					result[i].push(WireLayoutCommand::Move((
+						prev_parallel.0 * parallel_offset,
+						prev_parallel.1 * parallel_offset,
+					)));
+				}
 			}
-		} else {
-			// For the rest, move the wires so that the offset is maintained
-			for i in 0..size {
-				let current_pos = (
-					bus_pos.0 + prev_perpendicular.0 * offsets[i],
-					bus_pos.1 + prev_perpendicular.1 * offsets[i],
-				);
-
-				let mut parallel_offset = offsets[i] + (x - current_pos.0) * perpendicular.0 + (y - current_pos.1) * perpendicular.1;
-				parallel_offset /= perpendicular.0 * prev_parallel.0 + perpendicular.1 * prev_parallel.1;
-				
-				result[i].push(WireLayoutCommand::DontRenderPrevious);
-				result[i].push(WireLayoutCommand::Move((
-					prev_parallel.0 * parallel_offset,
-					prev_parallel.1 * parallel_offset,
+	
+			for (widx, wire) in result.iter_mut().enumerate() {
+				wire.push(WireLayoutCommand::MoveTo((
+					x + perpendicular.0 * offsets[widx],
+					y + perpendicular.1 * offsets[widx],
 				)));
 			}
+	
+			bus_pos = new_bus_pos;
+			prev_parallel = parallel;
+			prev_perpendicular = perpendicular;
 		}
-
-		for (widx, wire) in result.iter_mut().enumerate() {
-			wire.push(WireLayoutCommand::MoveTo((
-				x + perpendicular.0 * offsets[widx],
-				y + perpendicular.1 * offsets[widx],
-			)));
-		}
-
-		bus_pos = new_bus_pos;
-		prev_parallel = parallel;
-		prev_perpendicular = perpendicular;
 
 		match command {
 			BusLayoutCommand::AlignHorizontal => {
 				for wire in &mut result {
-					wire.push(WireLayoutCommand::DontRenderPrevious);
+					wire.push(WireLayoutCommand::DontRenderPreviousVertical);
 					wire.push(WireLayoutCommand::AlignHorizontal);
 				}
 			},
 			BusLayoutCommand::AlignVertical => {
 				for wire in &mut result {
-					wire.push(WireLayoutCommand::DontRenderPrevious);
+					wire.push(WireLayoutCommand::DontRenderPreviousHorizontal);
 					wire.push(WireLayoutCommand::AlignVertical);
 				}
 			},

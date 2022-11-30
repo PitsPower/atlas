@@ -181,6 +181,10 @@ pub enum WireLayoutCommand {
 	MoveTo((f64, f64)),
 	/// Tells the renderer to not draw the last command, but to still change the position.
 	DontRenderPrevious,
+	/// Tells the renderer to render the vertical change, but not the horizontal change.
+	DontRenderPreviousHorizontal,
+	/// Tells the renderer to render the horizontal change, but not the vertical change.
+	DontRenderPreviousVertical,
 }
 
 impl WireLayoutCommand {
@@ -198,6 +202,8 @@ impl WireLayoutCommand {
 			WireLayoutCommand::MoveYTo(y) => format!("WireLayoutCommand::MoveYTo({:.3})", y),
 			WireLayoutCommand::MoveTo((x, y)) => format!("WireLayoutCommand::MoveTo(({:.3}, {:.3}))", x, y),
 			WireLayoutCommand::DontRenderPrevious => String::from("WireLayoutCommand::DontRenderPrevious"),
+			WireLayoutCommand::DontRenderPreviousHorizontal => String::from("WireLayoutCommand::DontRenderPreviousHorizontal"),
+			WireLayoutCommand::DontRenderPreviousVertical => String::from("WireLayoutCommand::DontRenderPreviousVertical"),
 		}
 	}
 }
