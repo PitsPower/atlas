@@ -130,6 +130,7 @@ pub enum SimulationMode {
 }
 
 /// Options for various components (e.g. size of the component).
+#[derive(Clone, Copy)]
 pub struct ComponentOptions {
 	/// The size of the component (e.g. 8-bit, 32-bit, etc.).
 	pub size: usize,
@@ -1502,7 +1503,7 @@ impl Circuit {
 	}
 
 	/// Returns a component given a chip stack.
-	fn get_component_from_chip_stack(&mut self, stack: &[usize]) -> Option<&mut Component> {
+	pub fn get_component_from_chip_stack(&mut self, stack: &[usize]) -> Option<&mut Component> {
 		match stack.len() {
 			0 => None,
 			1 => Some(&mut self.components[stack[0]]),

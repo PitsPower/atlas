@@ -46,6 +46,9 @@ pub struct Editor {
 	is_editing_layout: bool,
 	/// The current list of [`BusLayoutCommand`]s.
 	layout_commands: Vec<BusLayoutCommand>,
+
+	/// The clipboard.
+	clipboard: Vec<(ComponentType, (f64, f64), ComponentOptions)>,
 }
 
 #[wasm_bindgen]
@@ -78,6 +81,8 @@ impl Editor {
 			end_pins: vec![],
 			is_editing_layout: false,
 			layout_commands: vec![],
+
+			clipboard: vec![],
 		}
 	}
 
@@ -110,6 +115,21 @@ impl Editor {
 		updateSelection(true, 0.0, 0.0);
 
 		index
+	}
+
+	/// Copies the selected components to the clipboard.
+	pub fn copy(&mut self) {
+		self.clipboard.clear();
+
+		for chip_stack in &self.selected_chip_stacks {
+			let component = self.circuit.get_component_from_chip_stack(chip_stack).unwrap();
+
+			self.clipboard.push((
+				component.get_type(),
+				component.position,
+				component.options,
+			));
+		}
 	}
 
 	/// Deletes the selected component.
@@ -199,9 +219,21 @@ impl Editor {
 		self.add_layout_command(BusLayoutCommand::CenterHorizontal);
 	}
 
-	/// Move the wire to the vertical center between the pins.
-	pub fn wire_center_vertical(&mut self) {
-		self.add_layout_command(BusLayoutCommand::CenterVertical);
+	/// Move the wire to the vertical center between the pins,
+	/// or paste the component on the clipboard.
+	pub fn handle_ctrl_v(&mut self) {
+		if self.is_editing_layout {
+			self.add_layout_command(BusLayoutCommand::CenterVertical);
+		} else {
+			for (ctype, pos, options) in &self.clipboard {
+				let component = ctype.create(*pos, *options);
+
+				let index = self.circuit.add(component);
+		
+				self.selected_chip_stacks = vec![vec![index]];
+				updateSelection(true, 0.0, 0.0);
+			}
+		}
 	}
 
 	/// Finish laying out the current wire or finish selecting pins.

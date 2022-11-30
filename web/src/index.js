@@ -74,8 +74,11 @@ window.addEventListener("keydown", (e) => {
 			editor.toggle_wire_mode();
 			break;
 		}
+
 		case "c": {
-			if (!e.ctrlKey) {
+			if (e.ctrlKey) {
+				editor.copy();
+			} else {
 				if (codeViewerEl.style.visibility === "visible") {
 					codeViewerEl.style.visibility = "hidden";
 				} else {
@@ -86,6 +89,7 @@ window.addEventListener("keydown", (e) => {
 					codeViewerEl.style.visibility = "visible";
 				}
 			}
+
 			break;
 		}
 
@@ -104,10 +108,11 @@ window.addEventListener("keydown", (e) => {
 
 			break;
 		}
+
 		case "v": {
 			if (e.ctrlKey) {
 				e.preventDefault();
-				editor.wire_center_vertical();
+				editor.handle_ctrl_v();
 			} else {
 				editor.wire_align_vertical();
 			}
