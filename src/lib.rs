@@ -579,9 +579,10 @@ pub fn start() {
 	let mut vm = AtlasVM::new();
 
 	vm.run("
-		mov 0x01, $r0
-		mov 0b11, $r1
-		add $r0, $r1, $r2
+		mov 42, $r0
+		mov $r0, [0x1234]
+		mov 0x5678, $r1
+		mov $r1, [$r1]
 	".to_string());
 
 	crate::log!("{:?}", vm.registers);

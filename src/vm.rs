@@ -51,7 +51,11 @@ enum InstructionOperand {
 	/// A register operand (e.g. $r1).
 	Register(usize),
 	/// An immediate value (e.g. 5).
-	Immediate(u8),
+	Immediate(u16),
+	/// An address stored in a register (e.g. [$r1]).
+	RegisterAddress(usize),
+	/// An address value (e.g. [0x1234]).
+	ImmediateAddress(u16),
 }
 
 impl std::str::FromStr for InstructionOperand {
@@ -67,13 +71,21 @@ impl std::str::FromStr for InstructionOperand {
 			} else {
 				Err(ParsingErrorType::InvalidOperand(s.to_string()))
 			}
+		} else if s.starts_with('[') {
+			let inner = s.trim_start_matches('[').trim_end_matches(']').parse()?;
+
+			match inner {
+				InstructionOperand::Register(r) => Ok(InstructionOperand::RegisterAddress(r)),
+				InstructionOperand::Immediate(imm) => Ok(InstructionOperand::ImmediateAddress(imm)),
+				_ => Err(ParsingErrorType::InvalidOperand(s.to_string())),
+			}
 		} else {
 			let res;
 
 			if s.starts_with("0x") {
-				res = u8::from_str_radix(s.trim_start_matches("0x"), 16);
+				res = u16::from_str_radix(s.trim_start_matches("0x"), 16);
 			} else if s.starts_with("0b") {
-				res = u8::from_str_radix(s.trim_start_matches("0b"), 2);
+				res = u16::from_str_radix(s.trim_start_matches("0b"), 2);
 			} else {
 				res = s.parse();
 			}
@@ -86,17 +98,20 @@ impl std::str::FromStr for InstructionOperand {
 }
 
 /// The set of ATLAS assembly instructions.
-#[allow(clippy::enum_variant_names)]
 #[derive(Debug)]
 enum Instruction {
 	/// Moves the data in the first register to the second register.
 	MoveRegToReg(usize, usize),
 	/// Move an immediate value into a register.
-	MoveImmToReg(u8, usize),
+	MoveImmToReg(u16, usize),
+	/// Moves the data in the first register to the address stored in the second register.
+	MoveRegToRegAddr(usize, usize),
+	/// Moves the data in the register to the address.
+	MoveRegToImmAddr(usize, u16),
 	/// Adds the first register and second register and stores the result in the third register.
 	AddRegToReg(usize, usize, usize),
 	/// Adds the immediate value to the first register and stores the result in the second register.
-	AddImmToReg(usize, u8, usize),
+	AddImmToReg(usize, u16, usize),
 }
 
 impl std::str::FromStr for Instruction {
@@ -121,6 +136,12 @@ impl std::str::FromStr for Instruction {
 						
 					(InstructionOperand::Immediate(imm), InstructionOperand::Register(r2)) =>
 						Ok(Instruction::MoveImmToReg(imm, r2)),
+
+					(InstructionOperand::Register(r1), InstructionOperand::RegisterAddress(r2)) =>
+						Ok(Instruction::MoveRegToRegAddr(r1, r2)),
+						
+					(InstructionOperand::Register(r), InstructionOperand::ImmediateAddress(addr)) =>
+						Ok(Instruction::MoveRegToImmAddr(r, addr)),
 
 					_ => Err(ParsingErrorType::InvalidOperands),
 				}
@@ -166,7 +187,7 @@ fn parse_assembly(assembly: String) -> Result<Vec<Instruction>, ParsingError> {
 
 /// The ATLAS PC virtual machine.
 pub struct AtlasVM {
-	pub registers: Vec<u8>,
+	pub registers: Vec<u16>,
 }
 
 impl AtlasVM {
@@ -175,6 +196,17 @@ impl AtlasVM {
 		Self {
 			registers: vec![0; REGISTER_AMOUNT],
 		}
+	}
+
+	/// Reads memory and returns the result.
+	fn read_mem(&mut self, address: u16) -> u16 {
+		crate::log!("Reading address {:#04x}", address);
+		0
+	}
+
+	/// Writes to memory.
+	fn write_mem(&mut self, address: u16, value: u16) {
+		crate::log!("Writing {} to address {:#04x}", value, address);
 	}
 
 	/// Runs an assembly program.
@@ -187,10 +219,16 @@ impl AtlasVM {
 		for instr in instrs {
 			match instr {
 				Instruction::MoveRegToReg(r1, r2) => {
-					self.registers[r2] = self.registers[r1]
+					self.registers[r2] = self.registers[r1];
 				},
 				Instruction::MoveImmToReg(imm, r) => {
-					self.registers[r] = imm
+					self.registers[r] = imm;
+				},
+				Instruction::MoveRegToRegAddr(r1, r2) => {
+					self.write_mem(self.registers[r2], self.registers[r1]);
+				},
+				Instruction::MoveRegToImmAddr(r, imm) => {
+					self.write_mem(imm, self.registers[r]);
 				},
 				Instruction::AddRegToReg(r1, r2, r3) => {
 					self.registers[r3] = self.registers[r1].wrapping_add(self.registers[r2]);
