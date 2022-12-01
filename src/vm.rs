@@ -58,9 +58,9 @@ impl std::str::FromStr for InstructionOperand {
     type Err = ParsingErrorType;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-		if &s[0..2] == "$r" {
-			let reg_idx = s[2..].parse()
-				.ok().ok_or_else(|| ParsingErrorType::InvalidOperand(s.to_string()))?;
+		if s.starts_with("$r") {
+			let reg_idx = s.trim_start_matches("$r").parse()
+				.map_err(|_| ParsingErrorType::InvalidOperand(s.to_string()))?;
 
 			if reg_idx < REGISTER_AMOUNT {
 				Ok(InstructionOperand::Register(reg_idx))
@@ -70,28 +70,33 @@ impl std::str::FromStr for InstructionOperand {
 		} else {
 			let res;
 
-			if &s[0..2] == "0x" {
+			if s.starts_with("0x") {
 				res = u8::from_str_radix(s.trim_start_matches("0x"), 16);
-			} else if &s[0..2] == "0b" {
+			} else if s.starts_with("0b") {
 				res = u8::from_str_radix(s.trim_start_matches("0b"), 2);
 			} else {
 				res = s.parse();
 			}
 
 			Ok(InstructionOperand::Immediate(
-				res.ok().ok_or_else(|| ParsingErrorType::InvalidOperand(s.to_string()))?,
+				res.map_err(|_| ParsingErrorType::InvalidOperand(s.to_string()))?,
 			))
 		}
     }
 }
 
 /// The set of ATLAS assembly instructions.
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug)]
 enum Instruction {
 	/// Moves the data in the first register to the second register.
 	MoveRegToReg(usize, usize),
 	/// Move an immediate value into a register.
 	MoveImmToReg(u8, usize),
+	/// Adds the first register and second register and stores the result in the third register.
+	AddRegToReg(usize, usize, usize),
+	/// Adds the immediate value to the first register and stores the result in the second register.
+	AddImmToReg(usize, u8, usize),
 }
 
 impl std::str::FromStr for Instruction {
@@ -102,11 +107,11 @@ impl std::str::FromStr for Instruction {
 
 		let instr_name = instr_parts.next().unwrap().trim();
 
+		let operand_str = instr_parts.collect::<String>();
+		let mut operand_parts = operand_str.split(',');
+
 		match instr_name {
 			"mov" => {
-				let operand_str = instr_parts.collect::<String>();
-				let mut operand_parts = operand_str.split(',');
-
 				let op1: InstructionOperand = operand_parts.next().unwrap().trim().parse()?;
 				let op2: InstructionOperand = operand_parts.next().unwrap().trim().parse()?;
 
@@ -116,6 +121,21 @@ impl std::str::FromStr for Instruction {
 						
 					(InstructionOperand::Immediate(imm), InstructionOperand::Register(r2)) =>
 						Ok(Instruction::MoveImmToReg(imm, r2)),
+
+					_ => Err(ParsingErrorType::InvalidOperands),
+				}
+			},
+			"add" => {
+				let op1: InstructionOperand = operand_parts.next().unwrap().trim().parse()?;
+				let op2: InstructionOperand = operand_parts.next().unwrap().trim().parse()?;
+				let op3: InstructionOperand = operand_parts.next().unwrap().trim().parse()?;
+
+				match (op1, op2, op3) {
+					(InstructionOperand::Register(r1), InstructionOperand::Register(r2), InstructionOperand::Register(r3)) =>
+						Ok(Instruction::AddRegToReg(r1, r2, r3)),
+						
+					(InstructionOperand::Register(r1), InstructionOperand::Immediate(imm), InstructionOperand::Register(r2)) =>
+						Ok(Instruction::AddImmToReg(r1, imm, r2)),
 
 					_ => Err(ParsingErrorType::InvalidOperands),
 				}
@@ -171,6 +191,12 @@ impl AtlasVM {
 				},
 				Instruction::MoveImmToReg(imm, r) => {
 					self.registers[r] = imm
+				},
+				Instruction::AddRegToReg(r1, r2, r3) => {
+					self.registers[r3] = self.registers[r1].wrapping_add(self.registers[r2]);
+				},
+				Instruction::AddImmToReg(r1, imm, r2) => {
+					self.registers[r2] = self.registers[r1].wrapping_add(imm);
 				},
 			}
 		}
