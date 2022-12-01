@@ -12,6 +12,7 @@ pub mod latches;
 pub mod multiplexer;
 pub mod transistor;
 pub mod utils;
+pub mod vm;
 
 use wasm_bindgen::prelude::*;
 
@@ -19,6 +20,7 @@ use utils::set_panic_hook;
 
 use crate::core::{Circuit, ComponentOptions, ComponentType};
 use crate::graphics::WireLayoutCommand;
+use crate::vm::*;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -29,7 +31,7 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 #[macro_export]
 macro_rules! log {
 	($($arg:tt)*) => {
-		web_sys::console::log_1(&format!($($arg)*).into());
+		web_sys::console::log_1(&format!($($arg)*).into())
 	};
 }
 
@@ -573,6 +575,19 @@ pub fn editor_example() -> Circuit {
 pub fn start() {
 	log!("ATLAS has started!");
 	set_panic_hook();
+
+	let mut vm = AtlasVM::new();
+
+	vm.run("
+		mov 13, $r3
+		mov 0x0e, $r3
+		mov 0b1111, $r3
+		mov $r3, $r1
+		mov $r3, $r2
+		mov $r1, $r15
+	".to_string());
+
+	crate::log!("{:?}", vm.registers);
 }
 
 // #[cfg(test)]
