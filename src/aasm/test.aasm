@@ -1,0 +1,4 @@
+mov 0xabc, $0
+mov 0b101, $1
+mov 123, $2
+halt
