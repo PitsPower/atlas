@@ -580,7 +580,7 @@ pub fn start() {
 
 	vm.run(include_str!("./aasm/test.aasm").to_string());
 
-	// crate::log!("{:?}", vm.registers);
+	crate::log!("{:?}", vm.registers);
 	crate::log!("{}", vm.read_screen());
 }
 
