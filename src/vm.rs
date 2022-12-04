@@ -110,6 +110,10 @@ enum InstructionType {
 	/// Moves the data in the register to the address.
 	MoveRegToImmAddr(usize, u16),
 
+	MoveByteRegToRegAddr(usize, usize),
+	MoveByteRegAddrToReg(usize, usize),
+	MoveByteRegToImmAddr(usize, u16),
+
 	/// Adds the first register and second register and stores the result in the third register.
 	AddRegToReg(usize, usize, usize),
 	/// Adds the immediate value to the first register and stores the result in the second register.
@@ -145,6 +149,7 @@ impl InstructionType {
 			Self::Halt => {
 				vec![0x00, 0xff]
 			},
+
 			Self::MoveRegToReg(r1, r2) => {
 				vec![0x01, 0xff, *r1 as u8, *r2 as u8]
 			},
@@ -179,6 +184,17 @@ impl InstructionType {
 				let immb = imm.to_be_bytes();
 				let addrb = addr.to_be_bytes();
 				vec![0x09, *reg as u8, immb[0], immb[1], addrb[0], addrb[1]]
+			},
+			
+			Self::MoveByteRegToRegAddr(r1, r2) => {
+				vec![0x13, 0xff, *r1 as u8, *r2 as u8]
+			},
+			Self::MoveByteRegAddrToReg(r1, r2) => {
+				vec![0x14, 0xff, *r1 as u8, *r2 as u8]
+			},
+			Self::MoveByteRegToImmAddr(reg, imm) => {
+				let immb = imm.to_be_bytes();
+				vec![0x15, *reg as u8, immb[0], immb[1]]
 			},
 
 			Self::DataDirective(data) => data.clone(),
@@ -565,6 +581,34 @@ impl AssemblyParser {
 					}
 				},
 
+				"movb" => {
+					let op1 = self.eat_operand()?;
+					self.eat_token_of_type(AssemblyTokenType::Comma)?;
+					let op2 = self.eat_operand()?;
+	
+					match (op1.otype, op2.otype) {
+						(AssemblyOperandType::RegisterAddress(r1), AssemblyOperandType::Register(r2)) => {
+							result.push(Instruction {
+								itype: InstructionType::MoveByteRegAddrToReg(r1, r2),
+								label,
+								line_no,
+							});
+						},
+						(AssemblyOperandType::Register(r1), AssemblyOperandType::RegisterAddress(r2)) => {
+							result.push(Instruction {
+								itype: InstructionType::MoveByteRegToRegAddr(r1, r2),
+								label,
+								line_no,
+							});
+						},
+	
+						_ => return Err(AssembleError {
+							etype: AssembleErrorType::InvalidOperands,
+							line_no,
+						}),
+					}
+				},
+
 				"add" => {
 					let op1 = self.eat_operand()?;
 					self.eat_token_of_type(AssemblyTokenType::Comma)?;
@@ -899,7 +943,27 @@ impl AtlasVM {
 					}
 				},
 
-				_ => panic!("Invalid instruction code {:02x}", instr_code),
+				// MoveByteRegToRegAddr
+				0x13 => {
+					let r1 = self.read_memory_byte(self.program_counter + 2);
+					let r2 = self.read_memory_byte(self.program_counter + 3);
+
+					self.write_memory_byte(self.registers[r2 as usize], (self.registers[r1 as usize] & 0xff) as u8);
+
+					self.program_counter += 4;
+				},
+
+				// MoveByteRegAddrToReg
+				0x14 => {
+					let r1 = self.read_memory_byte(self.program_counter + 2);
+					let r2 = self.read_memory_byte(self.program_counter + 3);
+
+					self.registers[r2 as usize] = self.read_memory_byte(self.registers[r1 as usize]) as u16;
+
+					self.program_counter += 4;
+				},
+
+				_ => panic!("Invalid opcode: {:02x}", instr_code),
 			}
 		}
 	}

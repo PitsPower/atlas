@@ -2,10 +2,10 @@ mov data, $0
 mov 0x5e00, $1
 
 loop:
-	mov [$0], $2
+	movb [$0], $2
 	beq $2, 0, done
-	mov $2, [$1]
-	add $0, 2, $0
+	movb $2, [$1]
+	add $0, 1, $0
 	add $1, 2, $1
 	b loop
 
@@ -13,4 +13,4 @@ done:
 	halt
 
 data:
-	.db "Hello, world!\n", 0
+	.db "Hello, world!", 0

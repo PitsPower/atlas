@@ -578,7 +578,7 @@ pub fn start() {
 
 	let mut vm = AtlasVM::new();
 
-	vm.run(include_str!("./aasm/helloworld.aasm").to_string());
+	vm.run(include_str!("./aasm/test.aasm").to_string());
 
 	// crate::log!("{:?}", vm.registers);
 	crate::log!("{}", vm.read_screen());
