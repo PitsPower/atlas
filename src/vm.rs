@@ -98,18 +98,27 @@ impl std::fmt::Display for AssemblyTokenType {
 enum InstructionType {
 	/// Halts the program.
 	Halt,
+
 	/// Moves the data in the first register to the second register.
 	MoveRegToReg(usize, usize),
 	/// Move an immediate value into a register.
 	MoveImmToReg(u16, usize),
 	/// Moves the data in the first register to the address stored in the second register.
 	MoveRegToRegAddr(usize, usize),
+	/// Moves the data from the address stored in the first address to the address in the second register.
+	MoveRegAddrToReg(usize, usize),
 	/// Moves the data in the register to the address.
 	MoveRegToImmAddr(usize, u16),
+
 	/// Adds the first register and second register and stores the result in the third register.
 	AddRegToReg(usize, usize, usize),
 	/// Adds the immediate value to the first register and stores the result in the second register.
 	AddImmToReg(usize, u16, usize),
+
+	/// Branches to a given address.
+	Branch(u16),
+	/// Branches to a given address if the register's value is equal to the immediate.
+	BranchIfEqual(usize, u16, u16),
 
 	// Assembly directives. Not exactly instructions but whatever.
 
@@ -122,6 +131,11 @@ enum InstructionType {
 
 	/// Moves the address represented by a label into a register.
 	MoveLabelToReg(String, usize),
+
+	/// Branch, but branches to a label.
+	BranchToLabel(String),
+	/// BranchIfEqual, but branches to a label.
+	BranchToLabelIfEqual(usize, u16, String),
 }
 
 impl InstructionType {
@@ -129,33 +143,47 @@ impl InstructionType {
 	fn as_machine_code(&self) -> Vec<u8> {
 		match self {
 			Self::Halt => {
-				vec![0x00]
+				vec![0x00, 0xff]
 			},
 			Self::MoveRegToReg(r1, r2) => {
-				vec![0x01, *r1 as u8, *r2 as u8]
+				vec![0x01, 0xff, *r1 as u8, *r2 as u8]
 			},
 			Self::MoveImmToReg(imm, reg) => {
 				let immb = imm.to_be_bytes();
 				vec![0x02, *reg as u8, immb[0], immb[1]]
 			},
 			Self::MoveRegToRegAddr(r1, r2) => {
-				vec![0x02, *r1 as u8, *r2 as u8]
+				vec![0x03, 0xff, *r1 as u8, *r2 as u8]
+			},
+			Self::MoveRegAddrToReg(r1, r2) => {
+				vec![0x04, 0xff, *r1 as u8, *r2 as u8]
 			},
 			Self::MoveRegToImmAddr(reg, imm) => {
 				let immb = imm.to_be_bytes();
-				vec![0x03, *reg as u8, immb[0], immb[1]]
+				vec![0x05, *reg as u8, immb[0], immb[1]]
 			},
+
 			Self::AddRegToReg(r1, r2, r3) => {
-				vec![0x04, *r1 as u8, *r2 as u8, *r3 as u8]
+				vec![0x06, *r1 as u8, *r2 as u8, *r3 as u8]
 			},
 			Self::AddImmToReg(r1, imm, r2) => {
 				let immb = imm.to_be_bytes();
-				vec![0x05, *r1 as u8, immb[0], immb[1], *r2 as u8]
+				vec![0x07, *r1 as u8, immb[0], immb[1], *r2 as u8, 0xff]
+			},
+
+			Self::Branch(addr) => {
+				let addrb = addr.to_be_bytes();
+				vec![0x08, 0xff, addrb[0], addrb[1]]
+			},
+			Self::BranchIfEqual(reg, imm, addr) => {
+				let immb = imm.to_be_bytes();
+				let addrb = addr.to_be_bytes();
+				vec![0x09, *reg as u8, immb[0], immb[1], addrb[0], addrb[1]]
 			},
 
 			Self::DataDirective(data) => data.clone(),
 
-			Self::MoveLabelToReg(_, _) => unreachable!(),
+			_ => unreachable!(),
 		}
 	}
 
@@ -163,12 +191,15 @@ impl InstructionType {
 	fn get_machine_code_size(&self) -> usize {
 		match self {
 			Self::MoveLabelToReg(_, _) => 4,
+			Self::BranchToLabel(_) => 4,
+			Self::BranchToLabelIfEqual(_, _, _) => 6,
 			_ => self.as_machine_code().len(),
 		}
 	}
 }
 
 /// An assembly instruction. Includes the type of instruction and an optional label.
+#[derive(Debug)]
 struct Instruction {
 	itype: InstructionType,
 	label: Option<String>,
@@ -320,11 +351,40 @@ fn lex_assembly(assembly: String) -> Result<Vec<AssemblyToken>, AssembleError> {
 	Ok(result)
 }
 
-/// An assembly operand.
-enum AssemblyOperand {
+/// An assembly operand type.
+enum AssemblyOperandType {
 	Immediate(u16),
-	Register(usize),
+	ImmediateAddress(u16),
 	Label(String),
+	Register(usize),
+	RegisterAddress(usize),
+	String(String),
+}
+
+/// An assembly operand.
+struct AssemblyOperand {
+	otype: AssemblyOperandType,
+	line_no: usize,
+}
+
+impl AssemblyOperand {
+	fn as_bytes(&self) -> Result<Vec<u8>, AssembleError> {
+		match &self.otype {
+			AssemblyOperandType::Immediate(imm) => {
+				Ok(vec![*imm as u8])
+			},
+			AssemblyOperandType::String(str) => {
+				Ok(str.as_bytes().to_vec())
+			},
+
+			_ => {
+				Err(AssembleError {
+					etype: AssembleErrorType::InvalidOperands,
+					line_no: self.line_no,
+				})
+			},
+		}
+	}
 }
 
 /// A parser for the ATLAS assembly language.
@@ -393,9 +453,43 @@ impl AssemblyParser {
 		let token = self.eat_token()?;
 
 		match &token.ttype {
-			AssemblyTokenType::Number(num) => Ok(AssemblyOperand::Immediate(*num as u16)),
-			AssemblyTokenType::Register(reg) => Ok(AssemblyOperand::Register(*reg)),
-			AssemblyTokenType::Identifier(ident) => Ok(AssemblyOperand::Label(ident.clone())),
+			AssemblyTokenType::Number(num) => Ok(AssemblyOperand {
+				otype: AssemblyOperandType::Immediate(*num as u16),
+				line_no: token.line_no,
+			}),
+			AssemblyTokenType::Identifier(ident) => Ok(AssemblyOperand {
+				otype: AssemblyOperandType::Label(ident.clone()),
+				line_no: token.line_no,
+			}),
+			AssemblyTokenType::Register(reg) => Ok(AssemblyOperand {
+				otype: AssemblyOperandType::Register(*reg),
+				line_no: token.line_no,
+			}),
+			AssemblyTokenType::String(str) => Ok(AssemblyOperand {
+				otype: AssemblyOperandType::String(str.clone()),
+				line_no: token.line_no,
+			}),
+			
+			AssemblyTokenType::LSquare => {
+				let operand = self.eat_operand()?;
+				self.eat_token_of_type(AssemblyTokenType::RSquare)?;
+
+				match operand.otype {
+					AssemblyOperandType::Immediate(imm) => Ok(AssemblyOperand {
+						otype: AssemblyOperandType::ImmediateAddress(imm),
+						line_no: token.line_no,
+					}),
+					AssemblyOperandType::Register(reg) => Ok(AssemblyOperand {
+						otype: AssemblyOperandType::RegisterAddress(reg),
+						line_no: token.line_no,
+					}),
+
+					_ => Err(AssembleError {
+						etype: AssembleErrorType::InvalidOperands,
+						line_no: token.line_no,
+					}),
+				}
+			}
 			
 			_ => Err(AssembleError {
 				etype: AssembleErrorType::UnexpectedToken(token.ttype.clone()),
@@ -409,24 +503,23 @@ impl AssemblyParser {
 		let mut result = vec![];
 	
 		while self.tokens.peek().is_some() {
-			let line_no = self.get_line_no()?;
 			let ident = self.eat_ident()?;
 	
 			// The identifer is either an instruction name or a label name
 			// We use the next token to determine which one it is
 
 			let mut label = None;
+			let line_no;
 			let instr_name;
-	
-			match self.tokens.peek() {
-				Some(AssemblyToken { ttype: AssemblyTokenType::Colon, line_no: _ }) => {
-					label = Some(ident.clone());
-					self.tokens.next().unwrap();
-					instr_name = self.eat_ident()?;
-				},
-				_ => {
-					instr_name = ident.clone();
-				},
+
+			if let Some(AssemblyToken { ttype: AssemblyTokenType::Colon, line_no: _ }) = self.tokens.peek() {
+				label = Some(ident.clone());
+				self.tokens.next().unwrap();
+				line_no = self.get_line_no()?;
+				instr_name = self.eat_ident()?;
+			} else {
+				line_no = self.get_line_no()?;
+				instr_name = ident.clone();
 			}
 	
 			match instr_name.as_str() {
@@ -435,17 +528,31 @@ impl AssemblyParser {
 					self.eat_token_of_type(AssemblyTokenType::Comma)?;
 					let op2 = self.eat_operand()?;
 	
-					match (&op1, &op2) {
-						(AssemblyOperand::Immediate(imm), AssemblyOperand::Register(reg)) => {
+					match (op1.otype, op2.otype) {
+						(AssemblyOperandType::Immediate(imm), AssemblyOperandType::Register(reg)) => {
 							result.push(Instruction {
-								itype: InstructionType::MoveImmToReg(*imm as u16, *reg),
+								itype: InstructionType::MoveImmToReg(imm as u16, reg),
 								label,
 								line_no,
 							});
 						},
-						(AssemblyOperand::Label(label_str), AssemblyOperand::Register(reg)) => {
+						(AssemblyOperandType::Label(label_str), AssemblyOperandType::Register(reg)) => {
 							result.push(Instruction {
-								itype: InstructionType::MoveLabelToReg(label_str.to_string(), *reg),
+								itype: InstructionType::MoveLabelToReg(label_str.to_string(), reg),
+								label,
+								line_no,
+							});
+						},
+						(AssemblyOperandType::RegisterAddress(r1), AssemblyOperandType::Register(r2)) => {
+							result.push(Instruction {
+								itype: InstructionType::MoveRegAddrToReg(r1, r2),
+								label,
+								line_no,
+							});
+						},
+						(AssemblyOperandType::Register(r1), AssemblyOperandType::RegisterAddress(r2)) => {
+							result.push(Instruction {
+								itype: InstructionType::MoveRegToRegAddr(r1, r2),
 								label,
 								line_no,
 							});
@@ -456,6 +563,96 @@ impl AssemblyParser {
 							line_no,
 						}),
 					}
+				},
+
+				"add" => {
+					let op1 = self.eat_operand()?;
+					self.eat_token_of_type(AssemblyTokenType::Comma)?;
+					let op2 = self.eat_operand()?;
+					self.eat_token_of_type(AssemblyTokenType::Comma)?;
+					let op3 = self.eat_operand()?;
+
+					match (op1.otype, op2.otype, op3.otype) {
+						(
+							AssemblyOperandType::Register(r1),
+							AssemblyOperandType::Immediate(imm),
+							AssemblyOperandType::Register(r2),
+						) => {
+							result.push(Instruction {
+								itype: InstructionType::AddImmToReg(r1, imm, r2),
+								label,
+								line_no,
+							});
+						},
+	
+						_ => return Err(AssembleError {
+							etype: AssembleErrorType::InvalidOperands,
+							line_no,
+						}),
+					}
+				},
+
+				"b" => {
+					let op = self.eat_operand()?;
+
+					if let AssemblyOperandType::Label(label_str) = op.otype {
+						result.push(Instruction {
+							itype: InstructionType::BranchToLabel(label_str),
+							label,
+							line_no,
+						});
+					} else {
+						return Err(AssembleError {
+							etype: AssembleErrorType::InvalidOperands,
+							line_no,
+						});
+					}
+				},
+
+				"beq" => {
+					let op1 = self.eat_operand()?;
+					self.eat_token_of_type(AssemblyTokenType::Comma)?;
+					let op2 = self.eat_operand()?;
+					self.eat_token_of_type(AssemblyTokenType::Comma)?;
+					let op3 = self.eat_operand()?;
+
+					match (op1.otype, op2.otype, op3.otype) {
+						(
+							AssemblyOperandType::Register(reg),
+							AssemblyOperandType::Immediate(imm),
+							AssemblyOperandType::Label(label_str),
+						) => {
+							result.push(Instruction {
+								itype: InstructionType::BranchToLabelIfEqual(reg, imm, label_str),
+								label,
+								line_no,
+							});
+						},
+	
+						_ => return Err(AssembleError {
+							etype: AssembleErrorType::InvalidOperands,
+							line_no,
+						}),
+					}
+				},
+	
+				".db" => {
+					let mut bytes = vec![];
+
+					let operand = self.eat_operand()?;
+					bytes.append(&mut operand.as_bytes()?);
+
+					while let Some(AssemblyToken { ttype: AssemblyTokenType::Comma, line_no: _ }) = self.tokens.peek() {
+						self.eat_token()?;
+						let operand = self.eat_operand()?;
+						bytes.append(&mut operand.as_bytes()?);
+					}
+
+					result.push(Instruction {
+						itype: InstructionType::DataDirective(bytes),
+						label,
+						line_no,
+					});
 				},
 	
 				"halt" => {
@@ -470,7 +667,7 @@ impl AssemblyParser {
 					return Err(AssembleError {
 						etype: AssembleErrorType::InvalidInstruction(instr_name),
 						line_no,
-					})
+					});
 				},
 			}
 		}
@@ -503,7 +700,6 @@ fn assemble(assembly: String) -> Result<Vec<u8>, AssembleError> {
 	}
 
 	for instr in &mut instrs {
-		#[allow(clippy::single_match)]
 		match &instr.itype {
 			InstructionType::MoveLabelToReg(label, reg) => {
 				if let Some(address) = label_map.get(label) {
@@ -514,7 +710,28 @@ fn assemble(assembly: String) -> Result<Vec<u8>, AssembleError> {
 						line_no: instr.line_no,
 					});
 				}
-
+			},
+			
+			InstructionType::BranchToLabel(label) => {
+				if let Some(address) = label_map.get(label) {
+					instr.itype = InstructionType::Branch(*address as u16);
+				} else {
+					return Err(AssembleError {
+						etype: AssembleErrorType::UndefinedLabel(label.clone()),
+						line_no: instr.line_no,
+					});
+				}
+			},
+			
+			InstructionType::BranchToLabelIfEqual(reg, imm, label) => {
+				if let Some(address) = label_map.get(label) {
+					instr.itype = InstructionType::BranchIfEqual(*reg, *imm, *address as u16);
+				} else {
+					return Err(AssembleError {
+						etype: AssembleErrorType::UndefinedLabel(label.clone()),
+						line_no: instr.line_no,
+					});
+				}
 			},
 			
 			_ => {},
@@ -576,6 +793,26 @@ impl AtlasVM {
 		self.memory[address as usize / 2] = new_word;
 	}
 
+	/// Returns the screen contents as a string.
+	pub fn read_screen(&self) -> String {
+		let screen_addr = 0x5e00;
+
+		let screen_width = 64;
+		let screen_height = 48;
+
+		let mut result = String::new();
+
+		for i in 0..screen_height {
+			for j in 0..screen_width {
+				let addr = screen_addr + i * screen_width + j;
+				result.push(self.read_memory_byte(addr) as char);
+			}
+			result.push('\n');
+		}
+
+		result
+	}
+
 	/// Runs an assembly program.
 	pub fn run(&mut self, assembly: String) {
 		let machine_code = match assemble(assembly) {
@@ -592,6 +829,8 @@ impl AtlasVM {
 		let mut is_halted = false;
 
 		while !is_halted {
+			// crate::log!("{:?}", self.registers);
+
 			let instr_code = self.read_memory_byte(self.program_counter);
 
 			match instr_code {
@@ -608,6 +847,56 @@ impl AtlasVM {
 					self.registers[reg as usize] = imm;
 
 					self.program_counter += 4;
+				},
+
+				// MoveRegToRegAddr
+				0x03 => {
+					let r1 = self.read_memory_byte(self.program_counter + 2);
+					let r2 = self.read_memory_byte(self.program_counter + 3);
+
+					self.write_memory_word(self.registers[r2 as usize], self.registers[r1 as usize]);
+
+					self.program_counter += 4;
+				},
+
+				// MoveRegAddrToReg
+				0x04 => {
+					let r1 = self.read_memory_byte(self.program_counter + 2);
+					let r2 = self.read_memory_byte(self.program_counter + 3);
+
+					self.registers[r2 as usize] = self.read_memory_word(self.registers[r1 as usize]);
+
+					self.program_counter += 4;
+				},
+
+				// AddImmToReg
+				0x07 => {
+					let r1 = self.read_memory_byte(self.program_counter + 1);
+					let imm = self.read_memory_word(self.program_counter + 2);
+					let r2 = self.read_memory_byte(self.program_counter + 4);
+
+					self.registers[r2 as usize] = self.registers[r1 as usize].wrapping_add(imm);
+					
+					self.program_counter += 6;
+				},
+
+				// Branch
+				0x08 => {
+					let addr = self.read_memory_word(self.program_counter + 2);
+					self.program_counter = addr;
+				},
+
+				// BranchIfEqual
+				0x09 => {
+					let reg = self.read_memory_byte(self.program_counter + 1);
+					let imm = self.read_memory_word(self.program_counter + 2);
+					let addr = self.read_memory_word(self.program_counter + 4);
+
+					if self.registers[reg as usize] == imm {
+						self.program_counter = addr;
+					} else {
+						self.program_counter += 6;
+					}
 				},
 
 				_ => panic!("Invalid instruction code {:02x}", instr_code),
