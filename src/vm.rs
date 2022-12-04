@@ -1,13 +1,15 @@
-//! The ATLAS PC Virtual Machine. Used as a reference for the actual computer.
+//! The ATLAS PC Virtual Machine and assembler. Used as a reference for the actual computer.
+
+use std::collections::HashMap;
 
 /// The number of registers.
 const REGISTER_AMOUNT: usize = 16;
 /// The size of RAM.
 const RAM_SIZE: usize = 0x10000;	// Max for a 16-bit address
 
-/// The different kinds of errors that can happen when parsing.
+/// The different kinds of errors that can happen when assembling.
 #[derive(Debug)]
-enum ParsingErrorType {
+enum AssembleErrorType {
 	/// Invalid character.
 	InvalidCharacter(char),
 	/// Unexpected end of file.
@@ -16,36 +18,40 @@ enum ParsingErrorType {
 	UnexpectedToken(AssemblyTokenType),
 	/// The instruction being executed isn't known.
 	InvalidInstruction(String),
-	/// The operands given to the instruction don't fit.
+	/// The instruction has been given invalid operands.
 	InvalidOperands,
+	/// The label being referenced isn't defined.
+	UndefinedLabel(String),
 }
 
-impl std::fmt::Display for ParsingErrorType {
+impl std::fmt::Display for AssembleErrorType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
-			Self::InvalidCharacter(char) => f.write_fmt(format_args!("Unexpected character '{}'", char)),
-			Self::UnexpectedEOF => f.write_str("Unexpected end of file"),
-			Self::UnexpectedToken(token) => f.write_fmt(format_args!("Unexpected token {}", token)),
-			Self::InvalidInstruction(instr) => f.write_fmt(format_args!("Invalid instruction {}", instr)),
-			Self::InvalidOperands => f.write_str("Invalid operands for instruction"),
+			Self::InvalidCharacter(char) => write!(f, "Unexpected character: '{}'", char),
+			Self::UnexpectedEOF => write!(f, "Unexpected end of file"),
+			Self::UnexpectedToken(token) => write!(f, "Unexpected token: {}", token),
+			Self::InvalidInstruction(instr) => write!(f, "Invalid instruction: {}", instr),
+			Self::InvalidOperands => write!(f, "Invalid operands"),
+			Self::UndefinedLabel(label) => write!(f, "Undefined label: {}", label),
 		}
     }
 }
 
-/// A parsing error. Includes the type of error as well as things
+/// An error that may occur when assembling. Includes the type of error as well as things
 /// such as the line number.
-struct ParsingError {
-	etype: ParsingErrorType,
+struct AssembleError {
+	etype: AssembleErrorType,
 	line_no: usize,
 }
 
-impl std::fmt::Display for ParsingError {
+impl std::fmt::Display for AssembleError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!(
+        write!(
+			f,
 			"Error on line {}: {}",
 			self.line_no,
 			self.etype,
-		))
+		)
     }
 }
 
@@ -75,21 +81,21 @@ struct AssemblyToken {
 impl std::fmt::Display for AssemblyTokenType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
-			Self::Colon => f.write_str(":"),
-			Self::Comma => f.write_str(","),
-			Self::LSquare => f.write_str("["),
-			Self::RSquare => f.write_str("]"),
-			Self::Identifier(ident) => f.write_str(ident),
-			Self::Number(num) => f.write_fmt(format_args!("{}", num)),
-			Self::Register(reg) => f.write_fmt(format_args!("${}", reg)),
-			Self::String(str) => f.write_fmt(format_args!("\"{}\"", str)),
+			Self::Colon => write!(f, ":"),
+			Self::Comma => write!(f, ","),
+			Self::LSquare => write!(f, "["),
+			Self::RSquare => write!(f, "]"),
+			Self::Identifier(ident) => write!(f, "{}", ident),
+			Self::Number(num) => write!(f, "{}", num),
+			Self::Register(reg) => write!(f, "${}", reg),
+			Self::String(str) => write!(f, "\"{}\"", str),
 		}
     }
 }
 
 /// The set of ATLAS assembly instructions.
 #[derive(Debug)]
-enum Instruction {
+enum InstructionType {
 	/// Halts the program.
 	Halt,
 	/// Moves the data in the first register to the second register.
@@ -109,9 +115,16 @@ enum Instruction {
 
 	/// Writes some data to the binary output.
 	DataDirective(Vec<u8>),
+
+	// Temporary instructions that don't have any machine code counterpart.
+	// Usually these are instructions that use labels directly instead of immediate addresses
+	// or offsets.
+
+	/// Moves the address represented by a label into a register.
+	MoveLabelToReg(String, usize),
 }
 
-impl Instruction {
+impl InstructionType {
 	/// Returns the instruction as a machine code instruction.
 	fn as_machine_code(&self) -> Vec<u8> {
 		match self {
@@ -141,12 +154,29 @@ impl Instruction {
 			},
 
 			Self::DataDirective(data) => data.clone(),
+
+			Self::MoveLabelToReg(_, _) => unreachable!(),
+		}
+	}
+
+	/// Returns the size of the instruction in machine code.
+	fn get_machine_code_size(&self) -> usize {
+		match self {
+			Self::MoveLabelToReg(_, _) => 4,
+			_ => self.as_machine_code().len(),
 		}
 	}
 }
 
+/// An assembly instruction. Includes the type of instruction and an optional label.
+struct Instruction {
+	itype: InstructionType,
+	label: Option<String>,
+	line_no: usize,
+}
+
 /// Lexes an assembly program.
-fn lex_assembly(assembly: String) -> Result<Vec<AssemblyToken>, ParsingError> {
+fn lex_assembly(assembly: String) -> Result<Vec<AssemblyToken>, AssembleError> {
 	let mut result = vec![];
 	let mut chars = assembly.chars().peekable();
 	let mut line_no = 1;
@@ -249,7 +279,7 @@ fn lex_assembly(assembly: String) -> Result<Vec<AssemblyToken>, ParsingError> {
 								_ => string.push(char),
 							}
 						} else {
-							return Err(ParsingError { etype: ParsingErrorType::UnexpectedEOF, line_no });
+							return Err(AssembleError { etype: AssembleErrorType::UnexpectedEOF, line_no });
 						}
 					} else if char != '"' {
 						string.push(chars.next().unwrap());
@@ -259,7 +289,7 @@ fn lex_assembly(assembly: String) -> Result<Vec<AssemblyToken>, ParsingError> {
 				}
 
 				if chars.next().is_none() {
-					return Err(ParsingError { etype: ParsingErrorType::UnexpectedEOF, line_no });
+					return Err(AssembleError { etype: AssembleErrorType::UnexpectedEOF, line_no });
 				}
 
 				result.push(AssemblyToken {
@@ -278,7 +308,7 @@ fn lex_assembly(assembly: String) -> Result<Vec<AssemblyToken>, ParsingError> {
 					' ' | '\t' => {},
 
 					_ => {
-						return Err(ParsingError { etype: ParsingErrorType::InvalidCharacter(char), line_no });
+						return Err(AssembleError { etype: AssembleErrorType::InvalidCharacter(char), line_no });
 					},
 				}
 
@@ -290,76 +320,209 @@ fn lex_assembly(assembly: String) -> Result<Vec<AssemblyToken>, ParsingError> {
 	Ok(result)
 }
 
-/// Parses an assembly program.
-fn parse_assembly(assembly: String) -> Result<Vec<Instruction>, ParsingError> {
-	let mut result = vec![];
-	
-	let token_vec = lex_assembly(assembly)?;
-	let mut tokens = token_vec.iter().peekable();
+/// An assembly operand.
+enum AssemblyOperand {
+	Immediate(u16),
+	Register(usize),
+	Label(String),
+}
 
-	while tokens.peek().is_some() {
-		let token = tokens.next().unwrap();
+/// A parser for the ATLAS assembly language.
+struct AssemblyParser {
+	tokens: std::iter::Peekable<std::vec::IntoIter<AssemblyToken>>,
+	eof_line_no: usize,
+}
 
-		let ident = match &token.ttype {
-			AssemblyTokenType::Identifier(ident) => ident.clone(),
-			_ => return Err(ParsingError {
-				etype: ParsingErrorType::UnexpectedToken(token.ttype.clone()),
-				line_no: token.line_no,
-			}),
-		};
+impl AssemblyParser {
+	/// Returns a new [`AssemblyParser`].
+	fn new(tokens: Vec<AssemblyToken>) -> Self {
+		let eof_line_no = tokens.last().unwrap().line_no;
 
-		let instr_name = ident.as_str();
-
-		match instr_name {
-			"mov" => {
-				let op1 = tokens.next().ok_or(ParsingError {
-					etype: ParsingErrorType::InvalidOperands,
-					line_no: token.line_no,
-				})?;
-
-				let comma = tokens.next().ok_or(ParsingError {
-					etype: ParsingErrorType::InvalidOperands,
-					line_no: token.line_no,
-				})?;
-
-				if comma.ttype != AssemblyTokenType::Comma {
-					return Err(ParsingError {
-						etype: ParsingErrorType::UnexpectedToken(comma.ttype.clone()),
-						line_no: token.line_no,
-					});
-				}
-
-				let op2 = tokens.next().ok_or(ParsingError {
-					etype: ParsingErrorType::InvalidOperands,
-					line_no: token.line_no,
-				})?;
-
-				match (&op1.ttype, &op2.ttype) {
-					(AssemblyTokenType::Number(imm), AssemblyTokenType::Register(reg)) => {
-						result.push(Instruction::MoveImmToReg(*imm as u16, *reg));
-					},
-
-					_ => return Err(ParsingError {
-						etype: ParsingErrorType::InvalidOperands,
-						line_no: token.line_no,
-					}),
-				}
-			},
-
-			"halt" => {
-				result.push(Instruction::Halt);
-			},
-
-			_ => {
-				return Err(ParsingError {
-					etype: ParsingErrorType::InvalidInstruction(ident),
-					line_no: token.line_no,
-				})
-			},
+		Self {
+			tokens: tokens.into_iter().peekable(),
+			eof_line_no,
 		}
 	}
 
-	Ok(result)
+	/// Returns the next token while consuming it.
+	fn eat_token(&mut self) -> Result<AssemblyToken, AssembleError> {
+		self.tokens.next().ok_or(AssembleError {
+			etype: AssembleErrorType::UnexpectedEOF,
+			line_no: self.eof_line_no,
+		})
+	}
+
+	/// Eats a token if it equals the input token, otherwise returns an error.
+	fn eat_token_of_type(&mut self, ttype: AssemblyTokenType) -> Result<(), AssembleError> {
+		let token = self.eat_token()?;
+
+		if token.ttype == ttype {
+			Ok(())
+		} else {
+			Err(AssembleError {
+				etype: AssembleErrorType::UnexpectedToken(token.ttype),
+				line_no: token.line_no,
+			})
+		}
+	}
+
+	/// Returns the line number of the current token.
+	fn get_line_no(&mut self) -> Result<usize, AssembleError> {
+		let token = self.tokens.peek().ok_or(AssembleError {
+			etype: AssembleErrorType::UnexpectedEOF,
+			line_no: self.eof_line_no,
+		})?;
+		Ok(token.line_no)
+	}
+
+	/// Returns the string of the next identifier if applicable, otherwise returns an error.
+	fn eat_ident(&mut self) -> Result<String, AssembleError> {
+		let token = self.eat_token()?;
+
+		match &token.ttype {
+			AssemblyTokenType::Identifier(ident) => Ok(ident.clone()),
+			_ => Err(AssembleError {
+				etype: AssembleErrorType::UnexpectedToken(token.ttype.clone()),
+				line_no: token.line_no,
+			}),
+		}
+	}
+
+	/// Returns the next operand if applicable, otherwise returns an error.
+	fn eat_operand(&mut self) -> Result<AssemblyOperand, AssembleError> {
+		let token = self.eat_token()?;
+
+		match &token.ttype {
+			AssemblyTokenType::Number(num) => Ok(AssemblyOperand::Immediate(*num as u16)),
+			AssemblyTokenType::Register(reg) => Ok(AssemblyOperand::Register(*reg)),
+			AssemblyTokenType::Identifier(ident) => Ok(AssemblyOperand::Label(ident.clone())),
+			
+			_ => Err(AssembleError {
+				etype: AssembleErrorType::UnexpectedToken(token.ttype.clone()),
+				line_no: token.line_no,
+			}),
+		}
+	}
+
+	/// Parses the tokens and returns a list of instructions.
+	fn parse(&mut self) -> Result<Vec<Instruction>, AssembleError> {
+		let mut result = vec![];
+	
+		while self.tokens.peek().is_some() {
+			let line_no = self.get_line_no()?;
+			let ident = self.eat_ident()?;
+	
+			// The identifer is either an instruction name or a label name
+			// We use the next token to determine which one it is
+
+			let mut label = None;
+			let instr_name;
+	
+			match self.tokens.peek() {
+				Some(AssemblyToken { ttype: AssemblyTokenType::Colon, line_no: _ }) => {
+					label = Some(ident.clone());
+					self.tokens.next().unwrap();
+					instr_name = self.eat_ident()?;
+				},
+				_ => {
+					instr_name = ident.clone();
+				},
+			}
+	
+			match instr_name.as_str() {
+				"mov" => {
+					let op1 = self.eat_operand()?;
+					self.eat_token_of_type(AssemblyTokenType::Comma)?;
+					let op2 = self.eat_operand()?;
+	
+					match (&op1, &op2) {
+						(AssemblyOperand::Immediate(imm), AssemblyOperand::Register(reg)) => {
+							result.push(Instruction {
+								itype: InstructionType::MoveImmToReg(*imm as u16, *reg),
+								label,
+								line_no,
+							});
+						},
+						(AssemblyOperand::Label(label_str), AssemblyOperand::Register(reg)) => {
+							result.push(Instruction {
+								itype: InstructionType::MoveLabelToReg(label_str.to_string(), *reg),
+								label,
+								line_no,
+							});
+						},
+	
+						_ => return Err(AssembleError {
+							etype: AssembleErrorType::InvalidOperands,
+							line_no,
+						}),
+					}
+				},
+	
+				"halt" => {
+					result.push(Instruction {
+						itype: InstructionType::Halt,
+						label,
+						line_no,
+					});
+				},
+	
+				_ => {
+					return Err(AssembleError {
+						etype: AssembleErrorType::InvalidInstruction(instr_name),
+						line_no,
+					})
+				},
+			}
+		}
+	
+		Ok(result)
+	}
+}
+
+/// Produces machine instructions given an assembly program.
+fn assemble(assembly: String) -> Result<Vec<u8>, AssembleError> {
+	// Convert assembly string to tokens
+	let tokens = lex_assembly(assembly)?;
+
+	// Convert tokens to parsed instructions
+	let mut parser = AssemblyParser::new(tokens);
+	let mut instrs = parser.parse()?;
+
+	// Resolve labels to addresses
+
+	let mut label_map: HashMap<String, usize> = HashMap::new();
+
+	let mut current_address = 0;
+
+	for instr in &mut instrs {
+		if let Some(label) = &instr.label {
+			label_map.insert(label.clone(), current_address);
+		}
+
+		current_address += instr.itype.get_machine_code_size();
+	}
+
+	for instr in &mut instrs {
+		#[allow(clippy::single_match)]
+		match &instr.itype {
+			InstructionType::MoveLabelToReg(label, reg) => {
+				if let Some(address) = label_map.get(label) {
+					instr.itype = InstructionType::MoveImmToReg(*address as u16, *reg);
+				} else {
+					return Err(AssembleError {
+						etype: AssembleErrorType::UndefinedLabel(label.clone()),
+						line_no: instr.line_no,
+					});
+				}
+
+			},
+			
+			_ => {},
+		}
+	}
+
+	// Convert the resulting instructions into machine code and return
+	Ok(instrs.iter().flat_map(|instr| instr.itype.as_machine_code()).collect())
 }
 
 /// The ATLAS PC virtual machine.
@@ -415,17 +578,15 @@ impl AtlasVM {
 
 	/// Runs an assembly program.
 	pub fn run(&mut self, assembly: String) {
-		let instrs = match parse_assembly(assembly) {
-			Ok(instrs) => instrs,
+		let machine_code = match assemble(assembly) {
+			Ok(machine_code) => machine_code,
 			Err(err) => panic!("{}", err),
 		};
 
-		let machine_code = instrs.iter().flat_map(|instr| instr.as_machine_code());
+		crate::log!("{}", machine_code.iter().map(|byte| format!("{:02x}", byte)).collect::<Vec<_>>().join(" "));
 
-		crate::log!("{}", machine_code.clone().map(|byte| format!("{:02x}", byte)).collect::<Vec<_>>().join(" "));
-
-		for (addr, byte) in machine_code.enumerate() {
-			self.write_memory_byte(addr as u16, byte);
+		for (addr, byte) in machine_code.iter().enumerate() {
+			self.write_memory_byte(addr as u16, *byte);
 		}
 
 		let mut is_halted = false;
