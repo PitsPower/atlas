@@ -798,7 +798,7 @@ impl AtlasVM {
 		let screen_addr = 0x5e00;
 
 		let screen_width = 64;
-		let screen_height = 48;
+		let screen_height = 16;
 
 		let mut result = String::new();
 
