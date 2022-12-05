@@ -1,886 +1,33 @@
-//! The ATLAS PC Virtual Machine and assembler. Used as a reference for the actual computer.
+//! A collection of ATLAS virtual machines. Used as a reference for the actual computer.
 
-use std::collections::HashMap;
+use crate::assembler::*;
 
 /// The number of registers.
 const REGISTER_AMOUNT: usize = 16;
 /// The size of RAM.
 const RAM_SIZE: usize = 0x10000;	// Max for a 16-bit address
 
-/// The different kinds of errors that can happen when assembling.
-#[derive(Debug)]
-enum AssembleErrorType {
-	/// Invalid character.
-	InvalidCharacter(char),
-	/// Unexpected end of file.
-	UnexpectedEOF,
-	/// Unexpected token.
-	UnexpectedToken(AssemblyTokenType),
-	/// The instruction being executed isn't known.
-	InvalidInstruction(String),
-	/// The instruction has been given invalid operands.
-	InvalidOperands,
-	/// The label being referenced isn't defined.
-	UndefinedLabel(String),
+/// Virtual implementation of memory.
+pub struct Memory {
+	data: Vec<u16>,
 }
 
-impl std::fmt::Display for AssembleErrorType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::InvalidCharacter(char) => write!(f, "Unexpected character: '{}'", char),
-			Self::UnexpectedEOF => write!(f, "Unexpected end of file"),
-			Self::UnexpectedToken(token) => write!(f, "Unexpected token: {}", token),
-			Self::InvalidInstruction(instr) => write!(f, "Invalid instruction: {}", instr),
-			Self::InvalidOperands => write!(f, "Invalid operands"),
-			Self::UndefinedLabel(label) => write!(f, "Undefined label: {}", label),
-		}
-    }
-}
-
-/// An error that may occur when assembling. Includes the type of error as well as things
-/// such as the line number.
-struct AssembleError {
-	etype: AssembleErrorType,
-	line_no: usize,
-}
-
-impl std::fmt::Display for AssembleError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-			f,
-			"Error on line {}: {}",
-			self.line_no,
-			self.etype,
-		)
-    }
-}
-
-/// The different kinds of tokens in assembly code.
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum AssemblyTokenType {
-	Colon,
-	Comma,
-	/// Left square bracket.
-	LSquare,
-	/// Right square bracket.
-	RSquare,
-
-	Identifier(String),
-	Number(u32),
-	Register(usize),
-	String(String),
-}
-
-/// An assembly token. Includes the type of token as well as things
-/// such as the line number.
-#[derive(Debug)]
-struct AssemblyToken {
-	ttype: AssemblyTokenType,
-	line_no: usize,
-}
-
-impl std::fmt::Display for AssemblyTokenType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Self::Colon => write!(f, ":"),
-			Self::Comma => write!(f, ","),
-			Self::LSquare => write!(f, "["),
-			Self::RSquare => write!(f, "]"),
-			Self::Identifier(ident) => write!(f, "{}", ident),
-			Self::Number(num) => write!(f, "{}", num),
-			Self::Register(reg) => write!(f, "${}", reg),
-			Self::String(str) => write!(f, "\"{}\"", str),
-		}
-    }
-}
-
-/// The set of ATLAS assembly instructions.
-#[derive(Debug)]
-enum InstructionType {
-	/// Halts the program.
-	Halt,
-
-	/// Moves the data in the first register to the second register.
-	MoveRegToReg(usize, usize),
-	/// Move an immediate value into a register.
-	MoveImmToReg(u16, usize),
-	/// Moves the data in the first register to the address stored in the second register.
-	MoveRegToRegAddr(usize, usize),
-	/// Moves the data from the address stored in the first address to the address in the second register.
-	MoveRegAddrToReg(usize, usize),
-	/// Moves the data in the register to the address.
-	MoveRegToImmAddr(usize, u16),
-
-	MoveByteRegToRegAddr(usize, usize),
-	MoveByteRegAddrToReg(usize, usize),
-	MoveByteRegToImmAddr(usize, u16),
-
-	/// Adds the first register and second register and stores the result in the third register.
-	AddRegToReg(usize, usize, usize),
-	/// Adds the immediate value to the first register and stores the result in the second register.
-	AddImmToReg(usize, u16, usize),
-
-	/// Branches to a given address.
-	Branch(u16),
-	/// Branches to a given address if the register's value is equal to the immediate.
-	BranchIfEqual(usize, u16, u16),
-	/// Branches to a given address if the register's value is less than or equal to the immediate.
-	BranchIfLessThanOrEqual(usize, u16, u16),
-
-	// Assembly directives. Not exactly instructions but whatever.
-
-	/// Writes some data to the binary output.
-	DataDirective(Vec<u8>),
-
-	// Temporary instructions that don't have any machine code counterpart.
-	// Usually these are instructions that use labels directly instead of immediate addresses
-	// or offsets.
-
-	/// Moves the address represented by a label into a register.
-	MoveLabelToReg(String, usize),
-
-	/// Branch, but branches to a label.
-	BranchToLabel(String),
-	/// BranchIfEqual, but branches to a label.
-	BranchToLabelIfEqual(usize, u16, String),
-	/// BranchIfLessThanOrEqual, but branches to a label.
-	BranchToLabelIfLessThanOrEqual(usize, u16, String),
-}
-
-impl InstructionType {
-	/// Returns the instruction as a machine code instruction.
-	fn as_machine_code(&self) -> Vec<u8> {
-		match self {
-			Self::Halt => {
-				vec![0x00, 0xff]
-			},
-
-			Self::MoveRegToReg(r1, r2) => {
-				vec![0x01, 0xff, *r1 as u8, *r2 as u8]
-			},
-			Self::MoveImmToReg(imm, reg) => {
-				let immb = imm.to_be_bytes();
-				vec![0x02, *reg as u8, immb[0], immb[1]]
-			},
-			Self::MoveRegToRegAddr(r1, r2) => {
-				vec![0x03, 0xff, *r1 as u8, *r2 as u8]
-			},
-			Self::MoveRegAddrToReg(r1, r2) => {
-				vec![0x04, 0xff, *r1 as u8, *r2 as u8]
-			},
-			Self::MoveRegToImmAddr(reg, imm) => {
-				let immb = imm.to_be_bytes();
-				vec![0x05, *reg as u8, immb[0], immb[1]]
-			},
-
-			Self::AddRegToReg(r1, r2, r3) => {
-				vec![0x06, *r1 as u8, *r2 as u8, *r3 as u8]
-			},
-			Self::AddImmToReg(r1, imm, r2) => {
-				let immb = imm.to_be_bytes();
-				vec![0x07, *r1 as u8, immb[0], immb[1], *r2 as u8, 0xff]
-			},
-
-			Self::Branch(addr) => {
-				let addrb = addr.to_be_bytes();
-				vec![0x08, 0xff, addrb[0], addrb[1]]
-			},
-			Self::BranchIfEqual(reg, imm, addr) => {
-				let immb = imm.to_be_bytes();
-				let addrb = addr.to_be_bytes();
-				vec![0x09, *reg as u8, immb[0], immb[1], addrb[0], addrb[1]]
-			},
-			Self::BranchIfLessThanOrEqual(reg, imm, addr) => {
-				let immb = imm.to_be_bytes();
-				let addrb = addr.to_be_bytes();
-				vec![0x0a, *reg as u8, immb[0], immb[1], addrb[0], addrb[1]]
-			},
-			
-			Self::MoveByteRegToRegAddr(r1, r2) => {
-				vec![0x13, 0xff, *r1 as u8, *r2 as u8]
-			},
-			Self::MoveByteRegAddrToReg(r1, r2) => {
-				vec![0x14, 0xff, *r1 as u8, *r2 as u8]
-			},
-			Self::MoveByteRegToImmAddr(reg, imm) => {
-				let immb = imm.to_be_bytes();
-				vec![0x15, *reg as u8, immb[0], immb[1]]
-			},
-
-			Self::DataDirective(data) => data.clone(),
-
-			_ => unreachable!(),
-		}
-	}
-
-	/// Returns the size of the instruction in machine code.
-	fn get_machine_code_size(&self) -> usize {
-		match self {
-			Self::MoveLabelToReg(_, _) => 4,
-			Self::BranchToLabel(_) => 4,
-			Self::BranchToLabelIfEqual(_, _, _) => 6,
-			Self::BranchToLabelIfLessThanOrEqual(_, _, _) => 6,
-			_ => self.as_machine_code().len(),
-		}
-	}
-}
-
-/// An assembly instruction. Includes the type of instruction and an optional label.
-#[derive(Debug)]
-struct Instruction {
-	itype: InstructionType,
-	label: Option<String>,
-	line_no: usize,
-}
-
-/// Lexes an assembly program.
-fn lex_assembly(assembly: String) -> Result<Vec<AssemblyToken>, AssembleError> {
-	let mut result = vec![];
-	let mut chars = assembly.chars().peekable();
-	let mut line_no = 1;
-
-	while let Some(&char) = chars.peek() {
-		match char {
-			'a'..='z' | 'A'..='Z' | '.' => {
-				let mut identifier = String::new();
-				identifier.push(chars.next().unwrap());
-
-				while let Some(&char) = chars.peek() {
-					if char.is_alphanumeric() || char == '.' || char == '_' {
-						identifier.push(chars.next().unwrap());
-					} else {
-						break;
-					}
-				}
-
-				result.push(AssemblyToken {
-					ttype: AssemblyTokenType::Identifier(identifier),
-					line_no,
-				});
-			},
-
-			'0'..='9' => {
-				let mut base = 10;
-
-				if char == '0' {
-					chars.next().unwrap();
-
-					if let Some(&char) = chars.peek() {
-						match char {
-							'b' => {
-								base = 2;
-								chars.next().unwrap();
-							},
-							'x' => {
-								base = 16;
-								chars.next().unwrap();
-							},
-							_ => {
-								result.push(AssemblyToken {
-									ttype: AssemblyTokenType::Number(0),
-									line_no,
-								});
-								continue;
-							},
-						}
-					}
-				}
-
-				let mut number = String::new();
-
-				while let Some(&char) = chars.peek() {
-					if char.is_digit(base) {
-						number.push(chars.next().unwrap());
-					} else {
-						break;
-					}
-				}
-
-				result.push(AssemblyToken {
-					ttype: AssemblyTokenType::Number(u32::from_str_radix(number.as_str(), base).unwrap()),
-					line_no,
-				});
-			},
-
-			'$' => {
-				chars.next().unwrap();
-
-				let mut number = String::new();
-
-				while let Some(&char) = chars.peek() {
-					if char.is_ascii_digit() {
-						number.push(chars.next().unwrap());
-					} else {
-						break;
-					}
-				}
-
-				result.push(AssemblyToken {
-					ttype: AssemblyTokenType::Register(number.parse().unwrap()),
-					line_no,
-				});
-			},
-
-			'"' => {
-				chars.next().unwrap();
-
-				let mut string = String::new();
-
-				while let Some(&char) = chars.peek() {
-					if char == '\\' {
-						chars.next().unwrap();
-
-						if let Some(char) = chars.next() {
-							match char {
-								'n' => string.push('\n'),
-								'\\' => string.push('\\'),
-								'"' => string.push('"'),
-								_ => string.push(char),
-							}
-						} else {
-							return Err(AssembleError { etype: AssembleErrorType::UnexpectedEOF, line_no });
-						}
-					} else if char != '"' {
-						string.push(chars.next().unwrap());
-					} else {
-						break;
-					}
-				}
-
-				if chars.next().is_none() {
-					return Err(AssembleError { etype: AssembleErrorType::UnexpectedEOF, line_no });
-				}
-
-				result.push(AssemblyToken {
-					ttype: AssemblyTokenType::String(string),
-					line_no,
-				});
-			},
-
-			_ => {
-				match char {
-					':' => result.push(AssemblyToken { ttype: AssemblyTokenType::Colon, line_no }),
-					',' => result.push(AssemblyToken { ttype: AssemblyTokenType::Comma, line_no }),
-					'[' => result.push(AssemblyToken { ttype: AssemblyTokenType::LSquare, line_no }),
-					']' => result.push(AssemblyToken { ttype: AssemblyTokenType::RSquare, line_no }),
-					'\n' => line_no += 1,
-					' ' | '\t' => {},
-
-					_ => {
-						return Err(AssembleError { etype: AssembleErrorType::InvalidCharacter(char), line_no });
-					},
-				}
-
-				chars.next().unwrap();
-			},
-		}
-	}
-
-	Ok(result)
-}
-
-/// An assembly operand type.
-enum AssemblyOperandType {
-	Immediate(u16),
-	ImmediateAddress(u16),
-	Label(String),
-	Register(usize),
-	RegisterAddress(usize),
-	String(String),
-}
-
-/// An assembly operand.
-struct AssemblyOperand {
-	otype: AssemblyOperandType,
-	line_no: usize,
-}
-
-impl AssemblyOperand {
-	fn as_bytes(&self) -> Result<Vec<u8>, AssembleError> {
-		match &self.otype {
-			AssemblyOperandType::Immediate(imm) => {
-				Ok(vec![*imm as u8])
-			},
-			AssemblyOperandType::String(str) => {
-				Ok(str.as_bytes().to_vec())
-			},
-
-			_ => {
-				Err(AssembleError {
-					etype: AssembleErrorType::InvalidOperands,
-					line_no: self.line_no,
-				})
-			},
-		}
-	}
-}
-
-/// A parser for the ATLAS assembly language.
-struct AssemblyParser {
-	tokens: std::iter::Peekable<std::vec::IntoIter<AssemblyToken>>,
-	eof_line_no: usize,
-}
-
-impl AssemblyParser {
-	/// Returns a new [`AssemblyParser`].
-	fn new(tokens: Vec<AssemblyToken>) -> Self {
-		let eof_line_no = tokens.last().unwrap().line_no;
-
+impl Memory {
+	/// Returns a new [`Memory`].
+	fn new() -> Self {
 		Self {
-			tokens: tokens.into_iter().peekable(),
-			eof_line_no,
-		}
-	}
-
-	/// Returns the next token while consuming it.
-	fn eat_token(&mut self) -> Result<AssemblyToken, AssembleError> {
-		self.tokens.next().ok_or(AssembleError {
-			etype: AssembleErrorType::UnexpectedEOF,
-			line_no: self.eof_line_no,
-		})
-	}
-
-	/// Eats a token if it equals the input token, otherwise returns an error.
-	fn eat_token_of_type(&mut self, ttype: AssemblyTokenType) -> Result<(), AssembleError> {
-		let token = self.eat_token()?;
-
-		if token.ttype == ttype {
-			Ok(())
-		} else {
-			Err(AssembleError {
-				etype: AssembleErrorType::UnexpectedToken(token.ttype),
-				line_no: token.line_no,
-			})
-		}
-	}
-
-	/// Returns the line number of the current token, or the end of file line if no tokens
-	/// are left.
-	fn get_line_no(&mut self) -> usize {
-		if let Some(token) = self.tokens.peek() {
-			token.line_no
-		} else {
-			self.eof_line_no
-		}
-	}
-
-	/// Returns the string of the next identifier if applicable, otherwise returns an error.
-	fn eat_ident(&mut self) -> Result<String, AssembleError> {
-		let token = self.eat_token()?;
-
-		match &token.ttype {
-			AssemblyTokenType::Identifier(ident) => Ok(ident.clone()),
-			_ => Err(AssembleError {
-				etype: AssembleErrorType::UnexpectedToken(token.ttype.clone()),
-				line_no: token.line_no,
-			}),
-		}
-	}
-
-	/// Returns the next operand if applicable, otherwise returns an error.
-	fn eat_operand(&mut self) -> Result<AssemblyOperand, AssembleError> {
-		let token = self.eat_token()?;
-
-		match &token.ttype {
-			AssemblyTokenType::Number(num) => Ok(AssemblyOperand {
-				otype: AssemblyOperandType::Immediate(*num as u16),
-				line_no: token.line_no,
-			}),
-			AssemblyTokenType::Identifier(ident) => Ok(AssemblyOperand {
-				otype: AssemblyOperandType::Label(ident.clone()),
-				line_no: token.line_no,
-			}),
-			AssemblyTokenType::Register(reg) => Ok(AssemblyOperand {
-				otype: AssemblyOperandType::Register(*reg),
-				line_no: token.line_no,
-			}),
-			AssemblyTokenType::String(str) => Ok(AssemblyOperand {
-				otype: AssemblyOperandType::String(str.clone()),
-				line_no: token.line_no,
-			}),
-			
-			AssemblyTokenType::LSquare => {
-				let operand = self.eat_operand()?;
-				self.eat_token_of_type(AssemblyTokenType::RSquare)?;
-
-				match operand.otype {
-					AssemblyOperandType::Immediate(imm) => Ok(AssemblyOperand {
-						otype: AssemblyOperandType::ImmediateAddress(imm),
-						line_no: token.line_no,
-					}),
-					AssemblyOperandType::Register(reg) => Ok(AssemblyOperand {
-						otype: AssemblyOperandType::RegisterAddress(reg),
-						line_no: token.line_no,
-					}),
-
-					_ => Err(AssembleError {
-						etype: AssembleErrorType::InvalidOperands,
-						line_no: token.line_no,
-					}),
-				}
-			}
-			
-			_ => Err(AssembleError {
-				etype: AssembleErrorType::UnexpectedToken(token.ttype.clone()),
-				line_no: token.line_no,
-			}),
-		}
-	}
-
-	/// Parses the tokens and returns a list of instructions.
-	fn parse(&mut self) -> Result<Vec<Instruction>, AssembleError> {
-		let mut result = vec![];
-	
-		while self.tokens.peek().is_some() {
-			let ident = self.eat_ident()?;
-	
-			// The identifer is either an instruction name or a label name
-			// We use the next token to determine which one it is
-
-			let mut label = None;
-			let line_no;
-			let instr_name;
-
-			if let Some(AssemblyToken { ttype: AssemblyTokenType::Colon, line_no: _ }) = self.tokens.peek() {
-				label = Some(ident.clone());
-				self.tokens.next().unwrap();
-				line_no = self.get_line_no();
-				instr_name = self.eat_ident()?;
-			} else {
-				line_no = self.get_line_no();
-				instr_name = ident.clone();
-			}
-	
-			match instr_name.as_str() {
-				"mov" => {
-					let op1 = self.eat_operand()?;
-					self.eat_token_of_type(AssemblyTokenType::Comma)?;
-					let op2 = self.eat_operand()?;
-	
-					match (op1.otype, op2.otype) {
-						(AssemblyOperandType::Immediate(imm), AssemblyOperandType::Register(reg)) => {
-							result.push(Instruction {
-								itype: InstructionType::MoveImmToReg(imm as u16, reg),
-								label,
-								line_no,
-							});
-						},
-						(AssemblyOperandType::Label(label_str), AssemblyOperandType::Register(reg)) => {
-							result.push(Instruction {
-								itype: InstructionType::MoveLabelToReg(label_str.to_string(), reg),
-								label,
-								line_no,
-							});
-						},
-						(AssemblyOperandType::Register(r1), AssemblyOperandType::Register(r2)) => {
-							result.push(Instruction {
-								itype: InstructionType::MoveRegToReg(r1, r2),
-								label,
-								line_no,
-							});
-						},
-						(AssemblyOperandType::RegisterAddress(r1), AssemblyOperandType::Register(r2)) => {
-							result.push(Instruction {
-								itype: InstructionType::MoveRegAddrToReg(r1, r2),
-								label,
-								line_no,
-							});
-						},
-						(AssemblyOperandType::Register(r1), AssemblyOperandType::RegisterAddress(r2)) => {
-							result.push(Instruction {
-								itype: InstructionType::MoveRegToRegAddr(r1, r2),
-								label,
-								line_no,
-							});
-						},
-	
-						_ => return Err(AssembleError {
-							etype: AssembleErrorType::InvalidOperands,
-							line_no,
-						}),
-					}
-				},
-
-				"movb" => {
-					let op1 = self.eat_operand()?;
-					self.eat_token_of_type(AssemblyTokenType::Comma)?;
-					let op2 = self.eat_operand()?;
-	
-					match (op1.otype, op2.otype) {
-						(AssemblyOperandType::RegisterAddress(r1), AssemblyOperandType::Register(r2)) => {
-							result.push(Instruction {
-								itype: InstructionType::MoveByteRegAddrToReg(r1, r2),
-								label,
-								line_no,
-							});
-						},
-						(AssemblyOperandType::Register(r1), AssemblyOperandType::RegisterAddress(r2)) => {
-							result.push(Instruction {
-								itype: InstructionType::MoveByteRegToRegAddr(r1, r2),
-								label,
-								line_no,
-							});
-						},
-	
-						_ => return Err(AssembleError {
-							etype: AssembleErrorType::InvalidOperands,
-							line_no,
-						}),
-					}
-				},
-
-				"add" => {
-					let op1 = self.eat_operand()?;
-					self.eat_token_of_type(AssemblyTokenType::Comma)?;
-					let op2 = self.eat_operand()?;
-					self.eat_token_of_type(AssemblyTokenType::Comma)?;
-					let op3 = self.eat_operand()?;
-
-					match (op1.otype, op2.otype, op3.otype) {
-						(
-							AssemblyOperandType::Register(r1),
-							AssemblyOperandType::Immediate(imm),
-							AssemblyOperandType::Register(r2),
-						) => {
-							result.push(Instruction {
-								itype: InstructionType::AddImmToReg(r1, imm, r2),
-								label,
-								line_no,
-							});
-						},
-
-						(
-							AssemblyOperandType::Register(r1),
-							AssemblyOperandType::Register(r2),
-							AssemblyOperandType::Register(r3),
-						) => {
-							result.push(Instruction {
-								itype: InstructionType::AddRegToReg(r1, r2, r3),
-								label,
-								line_no,
-							});
-						},
-	
-						_ => return Err(AssembleError {
-							etype: AssembleErrorType::InvalidOperands,
-							line_no,
-						}),
-					}
-				},
-
-				"b" => {
-					let op = self.eat_operand()?;
-
-					if let AssemblyOperandType::Label(label_str) = op.otype {
-						result.push(Instruction {
-							itype: InstructionType::BranchToLabel(label_str),
-							label,
-							line_no,
-						});
-					} else {
-						return Err(AssembleError {
-							etype: AssembleErrorType::InvalidOperands,
-							line_no,
-						});
-					}
-				},
-
-				"beq" => {
-					let op1 = self.eat_operand()?;
-					self.eat_token_of_type(AssemblyTokenType::Comma)?;
-					let op2 = self.eat_operand()?;
-					self.eat_token_of_type(AssemblyTokenType::Comma)?;
-					let op3 = self.eat_operand()?;
-
-					match (op1.otype, op2.otype, op3.otype) {
-						(
-							AssemblyOperandType::Register(reg),
-							AssemblyOperandType::Immediate(imm),
-							AssemblyOperandType::Label(label_str),
-						) => {
-							result.push(Instruction {
-								itype: InstructionType::BranchToLabelIfEqual(reg, imm, label_str),
-								label,
-								line_no,
-							});
-						},
-	
-						_ => return Err(AssembleError {
-							etype: AssembleErrorType::InvalidOperands,
-							line_no,
-						}),
-					}
-				},
-
-				"bleq" => {
-					let op1 = self.eat_operand()?;
-					self.eat_token_of_type(AssemblyTokenType::Comma)?;
-					let op2 = self.eat_operand()?;
-					self.eat_token_of_type(AssemblyTokenType::Comma)?;
-					let op3 = self.eat_operand()?;
-
-					match (op1.otype, op2.otype, op3.otype) {
-						(
-							AssemblyOperandType::Register(reg),
-							AssemblyOperandType::Immediate(imm),
-							AssemblyOperandType::Label(label_str),
-						) => {
-							result.push(Instruction {
-								itype: InstructionType::BranchToLabelIfLessThanOrEqual(reg, imm, label_str),
-								label,
-								line_no,
-							});
-						},
-	
-						_ => return Err(AssembleError {
-							etype: AssembleErrorType::InvalidOperands,
-							line_no,
-						}),
-					}
-				},
-	
-				".db" => {
-					let mut bytes = vec![];
-
-					let operand = self.eat_operand()?;
-					bytes.append(&mut operand.as_bytes()?);
-
-					while let Some(AssemblyToken { ttype: AssemblyTokenType::Comma, line_no: _ }) = self.tokens.peek() {
-						self.eat_token()?;
-						let operand = self.eat_operand()?;
-						bytes.append(&mut operand.as_bytes()?);
-					}
-
-					result.push(Instruction {
-						itype: InstructionType::DataDirective(bytes),
-						label,
-						line_no,
-					});
-				},
-	
-				"halt" => {
-					result.push(Instruction {
-						itype: InstructionType::Halt,
-						label,
-						line_no,
-					});
-				},
-	
-				_ => {
-					return Err(AssembleError {
-						etype: AssembleErrorType::InvalidInstruction(instr_name),
-						line_no,
-					});
-				},
-			}
-		}
-	
-		Ok(result)
-	}
-}
-
-/// Produces machine instructions given an assembly program.
-fn assemble(assembly: String) -> Result<Vec<u8>, AssembleError> {
-	// Convert assembly string to tokens
-	let tokens = lex_assembly(assembly)?;
-
-	// Convert tokens to parsed instructions
-	let mut parser = AssemblyParser::new(tokens);
-	let mut instrs = parser.parse()?;
-
-	// Resolve labels to addresses
-
-	let mut label_map: HashMap<String, usize> = HashMap::new();
-
-	let mut current_address = 0;
-
-	for instr in &mut instrs {
-		if let Some(label) = &instr.label {
-			label_map.insert(label.clone(), current_address);
-		}
-
-		current_address += instr.itype.get_machine_code_size();
-	}
-
-	for instr in &mut instrs {
-		match &instr.itype {
-			InstructionType::MoveLabelToReg(label, reg) => {
-				if let Some(address) = label_map.get(label) {
-					instr.itype = InstructionType::MoveImmToReg(*address as u16, *reg);
-				} else {
-					return Err(AssembleError {
-						etype: AssembleErrorType::UndefinedLabel(label.clone()),
-						line_no: instr.line_no,
-					});
-				}
-			},
-			
-			InstructionType::BranchToLabel(label) => {
-				if let Some(address) = label_map.get(label) {
-					instr.itype = InstructionType::Branch(*address as u16);
-				} else {
-					return Err(AssembleError {
-						etype: AssembleErrorType::UndefinedLabel(label.clone()),
-						line_no: instr.line_no,
-					});
-				}
-			},
-			
-			InstructionType::BranchToLabelIfEqual(reg, imm, label) => {
-				if let Some(address) = label_map.get(label) {
-					instr.itype = InstructionType::BranchIfEqual(*reg, *imm, *address as u16);
-				} else {
-					return Err(AssembleError {
-						etype: AssembleErrorType::UndefinedLabel(label.clone()),
-						line_no: instr.line_no,
-					});
-				}
-			},
-			
-			InstructionType::BranchToLabelIfLessThanOrEqual(reg, imm, label) => {
-				if let Some(address) = label_map.get(label) {
-					instr.itype = InstructionType::BranchIfLessThanOrEqual(*reg, *imm, *address as u16);
-				} else {
-					return Err(AssembleError {
-						etype: AssembleErrorType::UndefinedLabel(label.clone()),
-						line_no: instr.line_no,
-					});
-				}
-			},
-			
-			_ => {},
-		}
-	}
-
-	// Convert the resulting instructions into machine code and return
-	Ok(instrs.iter().flat_map(|instr| instr.itype.as_machine_code()).collect())
-}
-
-/// The ATLAS PC virtual machine.
-pub struct AtlasVM {
-	program_counter: u16,
-	pub registers: Vec<u16>,
-	memory: Vec<u16>,
-}
-
-impl AtlasVM {
-	/// Returns a new [`AtlasVM`].
-	pub fn new() -> Self {
-		Self {
-			program_counter: 0x0000,
-			registers: vec![0x0000; REGISTER_AMOUNT],
-			memory: vec![0x0000; RAM_SIZE / 2],
+			data: vec![0x0000; RAM_SIZE / 2],
 		}
 	}
 
 	/// Reads a word of memory and returns the result.
 	fn read_memory_word(&self, address: u16) -> u16 {
-		self.memory[address as usize / 2]
+		self.data[address as usize / 2]
 	}
 
 	/// Reads a byte of memory and returns the result.
 	fn read_memory_byte(&self, address: u16) -> u8 {
-		let word = self.memory[address as usize / 2];
+		let word = self.data[address as usize / 2];
 
 		if address % 2 == 0 {
 			(word >> 8) as u8
@@ -891,12 +38,12 @@ impl AtlasVM {
 
 	/// Writes a word to memory.
 	fn write_memory_word(&mut self, address: u16, value: u16) {
-		self.memory[address as usize / 2] = value;
+		self.data[address as usize / 2] = value;
 	}
 
 	/// Writes a byte to memory.
 	fn write_memory_byte(&mut self, address: u16, value: u8) {
-		let word = self.memory[address as usize / 2];
+		let word = self.data[address as usize / 2];
 
 		let new_word: u16 = if address % 2 == 0 {
 			((value as u16) << 8) | (word & 0xFF)
@@ -904,7 +51,7 @@ impl AtlasVM {
 			((word >> 8) << 8) | (value as u16)
 		};
 
-		self.memory[address as usize / 2] = new_word;
+		self.data[address as usize / 2] = new_word;
 	}
 
 	/// Returns the screen contents as a string.
@@ -926,6 +73,24 @@ impl AtlasVM {
 
 		result
 	}
+}
+
+/// The highest level ATLAS PC virtual machine. Used as a reference for all the rest.
+pub struct AtlasVM {
+	pub registers: [u16; REGISTER_AMOUNT],
+	program_counter: u16,
+	pub memory: Memory,
+}
+
+impl AtlasVM {
+	/// Returns a new [`AtlasVM`].
+	pub fn new() -> Self {
+		Self {
+			registers: [0x0000; REGISTER_AMOUNT],
+			program_counter: 0x0000,
+			memory: Memory::new(),
+		}
+	}
 
 	/// Runs an assembly program.
 	pub fn run(&mut self, assembly: String) {
@@ -937,13 +102,13 @@ impl AtlasVM {
 		crate::log!("{}", machine_code.iter().map(|byte| format!("{:02x}", byte)).collect::<Vec<_>>().join(" "));
 
 		for (addr, byte) in machine_code.iter().enumerate() {
-			self.write_memory_byte(addr as u16, *byte);
+			self.memory.write_memory_byte(addr as u16, *byte);
 		}
 
 		let mut is_halted = false;
 
 		while !is_halted {
-			let instr_code = self.read_memory_byte(self.program_counter);
+			let instr_code = self.memory.read_memory_byte(self.program_counter);
 
 			match instr_code {
 				// Halt
@@ -953,8 +118,8 @@ impl AtlasVM {
 
 				// MovRegToReg
 				0x01 => {
-					let r1 = self.read_memory_byte(self.program_counter + 2);
-					let r2 = self.read_memory_byte(self.program_counter + 3);
+					let r1 = self.memory.read_memory_byte(self.program_counter + 2);
+					let r2 = self.memory.read_memory_byte(self.program_counter + 3);
 
 					self.registers[r2 as usize] = self.registers[r1 as usize];
 
@@ -963,8 +128,8 @@ impl AtlasVM {
 
 				// MoveImmToReg
 				0x02 => {
-					let reg = self.read_memory_byte(self.program_counter + 1);
-					let imm = self.read_memory_word(self.program_counter + 2);
+					let reg = self.memory.read_memory_byte(self.program_counter + 1);
+					let imm = self.memory.read_memory_word(self.program_counter + 2);
 
 					self.registers[reg as usize] = imm;
 
@@ -973,29 +138,29 @@ impl AtlasVM {
 
 				// MoveRegToRegAddr
 				0x03 => {
-					let r1 = self.read_memory_byte(self.program_counter + 2);
-					let r2 = self.read_memory_byte(self.program_counter + 3);
+					let r1 = self.memory.read_memory_byte(self.program_counter + 2);
+					let r2 = self.memory.read_memory_byte(self.program_counter + 3);
 
-					self.write_memory_word(self.registers[r2 as usize], self.registers[r1 as usize]);
+					self.memory.write_memory_word(self.registers[r2 as usize], self.registers[r1 as usize]);
 
 					self.program_counter += 4;
 				},
 
 				// MoveRegAddrToReg
 				0x04 => {
-					let r1 = self.read_memory_byte(self.program_counter + 2);
-					let r2 = self.read_memory_byte(self.program_counter + 3);
+					let r1 = self.memory.read_memory_byte(self.program_counter + 2);
+					let r2 = self.memory.read_memory_byte(self.program_counter + 3);
 
-					self.registers[r2 as usize] = self.read_memory_word(self.registers[r1 as usize]);
+					self.registers[r2 as usize] = self.memory.read_memory_word(self.registers[r1 as usize]);
 
 					self.program_counter += 4;
 				},
 
 				// AddRegToReg
 				0x06 => {
-					let r1 = self.read_memory_byte(self.program_counter + 1);
-					let r2 = self.read_memory_byte(self.program_counter + 2);
-					let r3 = self.read_memory_byte(self.program_counter + 3);
+					let r1 = self.memory.read_memory_byte(self.program_counter + 1);
+					let r2 = self.memory.read_memory_byte(self.program_counter + 2);
+					let r3 = self.memory.read_memory_byte(self.program_counter + 3);
 
 					self.registers[r3 as usize] = self.registers[r1 as usize].wrapping_add(self.registers[r2 as usize]);
 					
@@ -1004,9 +169,9 @@ impl AtlasVM {
 
 				// AddImmToReg
 				0x07 => {
-					let r1 = self.read_memory_byte(self.program_counter + 1);
-					let imm = self.read_memory_word(self.program_counter + 2);
-					let r2 = self.read_memory_byte(self.program_counter + 4);
+					let r1 = self.memory.read_memory_byte(self.program_counter + 1);
+					let imm = self.memory.read_memory_word(self.program_counter + 2);
+					let r2 = self.memory.read_memory_byte(self.program_counter + 4);
 
 					self.registers[r2 as usize] = self.registers[r1 as usize].wrapping_add(imm);
 					
@@ -1015,15 +180,15 @@ impl AtlasVM {
 
 				// Branch
 				0x08 => {
-					let addr = self.read_memory_word(self.program_counter + 2);
+					let addr = self.memory.read_memory_word(self.program_counter + 2);
 					self.program_counter = addr;
 				},
 
 				// BranchIfEqual
 				0x09 => {
-					let reg = self.read_memory_byte(self.program_counter + 1);
-					let imm = self.read_memory_word(self.program_counter + 2);
-					let addr = self.read_memory_word(self.program_counter + 4);
+					let reg = self.memory.read_memory_byte(self.program_counter + 1);
+					let imm = self.memory.read_memory_word(self.program_counter + 2);
+					let addr = self.memory.read_memory_word(self.program_counter + 4);
 
 					if self.registers[reg as usize] == imm {
 						self.program_counter = addr;
@@ -1034,9 +199,9 @@ impl AtlasVM {
 
 				// BranchIfLessThanOrEqual
 				0x0a => {
-					let reg = self.read_memory_byte(self.program_counter + 1);
-					let imm = self.read_memory_word(self.program_counter + 2);
-					let addr = self.read_memory_word(self.program_counter + 4);
+					let reg = self.memory.read_memory_byte(self.program_counter + 1);
+					let imm = self.memory.read_memory_word(self.program_counter + 2);
+					let addr = self.memory.read_memory_word(self.program_counter + 4);
 
 					if self.registers[reg as usize] <= imm {
 						self.program_counter = addr;
@@ -1047,20 +212,20 @@ impl AtlasVM {
 
 				// MoveByteRegToRegAddr
 				0x13 => {
-					let r1 = self.read_memory_byte(self.program_counter + 2);
-					let r2 = self.read_memory_byte(self.program_counter + 3);
+					let r1 = self.memory.read_memory_byte(self.program_counter + 2);
+					let r2 = self.memory.read_memory_byte(self.program_counter + 3);
 
-					self.write_memory_byte(self.registers[r2 as usize], (self.registers[r1 as usize] & 0xff) as u8);
+					self.memory.write_memory_byte(self.registers[r2 as usize], (self.registers[r1 as usize] & 0xff) as u8);
 
 					self.program_counter += 4;
 				},
 
 				// MoveByteRegAddrToReg
 				0x14 => {
-					let r1 = self.read_memory_byte(self.program_counter + 2);
-					let r2 = self.read_memory_byte(self.program_counter + 3);
+					let r1 = self.memory.read_memory_byte(self.program_counter + 2);
+					let r2 = self.memory.read_memory_byte(self.program_counter + 3);
 
-					self.registers[r2 as usize] = self.read_memory_byte(self.registers[r1 as usize]) as u16;
+					self.registers[r2 as usize] = self.memory.read_memory_byte(self.registers[r1 as usize]) as u16;
 
 					self.program_counter += 4;
 				},
@@ -1075,4 +240,218 @@ impl Default for AtlasVM {
     fn default() -> Self {
         Self::new()
     }
+}
+
+#[derive(Clone, Copy)]
+enum ControlRegister {
+	Gpr1 = 0,
+	Gpr2 = 1,
+	Gpr3 = 2,
+	Pc = 3,
+	PcPlusTwoN = 4,
+	Mar = 5,
+	Mdr = 6,
+	Ir = 7,
+	AluA = 8,
+	AluB = 9,
+	AluO = 10,
+	Branch = 11,
+	BrAddr = 12,
+}
+
+#[derive(Clone, Copy)]
+enum ControlFunc {
+	Plus = 0,
+	Eq = 1,
+	Leq = 2,
+}
+
+#[derive(Clone, Copy)]
+struct ControlRomOutput {
+	from: ControlRegister,
+	to: ControlRegister,
+	func: ControlFunc,
+	n: usize,
+	reset: bool,
+}
+
+impl ControlRomOutput {
+	fn as_bytes(&self) -> u16 {
+		(self.from as u16) << 12 | (self.to as u16) << 8 | (self.func as u16) << 3 | (self.n as u16) << 1 | self.reset as u16
+	}
+}
+
+const CONTROL_ROM_MAX_STEPS: usize = 8;
+
+macro_rules! cntrl {
+	($from:ident => $to:ident) => {
+		ControlRomOutput {
+			from: ControlRegister::$from,
+			to: ControlRegister::$to,
+			func: ControlFunc::Plus,
+			n: 0,
+			reset: false,
+		}
+	};
+	(Pc + $twon:expr => $to:ident) => {
+		ControlRomOutput {
+			from: ControlRegister::PcPlusTwoN,
+			to: ControlRegister::$to,
+			func: ControlFunc::Plus,
+			n: $twon / 2,
+			reset: false,
+		}
+	};
+}
+
+fn add_steps_to_rom_data(data: &mut [u16; 256 * CONTROL_ROM_MAX_STEPS], opcode: u8, steps: Vec<ControlRomOutput>) {
+	// Check that the step vector isn't too big
+	if steps.len() + 2 > CONTROL_ROM_MAX_STEPS {
+		panic!("Too many steps for opcode {:02x}", opcode);
+	}
+
+	// These two steps are done for all instructions
+	data[opcode as usize * CONTROL_ROM_MAX_STEPS] = cntrl!(Pc => Mar).as_bytes();
+	data[opcode as usize * CONTROL_ROM_MAX_STEPS + 1] = cntrl!(Mdr => Ir).as_bytes();
+
+	for (idx, step) in steps.iter().enumerate() {
+		// If it's the last step, set the "reset" flag
+		// to reset the control unit counter
+
+		let mut edited_step = *step;
+
+		if idx == steps.len() - 1 {
+			edited_step.reset = true;
+		}
+
+		data[opcode as usize * CONTROL_ROM_MAX_STEPS + idx + 2] = edited_step.as_bytes();
+	}
+}
+
+pub fn generate_control_rom_data() -> [u16; 256 * CONTROL_ROM_MAX_STEPS] {
+	let mut result = [0; 256 * CONTROL_ROM_MAX_STEPS];
+
+	// Halt
+	add_steps_to_rom_data(&mut result, 0x00, vec![
+		cntrl!(Pc => Pc),
+	]);
+	
+	// MoveImmToReg
+	add_steps_to_rom_data(&mut result, 0x02, vec![
+		cntrl!(Pc+2 => Mar),
+		cntrl!(Mdr  => Gpr1),
+		cntrl!(Pc+4 => Pc),
+	]);
+
+	result
+}
+
+struct ControlUnitOutput {
+	from: usize,
+	to: usize,
+	func: ControlFunc,
+	n: usize,
+}
+
+/// A lower level virtual machine. This machine simulates the individual register moves
+/// for each instruction and is controlled by a control unit ROM.
+pub struct LowLevelAtlasVM {
+	pub registers: [u16; REGISTER_AMOUNT],
+
+	program_counter: u16,
+	instruction_register: u16,
+
+	pub memory: Memory,
+	memory_address_register: u16,
+
+	control_rom: [u16; 256 * CONTROL_ROM_MAX_STEPS],
+	control_counter: u8,
+
+}
+
+impl LowLevelAtlasVM {
+	pub fn new() -> Self {
+		Self {
+			registers: [0x0000; REGISTER_AMOUNT],
+
+			program_counter: 0x0000,
+			instruction_register: 0x0000,
+			
+			memory: Memory::new(),
+			memory_address_register: 0x0000,
+
+			control_rom: generate_control_rom_data(),
+			control_counter: 0,
+		}
+	}
+
+	fn read_register(&self, idx: u8, func: u8, n: u8) -> u16 {
+		match idx {
+			3 => self.program_counter,
+			4 => self.program_counter + (n as u16) * 2,
+			6 => self.memory.read_memory_word(self.memory_address_register),
+
+			_ => panic!("Read from unknown register index: {}", idx),
+		}
+	}
+
+	fn write_register(&mut self, idx: u8, value: u16) {
+		match idx {
+			0 => {
+				let reg = (self.instruction_register & 0xff) as usize;
+				self.registers[reg] = value;
+			},
+			3 => self.program_counter = value,
+			5 => self.memory_address_register = value,
+			7 => self.instruction_register = value,
+
+			_ => panic!("Write to unknown register index: {}", idx),
+		}
+	}
+
+	/// Runs an assembly program.
+	pub fn run(&mut self, assembly: String) {
+		let machine_code = match assemble(assembly) {
+			Ok(machine_code) => machine_code,
+			Err(err) => panic!("{}", err),
+		};
+
+		crate::log!("{}", machine_code.iter().map(|byte| format!("{:02x}", byte)).collect::<Vec<_>>().join(" "));
+
+		for (addr, byte) in machine_code.iter().enumerate() {
+			self.memory.write_memory_byte(addr as u16, *byte);
+		}
+		
+		let mut is_halted = false;
+
+		while !is_halted {
+			let opcode = self.instruction_register >> 8;
+			let control_rom_address = opcode << 3 | self.control_counter as u16;
+			let control_word = self.control_rom[control_rom_address as usize];
+
+			let from_reg = ((control_word >> 12) & 0x0f) as u8;
+			let to_reg = ((control_word >> 8) & 0x0f) as u8;
+			let func = ((control_word >> 3) & 0x1f) as u8;
+			let n = ((control_word >> 1) & 0x03) as u8;
+			let reset = (control_word & 0x01) as u8;
+
+			let reg_value = self.read_register(from_reg, func, n);
+			self.write_register(to_reg, reg_value);
+
+			self.control_counter += 1;
+			if reset == 1 {
+				self.control_counter = 0;
+			}
+
+			// The only instruction that writes a register's value to itself is the "halt" instruction
+			// In the real computer this just causes an infinite loop, but here we can actually halt
+			is_halted = from_reg == to_reg;
+		}
+	}
+}
+
+impl Default for LowLevelAtlasVM {
+    fn default() -> Self {
+		Self::new()
+	}
 }

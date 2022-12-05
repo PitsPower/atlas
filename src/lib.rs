@@ -3,6 +3,7 @@
 extern crate test;
 
 pub mod adder;
+pub mod assembler;
 pub mod bus;
 pub mod core;
 pub mod editor;
@@ -576,12 +577,14 @@ pub fn start() {
 	log!("ATLAS has started!");
 	set_panic_hook();
 
-	let mut vm = AtlasVM::new();
+	let mut vm = LowLevelAtlasVM::new();
+
+	crate::log!("{:?}", generate_control_rom_data());
 
 	vm.run(include_str!("./aasm/test.aasm").to_string());
 
 	crate::log!("{:?}", vm.registers);
-	crate::log!("{}", vm.read_screen());
+	crate::log!("{}", vm.memory.read_screen());
 }
 
 // #[cfg(test)]
