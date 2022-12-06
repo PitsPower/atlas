@@ -6,6 +6,7 @@ use std::f64::consts::PI;
 
 use wasm_bindgen::prelude::*;
 
+use crate::add;
 use crate::adder::*;
 use crate::gates::*;
 use crate::graphics::{
@@ -14,6 +15,7 @@ use crate::graphics::{
 };
 use crate::latches::*;
 use crate::multiplexer::*;
+use crate::register::*;
 use crate::transistor::*;
 
 /// A pin state.
@@ -186,6 +188,8 @@ pub enum ComponentType {
 
 	Multiplexer,
 	TwoBitMultiplexer,
+
+	Register,
 }
 
 impl ComponentType {
@@ -225,6 +229,8 @@ impl ComponentType {
 
 			ComponentType::Multiplexer => "Multiplexer",
 			ComponentType::TwoBitMultiplexer => "TwoBitMultiplexer",
+
+			ComponentType::Register => "Register",
 		}
 	}
 
@@ -331,6 +337,8 @@ impl ComponentType {
 
 			ComponentType::Multiplexer => ComponentInternals::Chip(get_multiplexer_circuit(), 0.4),
 			ComponentType::TwoBitMultiplexer => ComponentInternals::Chip(get_two_bit_multiplexer_circuit(), 0.4),
+
+			ComponentType::Register => ComponentInternals::Chip(get_register_circuit(), 0.2),
 		};
 
 		let size = match self {
@@ -390,27 +398,6 @@ impl ComponentType {
 					}
 				}
 
-				let mut min_side_y = f64::INFINITY;
-				let mut max_side_y = f64::NEG_INFINITY;
-
-				for component in &circuit.components {
-					if component.is_pin() {
-						let pos = component.position;
-
-						if pos.0 == min_x || pos.0 == max_x {
-							if min_side_y > pos.1 {
-								min_side_y = pos.1;
-							}
-							if max_side_y < pos.1 {
-								max_side_y = pos.1;
-							}
-						}
-					}
-				}
-
-				let top_pad = min_y - min_side_y;
-				let bottom_pad = max_y - max_side_y;
-
 				let mut chip_size = (
 					(max_x - min_x) * inner_scale,
 					(max_y - min_y) * inner_scale,
@@ -421,17 +408,78 @@ impl ComponentType {
 					-(max_y - min_y) * 0.5 - min_y,
 				);
 
-				let pad_diff = bottom_pad - top_pad;
-				chip_size.1 += pad_diff * inner_scale;
+				// TODO: Add an option maybe
+				match self {
+					ComponentType::Register => {
+						let mut min_side_x = f64::INFINITY;
+						let mut max_side_x = f64::NEG_INFINITY;
 
-				if bottom_pad > -top_pad {
-					circuit_offset.1 += pad_diff * 0.5;
-				} else {
-					circuit_offset.1 -= pad_diff * 0.5;
-				}
+						for component in &circuit.components {
+							if component.is_pin() {
+								let pos = component.position;
 
-				if top_pad == 0.0 && bottom_pad == 0.0 {
-					chip_size.1 += self.get_pad_size();
+								if pos.1 == min_y || pos.1 == max_y {
+									if min_side_x > pos.0 {
+										min_side_x = pos.0;
+									}
+									if max_side_x < pos.0 {
+										max_side_x = pos.0;
+									}
+								}
+							}
+						}
+
+						let left_pad = min_x - min_side_x;
+						let right_pad = max_x - max_side_x;
+
+						let pad_diff = right_pad - left_pad;
+						chip_size.0 += pad_diff * inner_scale;
+
+						if right_pad > -left_pad {
+							circuit_offset.0 += pad_diff * 0.5;
+						} else {
+							circuit_offset.0 -= pad_diff * 0.5;
+						}
+
+						if left_pad == 0.0 && right_pad == 0.0 {
+							chip_size.0 += self.get_pad_size();
+						}
+					},
+					_ => {
+						let mut min_side_y = f64::INFINITY;
+						let mut max_side_y = f64::NEG_INFINITY;
+
+						for component in &circuit.components {
+							if component.is_pin() {
+								let pos = component.position;
+
+								if pos.0 == min_x || pos.0 == max_x {
+									if min_side_y > pos.1 {
+										min_side_y = pos.1;
+									}
+									if max_side_y < pos.1 {
+										max_side_y = pos.1;
+									}
+								}
+							}
+						}
+
+						let top_pad = min_y - min_side_y;
+						let bottom_pad = max_y - max_side_y;
+
+						let pad_diff = bottom_pad - top_pad;
+						chip_size.1 += pad_diff * inner_scale;
+
+						if bottom_pad > -top_pad {
+							circuit_offset.1 += pad_diff * 0.5;
+						} else {
+							circuit_offset.1 -= pad_diff * 0.5;
+						}
+
+						if top_pad == 0.0 && bottom_pad == 0.0 {
+							chip_size.1 += self.get_pad_size();
+						}
+					},
 				}
 
 				for component in &mut circuit.components {
@@ -543,6 +591,11 @@ impl ComponentType {
 				text: String::from("2-bit Multiplexer"),
 				size: 27,
 			})),
+
+			ComponentType::Register => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: String::from("16-bit Register"),
+				size: 60,
+			})),
 		};
 
 		Component {
@@ -606,6 +659,8 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 
 		ComponentType::Multiplexer => String::from("Multiplexer"),
 		ComponentType::TwoBitMultiplexer => String::from("2-bit Multiplexer"),
+
+		ComponentType::Register => String::from("16-bit Register"),
 	}
 }
 
@@ -646,6 +701,8 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 
 		ComponentType::Multiplexer => String::from("multiplexer"),
 		ComponentType::TwoBitMultiplexer => String::from("twobitmultiplexer"),
+
+		ComponentType::Register => String::from("register"),
 	}
 }
 
@@ -1586,6 +1643,84 @@ impl Circuit {
 			state1: start_state,
 			state2: end_state,
 		});
+	}
+
+	/// Converts switch or bulb components into individual pins.
+	pub fn pinify(&mut self, indices: &mut [usize]) {
+		indices.sort();
+		indices.reverse();
+
+		let mut new_connections = vec![];
+
+		for idx in indices.iter() {
+			let component = &self.components[*idx];
+			let position = component.position;
+	
+			match component.ctype {
+				ComponentType::Bulb | ComponentType::Switch => {
+					let pin_idx = add!(self, Pin, component.position);
+	
+					for wire in &mut self.wires {
+						if wire.pin1.component_idx == *idx {
+							new_connections.push((
+								(pin_idx, 0),
+								(wire.pin2.component_idx, wire.pin2.pin_idx),
+								wire.layout_commands.clone(),
+							));
+						}
+						if wire.pin2.component_idx == *idx {
+							new_connections.push((
+								(wire.pin1.component_idx, wire.pin1.pin_idx),
+								(pin_idx, 0),
+								wire.layout_commands.clone(),
+							));
+						}
+					}
+				},
+	
+				ComponentType::MultiBulb | ComponentType::MultiSwitch => {
+					let size = component.options.size;
+					let spacing = 50.0;
+
+					let pin_indices: Vec<_> = (0..size)
+						.map(|i| {
+							let pos = (
+								position.0 + (i as f64 - size as f64 * 0.5 + 0.5) * spacing,
+								position.1,
+							);
+							add!(self, Pin, pos)
+						})
+						.collect();
+	
+					for wire in &mut self.wires {
+						if wire.pin1.component_idx == *idx {
+							new_connections.push((
+								(pin_indices[wire.pin1.pin_idx], 0),
+								(wire.pin2.component_idx, wire.pin2.pin_idx),
+								wire.layout_commands.clone(),
+							));
+						}
+						if wire.pin2.component_idx == *idx {
+							new_connections.push((
+								(wire.pin1.component_idx, wire.pin1.pin_idx),
+								(pin_indices[wire.pin2.pin_idx], 0),
+								wire.layout_commands.clone(),
+							));
+						}
+					}
+				},
+	
+				_ => {},
+			}
+		}
+
+		for (start, end, commands) in new_connections {
+			self.connect(start, end, &commands);
+		}
+
+		for idx in indices {
+			self.remove(*idx);
+		}
 	}
 	
 	/// Updates a pin and then propagates the changes. This function is the main
