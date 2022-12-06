@@ -93,7 +93,7 @@ impl Editor {
 	}
 
 	/// Spawns a new component and returns the index of that component in the circuit.
-	pub fn spawn_component(&mut self, component_type: ComponentType) -> usize {
+	pub fn spawn_component(&mut self, component_type: ComponentType, should_flip_multi_junction: bool) -> usize {
 		// let x = self.renderer.viewport.get_x();
 		// let y = self.renderer.viewport.get_y();
 
@@ -104,10 +104,11 @@ impl Editor {
 			size: match component_type {
 				ComponentType::MultiBulb | ComponentType::MultiSwitch | ComponentType::MultiJunction |
 				ComponentType::Adder | ComponentType::MultiDFlipFlop |
-				ComponentType::MultiTriStateBuffer => 8,
+				ComponentType::MultiTriStateBuffer => 16,
 				ComponentType::Junction => 3,
 				_ => 1,
 			},
+			should_flip_multi_junction,
 		});
 
 		let index = self.circuit.add(component);

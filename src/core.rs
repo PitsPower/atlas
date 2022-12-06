@@ -133,6 +133,9 @@ pub enum SimulationMode {
 pub struct ComponentOptions {
 	/// The size of the component (e.g. 8-bit, 32-bit, etc.).
 	pub size: usize,
+	/// Whether the multi-junction should be flipped so that it goes
+	/// diagonally up instead of diagonally down.
+	pub should_flip_multi_junction: bool,
 }
 
 /// The different kinds of component.
@@ -298,7 +301,15 @@ impl ComponentType {
 		
 				let pin_positions = (0..size)
 					.map(|i| (i as f64 - size as f64 * 0.5 + 0.5) * spacing)
-					.flat_map(|x| [(x, x); 3])
+					.flat_map(|x| {
+						let y = if options.should_flip_multi_junction {
+							-x
+						} else {
+							x
+						};
+
+						[(x, y); 3]
+					})
 					.collect();
 
 				ComponentInternals::Atomic(pin_positions)
@@ -586,12 +597,12 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 
 		ComponentType::HalfAdder => String::from("Half Adder"),
 		ComponentType::FullAdder => String::from("Full Adder"),
-		ComponentType::Adder => String::from("8-bit Adder"),
+		ComponentType::Adder => String::from("Multi Adder"),
 
 		ComponentType::SRLatch => String::from("SR Latch"),
 		ComponentType::DLatch => String::from("D Latch"),
 		ComponentType::DFlipFlop => String::from("D Flip-Flop"),
-		ComponentType::MultiDFlipFlop => String::from("8-bit D Flip-Flop"),
+		ComponentType::MultiDFlipFlop => String::from("Multi D Flip-Flop"),
 
 		ComponentType::Multiplexer => String::from("Multiplexer"),
 		ComponentType::TwoBitMultiplexer => String::from("2-bit Multiplexer"),
@@ -1201,11 +1212,16 @@ impl ComponentDrawer for MultiJunctionDrawer {
 			let radius = 10.0;
 
 			let x = (idx as f64 - size as f64 * 0.5 + 0.5) * spacing;
-	
+			let y = if component.options.should_flip_multi_junction {
+				-x
+			} else {
+				x
+			};
+
 			ctx.begin_path();
 			ctx.arc(
 				x,
-				x,
+				y,
 				radius,
 				0.0,
 				2.0 * PI,

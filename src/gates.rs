@@ -264,14 +264,14 @@ pub fn get_tri_state_buffer_circuit() -> Circuit {
 pub fn get_multi_tri_state_buffer_circuit(size: usize) -> Circuit {
 	let mut circuit = Circuit::new();
 
-	let chip_width = 400.0;
+	let chip_width = 450.0;
 	let scale = 0.3;
 
 	let input_group: Vec<_> = (0..size)
 		.map(|i| add!(circuit, Pin, (-chip_width * 0.3 / scale, (i as f64 - size as f64 * 0.5 - 0.5) * 50.0)))
 		.collect();
 
-	let enable = add!(circuit, Pin, (0.0, -800.0));
+	let enable = add!(circuit, Pin, (0.0, -100.0 * size as f64));
 
 	let junctions: Vec<_> = (0..size-1)
 		.map(|i| add!(circuit, Junction, (100.0, (i as f64 - size as f64 * 0.5 + 0.125) * 150.0 - 70.0), 3))

@@ -34,8 +34,8 @@ Object.values(wasm.ComponentType).forEach((ct) => {
 	button.appendChild(img);
 	button.appendChild(text);
 
-	button.onclick = () => {
-		editor.spawn_component(ct);
+	button.onclick = (e) => {
+		editor.spawn_component(ct, e.ctrlKey);
 	};
 
 	spawnButtonsEl.appendChild(button);
