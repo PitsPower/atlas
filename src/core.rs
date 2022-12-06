@@ -1650,7 +1650,28 @@ impl Circuit {
 		indices.sort();
 		indices.reverse();
 
-		let mut new_connections = vec![];
+		// Stores the list of updates needed to propagate pin changes
+		let mut all_updates = vec![];
+
+		// Disconnect all the switches and bulbs first
+		for idx in indices.iter() {
+			let component = &self.components[*idx];
+
+			if !matches!(component.ctype, ComponentType::Switch | ComponentType::MultiSwitch) {
+				continue;
+			}
+
+			let pin_count = component.get_pin_count();
+
+			for pin_idx in 0..pin_count {
+				let con = ExternalPin {
+					component_idx: *idx,
+					pin_idx,
+				};
+
+				self.update_component(&con, PinState::Disconnected, true);
+			}
+		}
 
 		for idx in indices.iter() {
 			let component = &self.components[*idx];
@@ -1662,18 +1683,12 @@ impl Circuit {
 	
 					for wire in &mut self.wires {
 						if wire.pin1.component_idx == *idx {
-							new_connections.push((
-								(pin_idx, 0),
-								(wire.pin2.component_idx, wire.pin2.pin_idx),
-								wire.layout_commands.clone(),
-							));
+							wire.pin1.component_idx = pin_idx;
+							all_updates.push((wire.pin1, wire.state2));
 						}
 						if wire.pin2.component_idx == *idx {
-							new_connections.push((
-								(wire.pin1.component_idx, wire.pin1.pin_idx),
-								(pin_idx, 0),
-								wire.layout_commands.clone(),
-							));
+							wire.pin2.component_idx = pin_idx;
+							all_updates.push((wire.pin2, wire.state1));
 						}
 					}
 				},
@@ -1694,18 +1709,14 @@ impl Circuit {
 	
 					for wire in &mut self.wires {
 						if wire.pin1.component_idx == *idx {
-							new_connections.push((
-								(pin_indices[wire.pin1.pin_idx], 0),
-								(wire.pin2.component_idx, wire.pin2.pin_idx),
-								wire.layout_commands.clone(),
-							));
+							wire.pin1.component_idx = pin_indices[wire.pin1.pin_idx];
+							wire.pin1.pin_idx = 0;
+							all_updates.push((wire.pin1, wire.state2));
 						}
 						if wire.pin2.component_idx == *idx {
-							new_connections.push((
-								(wire.pin1.component_idx, wire.pin1.pin_idx),
-								(pin_indices[wire.pin2.pin_idx], 0),
-								wire.layout_commands.clone(),
-							));
+							wire.pin2.component_idx = pin_indices[wire.pin2.pin_idx];
+							wire.pin2.pin_idx = 0;
+							all_updates.push((wire.pin2, wire.state1));
 						}
 					}
 				},
@@ -1714,8 +1725,9 @@ impl Circuit {
 			}
 		}
 
-		for (start, end, commands) in new_connections {
-			self.connect(start, end, &commands);
+		for (con, state) in all_updates {
+			// false is used because we're updating a pin, so we want the change to propagate.
+			self.update_component(&con, state, false);
 		}
 
 		for idx in indices {
