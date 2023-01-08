@@ -187,7 +187,7 @@ pub enum ComponentType {
 	MultiDFlipFlop,
 
 	Multiplexer,
-	TwoBitMultiplexer,
+	MultiMultiplexer,
 
 	Register,
 }
@@ -228,7 +228,7 @@ impl ComponentType {
 			ComponentType::MultiDFlipFlop => "MultiDFlipFlop",
 
 			ComponentType::Multiplexer => "Multiplexer",
-			ComponentType::TwoBitMultiplexer => "TwoBitMultiplexer",
+			ComponentType::MultiMultiplexer => "MultiMultiplexer",
 
 			ComponentType::Register => "Register",
 		}
@@ -336,7 +336,7 @@ impl ComponentType {
 			ComponentType::MultiDFlipFlop => ComponentInternals::Chip(get_multi_d_flip_flop_circuit(options.size), 0.19),
 
 			ComponentType::Multiplexer => ComponentInternals::Chip(get_multiplexer_circuit(), 0.4),
-			ComponentType::TwoBitMultiplexer => ComponentInternals::Chip(get_two_bit_multiplexer_circuit(), 0.4),
+			ComponentType::MultiMultiplexer => ComponentInternals::Chip(get_multi_multiplexer_circuit(options.size), 0.2),
 
 			ComponentType::Register => ComponentInternals::Chip(get_register_circuit(), 0.2),
 		};
@@ -353,7 +353,7 @@ impl ComponentType {
 
 			ComponentType::HalfAdder => (200.0, 200.0),
 			ComponentType::FullAdder => (400.0, 200.0),
-			ComponentType::Adder => (400.0, options.size as f64 * 100.0),
+			ComponentType::Adder => (800.0, options.size as f64 * 100.0),
 			
 			ComponentType::SRLatch => (400.0, 400.0),
 			ComponentType::DLatch => (600.0, 400.0),
@@ -563,7 +563,7 @@ impl ComponentType {
 			})),
 			ComponentType::Adder => Box::new(RectangleChipDrawer::new(TextInfo {
 				text: format!("{}-bit Adder", options.size),
-				size: 50,
+				size: 75,
 			})),
 
 			ComponentType::SRLatch => Box::new(RectangleChipDrawer::new(TextInfo {
@@ -587,9 +587,9 @@ impl ComponentType {
 				text: String::from("Multiplexer"),
 				size: 27,
 			})),
-			ComponentType::TwoBitMultiplexer => Box::new(RectangleChipDrawer::new(TextInfo {
-				text: String::from("2-bit Multiplexer"),
-				size: 27,
+			ComponentType::MultiMultiplexer => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: format!("{}-bit Multiplexer", options.size),
+				size: 60,
 			})),
 
 			ComponentType::Register => Box::new(RectangleChipDrawer::new(TextInfo {
@@ -658,7 +658,7 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 		ComponentType::MultiDFlipFlop => String::from("Multi D Flip-Flop"),
 
 		ComponentType::Multiplexer => String::from("Multiplexer"),
-		ComponentType::TwoBitMultiplexer => String::from("2-bit Multiplexer"),
+		ComponentType::MultiMultiplexer => String::from("Multi Multiplexer"),
 
 		ComponentType::Register => String::from("16-bit Register"),
 	}
@@ -700,7 +700,7 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 		ComponentType::MultiDFlipFlop => String::from("multidflipflop"),
 
 		ComponentType::Multiplexer => String::from("multiplexer"),
-		ComponentType::TwoBitMultiplexer => String::from("twobitmultiplexer"),
+		ComponentType::MultiMultiplexer => String::from("multiplexer"),
 
 		ComponentType::Register => String::from("register"),
 	}

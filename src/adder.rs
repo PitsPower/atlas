@@ -112,7 +112,7 @@ pub fn get_full_adder_circuit() -> Circuit {
 pub fn get_adder_circuit(size: usize) -> Circuit {
 	let mut circuit = Circuit::new();
 
-	let chip_width = 400.0;
+	let chip_width = 800.0;
 	let scale = 0.3;
 
 	let adders: Vec<_> = (0..size)
