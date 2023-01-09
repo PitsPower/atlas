@@ -346,13 +346,6 @@ pub fn generate_control_rom_data() -> [u16; 256 * CONTROL_ROM_MAX_STEPS] {
 	result
 }
 
-struct ControlUnitOutput {
-	from: usize,
-	to: usize,
-	func: ControlFunc,
-	n: usize,
-}
-
 /// A lower level virtual machine. This machine simulates the individual register moves
 /// for each instruction and is controlled by a control unit ROM.
 pub struct LowLevelAtlasVM {

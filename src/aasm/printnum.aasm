@@ -1,4 +1,4 @@
-mov 42069, $0
+mov 1234, $0
 
 loop:
 	beq $0, 0, done
