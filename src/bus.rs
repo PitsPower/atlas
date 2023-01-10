@@ -1,5 +1,6 @@
 //! Provides data structures and algorithms for laying out buses (groups of wires)
 
+use crate::core::Circuit;
 use crate::{graphics::WireLayoutCommand};
 
 /// A command used to control how a bus is layed out.

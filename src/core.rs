@@ -8,12 +8,14 @@ use wasm_bindgen::prelude::*;
 
 use crate::add;
 use crate::adder::*;
+use crate::bus::{BusLayoutCommand, compute_wire_commands};
 use crate::gates::*;
 use crate::graphics::{
 	BoundingBox, ComponentDrawer, Drawable, NothingDrawer,
 	RectangleChipDrawer, TextInfo, WireLayoutCommand,
 };
 use crate::latches::*;
+use crate::memory::get_rom_circuit;
 use crate::multiplexer::*;
 use crate::register::*;
 use crate::transistor::*;
@@ -190,6 +192,8 @@ pub enum ComponentType {
 	MultiMultiplexer,
 
 	Register,
+
+	Rom,
 }
 
 impl ComponentType {
@@ -231,6 +235,8 @@ impl ComponentType {
 			ComponentType::MultiMultiplexer => "MultiMultiplexer",
 
 			ComponentType::Register => "Register",
+			
+			ComponentType::Rom => "Rom",
 		}
 	}
 
@@ -339,6 +345,11 @@ impl ComponentType {
 			ComponentType::MultiMultiplexer => ComponentInternals::Chip(get_multi_multiplexer_circuit(options.size), 0.2),
 
 			ComponentType::Register => ComponentInternals::Chip(get_register_circuit(), 0.2),
+			
+			ComponentType::Rom => {
+				let inner_scale = 0.2;
+				ComponentInternals::Chip(get_rom_circuit(options.size, inner_scale), inner_scale)
+			},
 		};
 
 		let size = match self {
@@ -369,6 +380,8 @@ impl ComponentType {
 				let size = 30.0 * options.size as f64;
 				(size, size)
 			},
+
+			ComponentType::Rom => (500.0, 500.0),
 
 			_ => {
 				let inner_scale = internals.get_inner_scale().unwrap();
@@ -596,6 +609,11 @@ impl ComponentType {
 				text: String::from("16-bit Register"),
 				size: 60,
 			})),
+
+			ComponentType::Rom => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: format!("{}-bit ROM", options.size),
+				size: 60,
+			})),
 		};
 
 		Component {
@@ -661,6 +679,8 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 		ComponentType::MultiMultiplexer => String::from("Multi Multiplexer"),
 
 		ComponentType::Register => String::from("16-bit Register"),
+
+		ComponentType::Rom => String::from("16-bit ROM"),
 	}
 }
 
@@ -703,6 +723,8 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 		ComponentType::MultiMultiplexer => String::from("multiplexer"),
 
 		ComponentType::Register => String::from("register"),
+
+		ComponentType::Rom => String::from("rom"),
 	}
 }
 
@@ -1643,6 +1665,37 @@ impl Circuit {
 			state1: start_state,
 			state2: end_state,
 		});
+	}
+
+	/// Connects one group of pins to another.
+	pub fn connect_groups(&mut self, group1: &[(usize, usize)], group2: &[(usize, usize)], commands: &[BusLayoutCommand]) {
+		if group1.is_empty() || group2.is_empty() {
+			return;
+		}
+
+		let group1_positions: Vec<_> = group1.iter()
+			.map(|(cidx, pidx)| {
+				(
+					self.components[*cidx].position.0 + self.components[*cidx].get_pin_positions()[*pidx].0,
+					self.components[*cidx].position.1 + self.components[*cidx].get_pin_positions()[*pidx].1,
+				)
+			})
+			.collect();
+
+		let group2_positions: Vec<_> = group2.iter()
+			.map(|(cidx, pidx)| {
+				(
+					self.components[*cidx].position.0 + self.components[*cidx].get_pin_positions()[*pidx].0,
+					self.components[*cidx].position.1 + self.components[*cidx].get_pin_positions()[*pidx].1,
+				)
+			})
+			.collect();
+
+		let wire_commands = compute_wire_commands(commands, &group1_positions, &group2_positions);
+
+		for ((pin1, pin2), cmnds) in group1.iter().zip(group2).zip(wire_commands) {
+			self.connect(*pin1, *pin2, &cmnds);
+		}
 	}
 
 	/// Converts switch or bulb components into individual pins.

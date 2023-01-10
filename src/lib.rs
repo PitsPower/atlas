@@ -10,6 +10,7 @@ pub mod editor;
 pub mod gates;
 pub mod graphics;
 pub mod latches;
+pub mod memory;
 pub mod multiplexer;
 pub mod register;
 pub mod transistor;
@@ -934,6 +935,8 @@ pub fn register_bus_example() -> Circuit {
 pub fn editor_example() -> Circuit {
 	let mut circuit = Circuit::new();
 
+	let c0 = add!(circuit, Rom, (0.000, 0.000), 3);
+	
 	circuit
 }
 
