@@ -713,7 +713,7 @@ pub trait ComponentSimulator {
 	}
 
 	/// Switches the simulation mode to [`SimulationMode::HighLevel`].
-	fn set_mode_to_high_level(&mut self) {
+	fn set_mode_to_high_level(&mut self, _circuit: &Circuit) {
 
 	}
 
@@ -1399,15 +1399,15 @@ impl Component {
 	/// Sets the current simulation mode.
 	pub fn set_mode(&mut self, mode: SimulationMode) {
 		if let Some(simulator) = self.simulator.as_mut() {
-			if self.sim_mode == SimulationMode::HighLevel && mode == SimulationMode::Circuit {
-				if let ComponentInternals::Chip(circuit, _) = &mut self.internals {
+			if let ComponentInternals::Chip(circuit, _) = &mut self.internals {
+				if self.sim_mode == SimulationMode::HighLevel && mode == SimulationMode::Circuit {
 					simulator.set_mode_to_circuit(circuit);
 					self.sim_mode = mode;
 				}
-			}
-			else if self.sim_mode == SimulationMode::Circuit && mode == SimulationMode::HighLevel {
-				simulator.set_mode_to_high_level();
-				self.sim_mode = mode;
+				else if self.sim_mode == SimulationMode::Circuit && mode == SimulationMode::HighLevel {
+					simulator.set_mode_to_high_level(circuit);
+					self.sim_mode = mode;
+				}
 			}
 		} else {
 			self.sim_mode = SimulationMode::Circuit;

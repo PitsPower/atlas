@@ -122,6 +122,13 @@ impl ComponentSimulator for RomSimulator {
 		self.data = memory.to_vec();
 	}
 
+	fn set_mode_to_high_level(&mut self, circuit: &Circuit) {
+		for i in 0..self.size {
+			let state = circuit.get_pin(i).unwrap().get_pin_state(0).unwrap();
+			self.set_pin_state_high_level(i, state).unwrap();
+		}
+	}
+
     fn set_mode_to_circuit(&mut self, circuit: &mut Circuit) {
 		// Either set the multi-switch to the correct value
 		// or give half of the memory to each ROM
