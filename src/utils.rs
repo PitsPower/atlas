@@ -1,5 +1,7 @@
 //! Various utility functions.
 
+use crate::core::PinState;
+
 /// Used for better error messages.
 pub fn set_panic_hook() {
 	// When the `console_error_panic_hook` feature is enabled, we can call the
@@ -10,6 +12,38 @@ pub fn set_panic_hook() {
 	// https://github.com/rustwasm/console_error_panic_hook#readme
 	#[cfg(feature = "console_error_panic_hook")]
 	console_error_panic_hook::set_once();
+}
+
+/// Converts a list of pin states into a number by interpreting the states as a binary value.
+/// [`PinState::Disconnected`] and [`PinState::Off`] are treated as 0 and [`PinState::On`] is treated as 1.
+/// The first state in the list is treated as the most significant bit.
+pub fn states_to_num(states: &Vec<PinState>) -> u32 {
+	let mut result = 0;
+
+	for state in states {
+		result *= 2;
+		if *state == PinState::On {
+			result += 1;
+		}
+	}
+
+	result
+}
+
+/// Convert a number into a list of pin states where each pin state is a binary bit in the number.
+/// The first state in the list is treated as the most significant bit.
+pub fn num_to_states(num: u32, amount: usize) -> Vec<PinState> {
+	let mut states = vec![];
+	let mut current = num;
+
+	while current != 0 {
+		states.insert(0, if current % 2 == 1 { PinState::On } else { PinState::Off });
+		current /= 2;
+	}
+
+	let mut result = vec![PinState::Off; amount - states.len()];
+	result.append(&mut states);
+	result
 }
 
 /// Returns the coordinates of pins given the centre of the group of pins,

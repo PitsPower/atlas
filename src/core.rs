@@ -15,10 +15,11 @@ use crate::graphics::{
 	RectangleChipDrawer, TextInfo, WireLayoutCommand,
 };
 use crate::latches::*;
-use crate::memory::get_rom_circuit;
+use crate::memory::{get_rom_circuit, RomSimulator};
 use crate::multiplexer::*;
 use crate::register::*;
 use crate::transistor::*;
+use crate::utils::states_to_num;
 
 /// A pin state.
 /// 
@@ -84,36 +85,6 @@ impl PinState {
 			(false, false) => PinState::Off,
 		}
 	}
-}
-
-/// Converts a list of pin states into a number by interpreting the states as a binary value.
-/// [`PinState::Disconnected`] and [`PinState::Off`] are treated as 0 and [`PinState::On`] is treated as 1.
-/// The first state in the list is treated as the most significant bit.
-pub fn states_to_num(states: &Vec<PinState>) -> u32 {
-	let mut result = 0;
-
-	for state in states {
-		result *= 2;
-		if *state == PinState::On {
-			result += 1;
-		}
-	}
-
-	result
-}
-
-/// Convert a number into a list of pin states where each pin state is a binary bit in the number.
-/// The first state in the list is treated as the most significant bit.
-pub fn num_to_states(num: u32) -> Vec<PinState> {
-	let mut result = vec![];
-	let mut current = num;
-
-	while current != 0 {
-		result.insert(0, if current % 2 == 1 { PinState::On } else { PinState::Off });
-		current /= 2;
-	}
-
-	result
 }
 
 /// An error that may occur when getting or setting a pin.
@@ -537,6 +508,8 @@ impl ComponentType {
 			ComponentType::MultiJunction => Some(Box::new(MultiJunctionSimulator::new(options.size))),
 			ComponentType::MultiSwitch => Some(Box::new(MultiSwitchSimulator::new(options.size))),
 			
+			ComponentType::Rom => Some(Box::new(RomSimulator::new(options.size))),
+			
 			_ => None,
 		};
 
@@ -730,6 +703,15 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 
 /// Something that simulates the behaviour of a component.
 pub trait ComponentSimulator {
+	/// Gives the simulator some memory (used for ROM and RAM).
+	fn give_memory(&mut self, _memory: &[u16]) {
+
+	}
+	/// Takes memory away from the simualotor (used for ROM and RAM).
+	fn take_memory(&mut self) -> &[u16] {
+		&[]
+	}
+
 	/// Switches the simulation mode to [`SimulationMode::HighLevel`].
 	fn set_mode_to_high_level(&mut self) {
 
@@ -1785,6 +1767,28 @@ impl Circuit {
 
 		for idx in indices {
 			self.remove(*idx);
+		}
+	}
+
+	/// Sets a component's memory (used for ROM and RAM).
+	pub fn set_memory(&mut self, cidx: usize, memory: &[u16]) {
+		let component = &mut self.components[cidx];
+
+		if let Some(ref mut sim) = component.simulator {
+			sim.give_memory(memory);
+
+			let mut pin_states = Vec::with_capacity(component.get_pin_count());
+
+			for i in 0..component.get_pin_count() {
+				let state = component.get_pin_state(i).unwrap();
+				pin_states.push(state);
+			}
+
+			for (i, state) in pin_states.iter().enumerate() {
+				if *state != PinState::Disconnected {
+					self.update_component(&ExternalPin { component_idx: cidx, pin_idx: i }, *state, true);
+				}
+			}
 		}
 	}
 	

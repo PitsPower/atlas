@@ -936,7 +936,32 @@ pub fn editor_example() -> Circuit {
 	let mut circuit = Circuit::new();
 
 	let c0 = add!(circuit, Rom, (0.000, 0.000), 3);
+	let c1 = add!(circuit, MultiBulb, (700.000, -200.000), 16);
+	let c2 = add!(circuit, MultiSwitch, (-700.000, -200.000), 16);
 	
+	circuit.connect((c0, 3), (c1, 0), &[WireLayoutCommand::MoveTo((700.000, -75.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 4), (c1, 1), &[WireLayoutCommand::MoveTo((700.000, -65.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 5), (c1, 2), &[WireLayoutCommand::MoveTo((700.000, -55.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 6), (c1, 3), &[WireLayoutCommand::MoveTo((700.000, -45.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 7), (c1, 4), &[WireLayoutCommand::MoveTo((700.000, -35.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 8), (c1, 5), &[WireLayoutCommand::MoveTo((700.000, -25.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 9), (c1, 6), &[WireLayoutCommand::MoveTo((700.000, -15.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 10), (c1, 7), &[WireLayoutCommand::MoveTo((700.000, -5.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 11), (c1, 8), &[WireLayoutCommand::MoveTo((700.000, 5.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 12), (c1, 9), &[WireLayoutCommand::MoveTo((700.000, 15.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 13), (c1, 10), &[WireLayoutCommand::MoveTo((700.000, 25.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 14), (c1, 11), &[WireLayoutCommand::MoveTo((700.000, 35.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 15), (c1, 12), &[WireLayoutCommand::MoveTo((700.000, 45.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 16), (c1, 13), &[WireLayoutCommand::MoveTo((700.000, 55.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 17), (c1, 14), &[WireLayoutCommand::MoveTo((700.000, 65.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 18), (c1, 15), &[WireLayoutCommand::MoveTo((700.000, 75.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c2, 13), (c0, 0), &[WireLayoutCommand::MoveTo((-425.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c2, 14), (c0, 1), &[WireLayoutCommand::MoveTo((-375.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c2, 15), (c0, 2), &[WireLayoutCommand::MoveTo((-325.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
+	
+	// Puts some memory in the ROM
+	circuit.set_memory(c0, &[1, 1, 2, 3, 5, 8, 13, 21]);
+
 	circuit
 }
 

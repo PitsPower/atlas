@@ -2,11 +2,9 @@
 
 use crate::add;
 use crate::bus::BusLayoutCommand;
-use crate::core::{Circuit, ComponentOptions, ComponentType};
+use crate::core::{Circuit, ComponentOptions, ComponentSimulator, ComponentType, ExternalPin, PinError, PinState};
 use crate::graphics::WireLayoutCommand;
-use crate::utils::get_pin_coords;
-
-static mut TEST: usize = 0;
+use crate::utils::{get_pin_coords, num_to_states, states_to_num};
 
 pub fn get_rom_circuit(address_size: usize, inner_scale: f64) -> Circuit {
 	let chip_width = 500.0;
@@ -25,11 +23,6 @@ pub fn get_rom_circuit(address_size: usize, inner_scale: f64) -> Circuit {
 
 	if address_size == 0 {
 		let multi_switch = add!(circuit, MultiSwitch, (0.0, -150.0 / inner_scale), 16);
-
-		unsafe {
-			circuit.toggle_switch(TEST);
-			TEST += 1;
-		}
 
 		for (i, output) in outputs.iter().enumerate() {
 			circuit.connect((multi_switch, i), (*output, 0), &[WireLayoutCommand::AlignHorizontal]);
@@ -98,4 +91,96 @@ pub fn get_rom_circuit(address_size: usize, inner_scale: f64) -> Circuit {
 	}
 
 	circuit
+}
+
+/// A [`ComponentSimulator`] for read only memory.
+pub struct RomSimulator {
+	/// The size of the address.
+	size: usize,
+	/// The states of the address pins.
+	address_states: Vec<PinState>,
+	/// The current address.
+	address: usize,
+	/// The data stored in memory (stored in 16-bit words).
+	data: Vec<u16>,
+}
+
+impl RomSimulator {
+	/// Returns a new [`RomSimulator`].
+	pub fn new(size: usize) -> Self {
+		Self {
+			size,
+			address_states: vec![PinState::Disconnected; size],
+			address: 0,
+			data: vec![0x0000; 2_usize.pow(size as u32)],
+		}
+	}
+}
+
+impl ComponentSimulator for RomSimulator {
+	fn give_memory(&mut self, memory: &[u16]) {
+		self.data = memory.to_vec();
+	}
+
+    fn set_mode_to_circuit(&mut self, circuit: &mut Circuit) {
+		// Either set the multi-switch to the correct value
+		// or give half of the memory to each ROM
+
+		let (idx, comp) = circuit.components.iter()
+			.enumerate()
+			.find(|(_, c)| c.get_type() != ComponentType::Pin)
+			.unwrap();
+
+		if comp.get_type() == ComponentType::MultiSwitch {
+			let states = num_to_states(self.data[0] as u32, 16);
+
+			for (i, state) in states.iter().enumerate() {
+				if *state == PinState::On {
+					circuit.update_component(&ExternalPin { component_idx: idx, pin_idx: i }, *state, true);
+				}
+			}
+		} else {
+			let data_size = self.data.len();
+
+			circuit.set_memory(idx + 1, &self.data[..data_size / 2]);
+			circuit.set_memory(idx + 2, &self.data[data_size / 2..]);
+		}
+
+		// Update address pins
+		for (i, state) in self.address_states.iter().enumerate() {
+			circuit.set_pin(i, *state);
+		}
+	}
+
+    fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		if idx >= self.size + 16 {
+			Err(PinError::OutOfRange)
+		} else if idx < self.size {
+			Ok(PinState::Disconnected)
+		} else {
+			let result = self.data[self.address];
+			let states = num_to_states(result as u32, 16);
+			Ok(states[idx - self.size])
+		}
+	}
+
+    fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		if idx >= self.size + 16 {
+			Err(PinError::OutOfRange)
+		} else if idx < self.size {
+			self.address_states[idx] = state;
+			self.address = states_to_num(&self.address_states) as usize;
+			Ok(())
+		} else {
+			Ok(())
+		}
+	}
+
+    fn get_pin_state_external(&self, idx: usize) -> Result<PinState, PinError> {
+		self.get_pin_state_high_level(idx)
+	}
+
+    fn set_pin_state_external(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		self.set_pin_state_high_level(idx, state)
+	}
 }
