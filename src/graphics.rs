@@ -307,7 +307,7 @@ fn get_chip_stack_from_viewport(circuit: &Circuit, cursor: BoundingBox, viewport
 					*inner_scale,
 				);
 
-				let mut result = get_chip_stack_from_viewport(circuit, new_cursor, new_viewport);
+				let mut result = get_chip_stack_from_viewport(circuit.get(), new_cursor, new_viewport);
 				result.insert(0, idx);
 
 				return result;
@@ -334,7 +334,7 @@ fn update_sim_modes_with_viewport(circuit: &mut Circuit, viewport: BoundingBox) 
 					*inner_scale,
 				);
 
-				update_sim_modes_with_viewport(circuit, new_viewport);
+				update_sim_modes_with_viewport(circuit.get_mut(), new_viewport);
 			}
 		} else {
 			component.set_mode(SimulationMode::HighLevel);

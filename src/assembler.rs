@@ -103,11 +103,11 @@ enum InstructionType {
 	/// Moves the data from the address stored in the first address to the address in the second register.
 	MoveRegAddrToReg(usize, usize),
 	/// Moves the data in the register to the address.
-	MoveRegToImmAddr(usize, u16),
+	// MoveRegToImmAddr(usize, u16),
 
 	MoveByteRegToRegAddr(usize, usize),
 	MoveByteRegAddrToReg(usize, usize),
-	MoveByteRegToImmAddr(usize, u16),
+	// MoveByteRegToImmAddr(usize, u16),
 
 	/// Adds the first register and second register and stores the result in the third register.
 	AddRegToReg(usize, usize, usize),
@@ -162,10 +162,10 @@ impl InstructionType {
 			Self::MoveRegAddrToReg(r1, r2) => {
 				vec![0x04, 0xff, *r1 as u8, *r2 as u8]
 			},
-			Self::MoveRegToImmAddr(reg, imm) => {
-				let immb = imm.to_be_bytes();
-				vec![0x05, *reg as u8, immb[0], immb[1]]
-			},
+			// Self::MoveRegToImmAddr(reg, imm) => {
+			// 	let immb = imm.to_be_bytes();
+			// 	vec![0x05, *reg as u8, immb[0], immb[1]]
+			// },
 
 			Self::AddRegToReg(r1, r2, r3) => {
 				vec![0x06, *r1 as u8, *r2 as u8, *r3 as u8]
@@ -196,10 +196,10 @@ impl InstructionType {
 			Self::MoveByteRegAddrToReg(r1, r2) => {
 				vec![0x14, 0xff, *r1 as u8, *r2 as u8]
 			},
-			Self::MoveByteRegToImmAddr(reg, imm) => {
-				let immb = imm.to_be_bytes();
-				vec![0x15, *reg as u8, immb[0], immb[1]]
-			},
+			// Self::MoveByteRegToImmAddr(reg, imm) => {
+			// 	let immb = imm.to_be_bytes();
+			// 	vec![0x15, *reg as u8, immb[0], immb[1]]
+			// },
 
 			Self::DataDirective(data) => data.clone(),
 

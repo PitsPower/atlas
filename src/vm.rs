@@ -245,25 +245,25 @@ impl Default for AtlasVM {
 #[derive(Clone, Copy)]
 enum ControlRegister {
 	Gpr1 = 0,
-	Gpr2 = 1,
-	Gpr3 = 2,
+	// Gpr2 = 1,
+	// Gpr3 = 2,
 	Pc = 3,
 	PcPlusTwoN = 4,
 	Mar = 5,
 	Mdr = 6,
 	Ir = 7,
-	AluA = 8,
-	AluB = 9,
-	AluO = 10,
-	Branch = 11,
-	BrAddr = 12,
+	// AluA = 8,
+	// AluB = 9,
+	// AluO = 10,
+	// Branch = 11,
+	// BrAddr = 12,
 }
 
 #[derive(Clone, Copy)]
 enum ControlFunc {
 	Plus = 0,
-	Eq = 1,
-	Leq = 2,
+	// Eq = 1,
+	// Leq = 2,
 }
 
 #[derive(Clone, Copy)]
@@ -378,7 +378,7 @@ impl LowLevelAtlasVM {
 		}
 	}
 
-	fn read_register(&self, idx: u8, func: u8, n: u8) -> u16 {
+	fn read_register(&self, idx: u8, _func: u8, n: u8) -> u16 {
 		match idx {
 			3 => self.program_counter,
 			4 => self.program_counter + (n as u16) * 2,

@@ -19,7 +19,7 @@ use crate::memory::{get_rom_circuit, RomSimulator};
 use crate::multiplexer::*;
 use crate::register::*;
 use crate::transistor::*;
-use crate::utils::states_to_num;
+use crate::utils::{Lazy, states_to_num};
 
 /// A pin state.
 /// 
@@ -167,6 +167,12 @@ pub enum ComponentType {
 	Rom,
 }
 
+macro_rules! chip {
+	($func:expr, $scale:expr) => {
+		ComponentInternals::Chip(Lazy::new(Box::new($func)), $scale)
+	};
+}
+
 impl ComponentType {
 	/// Returns the value of the component type as a string.
 	fn as_string(&self) -> &'static str {
@@ -259,13 +265,13 @@ impl ComponentType {
 				])
 			},
 
-			ComponentType::AndGate => ComponentInternals::Chip(get_and_gate_circuit(), 0.15),
-			ComponentType::NandGate => ComponentInternals::Chip(get_nand_gate_circuit(), 0.07),
-			ComponentType::NorGate => ComponentInternals::Chip(get_nor_gate_circuit(), 0.07),
-			ComponentType::NotGate => ComponentInternals::Chip(get_not_gate_circuit(), 0.07),
-			ComponentType::OrGate => ComponentInternals::Chip(get_or_gate_circuit(), 0.15),
-			ComponentType::TriStateBuffer => ComponentInternals::Chip(get_tri_state_buffer_circuit(), 0.04),
-			ComponentType::XorGate => ComponentInternals::Chip(get_xor_gate_circuit(), 0.15),
+			ComponentType::AndGate => chip!(get_and_gate_circuit, 0.15),
+			ComponentType::NandGate => chip!(get_nand_gate_circuit, 0.07),
+			ComponentType::NorGate => chip!(get_nor_gate_circuit, 0.07),
+			ComponentType::NotGate => chip!(get_not_gate_circuit, 0.07),
+			ComponentType::OrGate => chip!(get_or_gate_circuit, 0.15),
+			ComponentType::TriStateBuffer => chip!(get_tri_state_buffer_circuit, 0.04),
+			ComponentType::XorGate => chip!(get_xor_gate_circuit, 0.15),
 			
 			ComponentType::MultiBulb | ComponentType::MultiSwitch => {
 				let spacing = 50.0;
@@ -298,28 +304,25 @@ impl ComponentType {
 				ComponentInternals::Atomic(pin_positions)
 			},
 
-			ComponentType::MultiTriStateBuffer => ComponentInternals::Chip(
-				get_multi_tri_state_buffer_circuit(options.size),
-				0.3,
-			),
+			ComponentType::MultiTriStateBuffer => chip!(move || get_multi_tri_state_buffer_circuit(options.size), 0.3),
 
-			ComponentType::HalfAdder => ComponentInternals::Chip(get_half_adder_circuit(), 0.4),
-			ComponentType::FullAdder => ComponentInternals::Chip(get_full_adder_circuit(), 0.4),
-			ComponentType::Adder => ComponentInternals::Chip(get_adder_circuit(options.size), 0.3),
+			ComponentType::HalfAdder => chip!(get_half_adder_circuit, 0.4),
+			ComponentType::FullAdder => chip!(get_full_adder_circuit, 0.4),
+			ComponentType::Adder => chip!(move || get_adder_circuit(options.size), 0.3),
 			
-			ComponentType::SRLatch => ComponentInternals::Chip(get_sr_latch_circuit(), 0.8),
-			ComponentType::DLatch => ComponentInternals::Chip(get_d_latch_circuit(), 0.5),
-			ComponentType::DFlipFlop => ComponentInternals::Chip(get_d_flip_flop_circuit(), 0.3),
-			ComponentType::MultiDFlipFlop => ComponentInternals::Chip(get_multi_d_flip_flop_circuit(options.size), 0.19),
+			ComponentType::SRLatch => chip!(get_sr_latch_circuit, 0.8),
+			ComponentType::DLatch => chip!(get_d_latch_circuit, 0.5),
+			ComponentType::DFlipFlop => chip!(get_d_flip_flop_circuit, 0.3),
+			ComponentType::MultiDFlipFlop => chip!(move || get_multi_d_flip_flop_circuit(options.size), 0.19),
 
-			ComponentType::Multiplexer => ComponentInternals::Chip(get_multiplexer_circuit(), 0.4),
-			ComponentType::MultiMultiplexer => ComponentInternals::Chip(get_multi_multiplexer_circuit(options.size), 0.2),
+			ComponentType::Multiplexer => chip!(get_multiplexer_circuit, 0.4),
+			ComponentType::MultiMultiplexer => chip!(move || get_multi_multiplexer_circuit(options.size), 0.2),
 
-			ComponentType::Register => ComponentInternals::Chip(get_register_circuit(), 0.2),
+			ComponentType::Register => chip!(get_register_circuit, 0.2),
 			
 			ComponentType::Rom => {
 				let inner_scale = 0.2;
-				ComponentInternals::Chip(get_rom_circuit(options.size, inner_scale), inner_scale)
+				chip!(move || get_rom_circuit(options.size, inner_scale), inner_scale)
 			},
 		};
 
@@ -472,18 +475,20 @@ impl ComponentType {
 				}
 
 				for wire in &mut circuit.wires {
-					for i in 0..wire.layout_commands.len() {
-						match wire.layout_commands[i] {
+					let commands = wire.layout_commands.get_mut();
+
+					for command in commands {
+						match command {
 							WireLayoutCommand::MoveXTo(x) => {
-								wire.layout_commands[i] = WireLayoutCommand::MoveXTo(x + circuit_offset.0);
+								*command = WireLayoutCommand::MoveXTo(*x + circuit_offset.0);
 							},
 							WireLayoutCommand::MoveYTo(y) => {
-								wire.layout_commands[i] = WireLayoutCommand::MoveYTo(y + circuit_offset.1);
+								*command = WireLayoutCommand::MoveYTo(*y + circuit_offset.1);
 							},
 							WireLayoutCommand::MoveTo((x, y)) => {
-								wire.layout_commands[i] = WireLayoutCommand::MoveTo((
-									x + circuit_offset.0,
-									y + circuit_offset.1,
+								*command = WireLayoutCommand::MoveTo((
+									*x + circuit_offset.0,
+									*y + circuit_offset.1,
 								));
 							},
 							_ => {},
@@ -1297,7 +1302,7 @@ pub enum ComponentInternals {
 	/// A list of pin positions defined manually.
 	Atomic(Vec<(f64, f64)>),
 	/// A chip defined by a circuit and a scale.
-	Chip(Circuit, f64),
+	Chip(Lazy<Circuit>, f64),
 }
 
 impl ComponentInternals {
@@ -1305,7 +1310,7 @@ impl ComponentInternals {
 	pub fn get_circuit(&self) -> Option<&Circuit> {
 		match self {
 			ComponentInternals::Atomic(_) => None,
-			ComponentInternals::Chip(circuit, _) => Some(circuit),
+			ComponentInternals::Chip(circuit, _) => Some(circuit.get()),
 		}
 	}
 
@@ -1313,7 +1318,7 @@ impl ComponentInternals {
 	pub fn get_circuit_mut(&mut self) -> Option<&mut Circuit> {
 		match self {
 			ComponentInternals::Atomic(_) => None,
-			ComponentInternals::Chip(circuit, _) => Some(circuit),
+			ComponentInternals::Chip(circuit, _) => Some(circuit.get_mut()),
 		}
 	}
 
@@ -1374,7 +1379,7 @@ impl Component {
 		match &self.internals {
 			ComponentInternals::Atomic(pin_positions) => pin_positions.clone(),
 			ComponentInternals::Chip(circuit, inner_scale) => {
-				circuit.get_pin_positions().iter()
+				circuit.get().get_pin_positions().iter()
 					.map(|(x, y)| (x * inner_scale, y * inner_scale))
 					.collect()
 			},
@@ -1401,11 +1406,11 @@ impl Component {
 		if let Some(simulator) = self.simulator.as_mut() {
 			if let ComponentInternals::Chip(circuit, _) = &mut self.internals {
 				if self.sim_mode == SimulationMode::HighLevel && mode == SimulationMode::Circuit {
-					simulator.set_mode_to_circuit(circuit);
+					simulator.set_mode_to_circuit(circuit.get_mut());
 					self.sim_mode = mode;
 				}
 				else if self.sim_mode == SimulationMode::Circuit && mode == SimulationMode::HighLevel {
-					simulator.set_mode_to_high_level(circuit);
+					simulator.set_mode_to_high_level(circuit.get());
 					self.sim_mode = mode;
 				}
 			}
@@ -1419,7 +1424,7 @@ impl Component {
 		if let ComponentInternals::Chip(circuit, _) = &self.internals {
 			match self.get_mode() {
 				SimulationMode::Circuit => {
-					let maybe_pin_component = circuit.components.iter()
+					let maybe_pin_component = circuit.get().components.iter()
 						.filter(|c| c.is_pin())
 						.nth(idx);
 			
@@ -1444,7 +1449,7 @@ impl Component {
 		if let ComponentInternals::Chip(circuit, _) = &mut self.internals {
 			match mode {
 				SimulationMode::Circuit => {
-					let maybe_component_idx = circuit.components.iter_mut()
+					let maybe_component_idx = circuit.get_mut().components.iter_mut()
 						.enumerate()
 						.filter(|(_, c)| c.is_pin())
 						.nth(idx)
@@ -1456,7 +1461,7 @@ impl Component {
 								component_idx,
 								pin_idx: 0,
 							};
-							circuit.update_component(&connection, state, true);
+							circuit.get_mut().update_component(&connection, state, true);
 							Ok(())
 						},
 						None => Err(PinError::OutOfRange),
@@ -1537,14 +1542,14 @@ pub struct ExternalPin {
 /// 
 /// A wire stores two states, one for each pin. This allows for wires to work
 /// correctly in both directions.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Wire {
 	/// The first pin that the wire is connected to.
 	pub pin1: ExternalPin,
 	/// The second pin that the wire is connected to.
 	pub pin2: ExternalPin,
 	/// Commands used to specify how the wire is rendered.
-	pub layout_commands: Vec<WireLayoutCommand>,
+	pub layout_commands: Lazy<Vec<WireLayoutCommand>>,
 	/// The state being emitted by pin 1.
 	state1: PinState,
 	/// The state being emitted by pin 2.
@@ -1604,18 +1609,19 @@ impl Circuit {
 		self.components.remove(component_idx);
 	}
 
-	/// Connects two components together with a wire.
-	pub fn connect(
+	/// Connects two components together with a wire where the layout of the wire
+	/// is defined lazily.
+	fn connect_lazy(
 		&mut self, (comp1_idx, pin1_idx): (usize, usize),
 		(comp2_idx, pin2_idx): (usize, usize),
-		wire_commands: &[WireLayoutCommand],
+		wire_commands: Lazy<Vec<WireLayoutCommand>>,
 	) {
 		let pin1 = ExternalPin { component_idx: comp1_idx, pin_idx: pin1_idx };
 		let pin2 = ExternalPin { component_idx: comp2_idx, pin_idx: pin2_idx };
 
 		for wire in &mut self.wires {
 			if wire.pin1 == pin1 && wire.pin2 == pin2 {
-				wire.layout_commands = wire_commands.to_vec();
+				wire.layout_commands = wire_commands;
 				return;
 			}
 		}
@@ -1643,10 +1649,15 @@ impl Circuit {
 		self.wires.push(Wire {
 			pin1: start_con,
 			pin2: end_con,
-			layout_commands: wire_commands.to_vec(),
+			layout_commands: wire_commands,
 			state1: start_state,
 			state2: end_state,
 		});
+	}
+
+	/// Connects two components together with a wire.
+	pub fn connect(&mut self, pin1: (usize, usize), pin2: (usize, usize), wire_commands: &[WireLayoutCommand]) {
+		self.connect_lazy(pin1, pin2, Lazy::from(wire_commands.to_vec()));
 	}
 
 	/// Connects one group of pins to another.
@@ -1658,8 +1669,10 @@ impl Circuit {
 		let group1_positions: Vec<_> = group1.iter()
 			.map(|(cidx, pidx)| {
 				(
-					self.components[*cidx].position.0 + self.components[*cidx].get_pin_positions()[*pidx].0,
-					self.components[*cidx].position.1 + self.components[*cidx].get_pin_positions()[*pidx].1,
+					self.components[*cidx].position.0,
+					self.components[*cidx].position.1,
+					// self.components[*cidx].position.0 + self.components[*cidx].get_pin_positions()[*pidx].0,
+					// self.components[*cidx].position.1 + self.components[*cidx].get_pin_positions()[*pidx].1,
 				)
 			})
 			.collect();
@@ -1667,8 +1680,10 @@ impl Circuit {
 		let group2_positions: Vec<_> = group2.iter()
 			.map(|(cidx, pidx)| {
 				(
-					self.components[*cidx].position.0 + self.components[*cidx].get_pin_positions()[*pidx].0,
-					self.components[*cidx].position.1 + self.components[*cidx].get_pin_positions()[*pidx].1,
+					self.components[*cidx].position.0,
+					self.components[*cidx].position.1,
+					// self.components[*cidx].position.0 + self.components[*cidx].get_pin_positions()[*pidx].0,
+					// self.components[*cidx].position.1 + self.components[*cidx].get_pin_positions()[*pidx].1,
 				)
 			})
 			.collect();
@@ -1875,7 +1890,7 @@ impl Circuit {
 			_ => match &mut self.components[stack[0]].internals {
 				ComponentInternals::Atomic(_) => None,
 				ComponentInternals::Chip(circuit, _) =>
-					circuit.get_component_from_chip_stack(&stack[1..]),
+					circuit.get_mut().get_component_from_chip_stack(&stack[1..]),
 			},
 		}
 	}
@@ -2093,7 +2108,7 @@ impl Drawable for Circuit {
 
 			let mut current_pos = start;
 
-			for (idx, command) in wire.layout_commands.iter().enumerate() {
+			for (idx, command) in wire.layout_commands.get().iter().enumerate() {
 				let prev_pos = current_pos;
 
 				match command {
@@ -2142,12 +2157,14 @@ impl Drawable for Circuit {
 					continue;
 				}
 
-				if idx == wire.layout_commands.len() - 1 {
+				let commands = wire.layout_commands.get();
+
+				if idx == commands.len() - 1 {
 					ctx.line_to(current_pos.0, current_pos.1);
 					continue;
 				}
 
-				match wire.layout_commands[idx + 1] {
+				match commands[idx + 1] {
 					WireLayoutCommand::DontRenderPrevious => {},
 					WireLayoutCommand::DontRenderPreviousHorizontal => {
 						ctx.line_to(prev_pos.0, current_pos.1);
@@ -2194,7 +2211,7 @@ impl Drawable for ComponentInternals {
 				ctx.save();
 				ctx.scale(*inner_scale, *inner_scale).unwrap();
 		
-				circuit.draw(ctx, viewport);
+				circuit.get().draw(ctx, viewport);
 		
 				ctx.restore();
 			},

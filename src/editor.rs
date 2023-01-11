@@ -289,7 +289,8 @@ impl Editor {
 
 		let clicked_chip_stack = self.renderer.get_chip_stack_from_pos(&self.circuit, x, y);
 
-		let did_click_component = !clicked_chip_stack.is_empty();
+		// let did_click_component = !clicked_chip_stack.is_empty();
+		let did_click_component = false;
 
 		if did_click_component {
 			let (cx, cy) = self.circuit.get_pos_from_chip_stack(&clicked_chip_stack[..]).unwrap();
@@ -517,7 +518,7 @@ impl Editor {
 				wire.pin1.pin_idx,
 				wire.pin2.component_idx,
 				wire.pin2.pin_idx,
-				wire.layout_commands.iter().map(|lc| lc.as_string()).collect::<Vec<_>>().join(", "),
+				wire.layout_commands.get().iter().map(|lc| lc.as_string()).collect::<Vec<_>>().join(", "),
 			);
 		}
 

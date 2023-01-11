@@ -1,5 +1,7 @@
 //! Various utility functions.
 
+use once_cell::unsync::OnceCell;
+
 use crate::core::PinState;
 
 /// Used for better error messages.
@@ -51,4 +53,46 @@ pub fn num_to_states(num: u32, amount: usize) -> Vec<PinState> {
 pub fn get_pin_coords(center: f64, pin_amount: usize, spacing: f64) -> Vec<f64> {
 	let first_pin_coord = center - (pin_amount - 1) as f64 * 0.5 * spacing;
 	(0..pin_amount).map(|i| first_pin_coord + i as f64 * spacing).collect()
+}
+
+/// A container for an object that only creates it when it is needed.
+pub struct Lazy<T> {
+	/// The cell that contains the object. The cell may also be empty.
+	object: OnceCell<T>,
+	/// A closure that creates the object when it needs to be created.
+	make_object: Box<dyn Fn() -> T>,
+}
+
+impl<T> std::fmt::Debug for Lazy<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Lazy")
+    }
+}
+
+impl<T> Lazy<T> {
+	/// Returns a new [`Lazy<T>`].
+	pub fn new(make_object: Box<dyn Fn() -> T>) -> Self {
+		Self {
+			object: OnceCell::new(),
+			make_object,
+		}
+	}
+	/// Returns a new [`Lazy<T>`] given an existing object.
+	pub fn from(object: T) -> Self {
+		Self {
+			object: OnceCell::from(object),
+			make_object: Box::new(|| panic!("Unexpected make_object")),
+		}
+	}
+	
+	/// Returns a shared reference to the object.
+	pub fn get(&self) -> &T {
+		self.object.get_or_init(&self.make_object)
+	}
+
+	/// Returns a mutable reference to the object.
+	pub fn get_mut(&mut self) -> &mut T {
+		self.object.get_or_init(&self.make_object);
+		self.object.get_mut().unwrap()
+	}
 }
