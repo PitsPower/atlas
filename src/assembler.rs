@@ -358,7 +358,7 @@ fn lex_assembly(assembly: String) -> Result<Vec<AssemblyToken>, AssembleError> {
 					'[' => result.push(AssemblyToken { ttype: AssemblyTokenType::LSquare, line_no }),
 					']' => result.push(AssemblyToken { ttype: AssemblyTokenType::RSquare, line_no }),
 					'\n' => line_no += 1,
-					' ' | '\t' => {},
+					' ' | '\t' | '\r' => {},
 
 					_ => {
 						return Err(AssembleError { etype: AssembleErrorType::InvalidCharacter(char), line_no });
