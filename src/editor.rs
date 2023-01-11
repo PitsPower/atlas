@@ -518,7 +518,12 @@ impl Editor {
 				wire.pin1.pin_idx,
 				wire.pin2.component_idx,
 				wire.pin2.pin_idx,
-				wire.layout_commands.get().iter().map(|lc| lc.as_string()).collect::<Vec<_>>().join(", "),
+				wire.layout_commands
+					.try_get()
+					.unwrap()
+					.iter()
+					.map(|lc| lc.as_string())
+					.collect::<Vec<_>>().join(", "),
 			);
 		}
 

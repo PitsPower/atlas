@@ -3,6 +3,7 @@
 use crate::graphics::WireLayoutCommand;
 
 /// A command used to control how a bus is layed out.
+#[derive(Clone, Copy)]
 pub enum BusLayoutCommand {
 	/// Moves the bus up or down to be aligned with the end pins.
 	AlignHorizontal,

@@ -7,7 +7,7 @@ use crate::graphics::WireLayoutCommand;
 use crate::utils::{get_pin_coords, num_to_states, states_to_num};
 
 pub fn get_rom_circuit(address_size: usize, inner_scale: f64) -> Circuit {
-	let chip_width = 500.0;
+	let chip_width = 700.0;
 	let spacing = 10.0 / inner_scale;
 
 	let mut circuit = Circuit::new();
@@ -28,10 +28,10 @@ pub fn get_rom_circuit(address_size: usize, inner_scale: f64) -> Circuit {
 			circuit.connect((multi_switch, i), (*output, 0), &[WireLayoutCommand::AlignHorizontal]);
 		}
 	} else {
-		let junction = add!(circuit, MultiJunction, (-200.0 / inner_scale, 0.0), address_size - 1);
+		let junction = add!(circuit, MultiJunction, (-250.0 / inner_scale, 0.0), address_size - 1);
 		let rom1 = add!(circuit, Rom, (-120.0 / inner_scale, -100.0 / inner_scale), address_size - 1);
 		let rom2 = add!(circuit, Rom, (-120.0 / inner_scale, 100.0 / inner_scale), address_size - 1);
-		let multiplexer = add!(circuit, MultiMultiplexer, (70.0 / inner_scale, 0.0), 16);
+		let multiplexer = add!(circuit, MultiMultiplexer, (120.0 / inner_scale, 0.0), 16);
 
 		let junction_pins_1: Vec<_> = (0..address_size-1).map(|i| (junction, i * 3)).collect();
 		let junction_pins_2: Vec<_> = (0..address_size-1).map(|i| (junction, i * 3 + 1)).collect();
@@ -51,13 +51,18 @@ pub fn get_rom_circuit(address_size: usize, inner_scale: f64) -> Circuit {
 
 		let mult_outputs: Vec<_> = (33..33+16).map(|i| (multiplexer, i)).collect();
 
-		circuit.connect_groups(&rom_inputs[1..], &junction_pins_1, &[
+		circuit.connect_groups(&rom_inputs[1..(address_size-1)/2+1], &junction_pins_1[..(address_size-1)/2], &[
 			BusLayoutCommand::CenterHorizontal,
 			BusLayoutCommand::AlignHorizontal,
 		]);
+		circuit.connect_groups(&rom_inputs[(address_size-1)/2+1..], &junction_pins_1[(address_size-1)/2..], &[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		]);
+
 		circuit.connect((inputs[0], 0), (multiplexer, 32), &[
 			WireLayoutCommand::MoveHorizontal(200.0),
-			WireLayoutCommand::MoveVertical(1000.0),
+			WireLayoutCommand::MoveVertical(1250.0),
 			WireLayoutCommand::AlignVertical,
 		]);
 
@@ -73,10 +78,6 @@ pub fn get_rom_circuit(address_size: usize, inner_scale: f64) -> Circuit {
 			BusLayoutCommand::AlignHorizontal,
 		]);
 		circuit.connect_groups(&rom2_outputs, &mult_inputs_2, &[
-			BusLayoutCommand::CenterHorizontal,
-			BusLayoutCommand::AlignHorizontal,
-		]);
-		circuit.connect_groups(&mult_outputs, &rom_outputs, &[
 			BusLayoutCommand::CenterHorizontal,
 			BusLayoutCommand::AlignHorizontal,
 		]);

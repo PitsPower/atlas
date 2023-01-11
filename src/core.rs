@@ -355,7 +355,7 @@ impl ComponentType {
 				(size, size)
 			},
 
-			ComponentType::Rom => (500.0, 500.0),
+			ComponentType::Rom => (700.0, 500.0),
 
 			_ => {
 				let inner_scale = internals.get_inner_scale().unwrap();
@@ -475,24 +475,24 @@ impl ComponentType {
 				}
 
 				for wire in &mut circuit.wires {
-					let commands = wire.layout_commands.get_mut();
-
-					for command in commands {
-						match command {
-							WireLayoutCommand::MoveXTo(x) => {
-								*command = WireLayoutCommand::MoveXTo(*x + circuit_offset.0);
-							},
-							WireLayoutCommand::MoveYTo(y) => {
-								*command = WireLayoutCommand::MoveYTo(*y + circuit_offset.1);
-							},
-							WireLayoutCommand::MoveTo((x, y)) => {
-								*command = WireLayoutCommand::MoveTo((
-									*x + circuit_offset.0,
-									*y + circuit_offset.1,
-								));
-							},
-							_ => {},
-						};
+					if let Some(commands) = wire.layout_commands.try_get_mut() {
+						for command in commands {
+							match command {
+								WireLayoutCommand::MoveXTo(x) => {
+									*command = WireLayoutCommand::MoveXTo(*x + circuit_offset.0);
+								},
+								WireLayoutCommand::MoveYTo(y) => {
+									*command = WireLayoutCommand::MoveYTo(*y + circuit_offset.1);
+								},
+								WireLayoutCommand::MoveTo((x, y)) => {
+									*command = WireLayoutCommand::MoveTo((
+										*x + circuit_offset.0,
+										*y + circuit_offset.1,
+									));
+								},
+								_ => {},
+							};
+						}
 					}
 				}
 
@@ -1556,12 +1556,17 @@ pub struct Wire {
 	state2: PinState,
 }
 
+/// A group of pins.
+type Group = Vec<(usize, usize)>;
+
 /// A circuit that consists of components connected by wires.
 pub struct Circuit {
 	/// The list of components.
 	pub components: Vec<Component>,
 	/// The list of wires connecting the components.
 	pub wires: Vec<Wire>,
+	/// The list of [`BusLayoutCommand`]s that need to be computed.
+	pub bus_commands: Vec<(Group, Group, Vec<BusLayoutCommand>)>,
 }
 
 impl Circuit {
@@ -1660,19 +1665,21 @@ impl Circuit {
 		self.connect_lazy(pin1, pin2, Lazy::from(wire_commands.to_vec()));
 	}
 
-	/// Connects one group of pins to another.
-	pub fn connect_groups(&mut self, group1: &[(usize, usize)], group2: &[(usize, usize)], commands: &[BusLayoutCommand]) {
+	/// Computes a list of [`WireLayoutCommand`]s given a list of [`BusLayoutCommand`]s.
+	fn compute_wire_commands(
+		&self,
+		group1: &[(usize, usize)], group2: &[(usize, usize)],
+		commands: &[BusLayoutCommand]
+	) -> Vec<Vec<WireLayoutCommand>> {
 		if group1.is_empty() || group2.is_empty() {
-			return;
+			return vec![];
 		}
 
 		let group1_positions: Vec<_> = group1.iter()
 			.map(|(cidx, pidx)| {
 				(
-					self.components[*cidx].position.0,
-					self.components[*cidx].position.1,
-					// self.components[*cidx].position.0 + self.components[*cidx].get_pin_positions()[*pidx].0,
-					// self.components[*cidx].position.1 + self.components[*cidx].get_pin_positions()[*pidx].1,
+					self.components[*cidx].position.0 + self.components[*cidx].get_pin_positions()[*pidx].0,
+					self.components[*cidx].position.1 + self.components[*cidx].get_pin_positions()[*pidx].1,
 				)
 			})
 			.collect();
@@ -1680,18 +1687,22 @@ impl Circuit {
 		let group2_positions: Vec<_> = group2.iter()
 			.map(|(cidx, pidx)| {
 				(
-					self.components[*cidx].position.0,
-					self.components[*cidx].position.1,
-					// self.components[*cidx].position.0 + self.components[*cidx].get_pin_positions()[*pidx].0,
-					// self.components[*cidx].position.1 + self.components[*cidx].get_pin_positions()[*pidx].1,
+					self.components[*cidx].position.0 + self.components[*cidx].get_pin_positions()[*pidx].0,
+					self.components[*cidx].position.1 + self.components[*cidx].get_pin_positions()[*pidx].1,
 				)
 			})
 			.collect();
 
-		let wire_commands = compute_wire_commands(commands, &group1_positions, &group2_positions);
+		compute_wire_commands(commands, &group1_positions, &group2_positions)
+	}
 
-		for ((pin1, pin2), cmnds) in group1.iter().zip(group2).zip(wire_commands) {
-			self.connect(*pin1, *pin2, &cmnds);
+	/// Connects one group of pins to another.
+	pub fn connect_groups(&mut self, group1: &[(usize, usize)], group2: &[(usize, usize)], commands: &[BusLayoutCommand]) {
+		// Save the commands to be evaluated later
+		self.bus_commands.push((group1.to_vec(), group2.to_vec(), commands.to_vec()));
+
+		for (pin1, pin2) in group1.iter().zip(group2) {
+			self.connect_lazy(*pin1, *pin2, Lazy::empty());
 		}
 	}
 
@@ -2009,6 +2020,7 @@ impl Circuit {
 		Self {
 			components: vec![],
 			wires: vec![],
+			bus_commands: vec![],
 		}
 	}
 
@@ -2108,73 +2120,89 @@ impl Drawable for Circuit {
 
 			let mut current_pos = start;
 
-			for (idx, command) in wire.layout_commands.get().iter().enumerate() {
-				let prev_pos = current_pos;
-
-				match command {
-					WireLayoutCommand::AlignHorizontal => {
-						current_pos.1 = end.1;
-					},
-					WireLayoutCommand::AlignVertical => {
-						current_pos.0 = end.0;
-					},
-					WireLayoutCommand::CenterHorizontal => {
-						current_pos.0 = (start.0 + end.0) * 0.5;
-					},
-					WireLayoutCommand::CenterVertical => {
-						current_pos.1 = (start.1 + end.1) * 0.5;
-					},
-					WireLayoutCommand::MoveHorizontal(amount) => {
-						current_pos.0 += amount;
-					},
-					WireLayoutCommand::MoveVertical(amount) => {
-						current_pos.1 += amount;
-					},
-					WireLayoutCommand::Move((x, y)) => {
-						current_pos.0 += x;
-						current_pos.1 += y;
-					},
-					WireLayoutCommand::MoveXTo(x) => {
-						current_pos.0 = *x;
-					},
-					WireLayoutCommand::MoveYTo(y) => {
-						current_pos.1 = *y;
-					},
-					WireLayoutCommand::MoveTo((x, y)) => {
-						current_pos = (*x, *y);
-					},
-					WireLayoutCommand::DontRenderPrevious => {},
-					WireLayoutCommand::DontRenderPreviousHorizontal => {},
-					WireLayoutCommand::DontRenderPreviousVertical => {},
+			if wire.layout_commands.try_get().is_none() {
+				for (group1, group2, commands) in &self.bus_commands {
+					let maybe_idx = group1.iter().zip(group2)
+						.enumerate()
+						.find(|(_, (p1, p2))| {
+							**p1 == (con1.component_idx, con1.pin_idx) &&
+							**p2 == (con2.component_idx, con2.pin_idx)
+						});
+	
+					if let Some((idx, _)) = maybe_idx {
+						let wire_commands = self.compute_wire_commands(group1, group2, commands);
+						wire.layout_commands.set(wire_commands[idx].clone());
+					}
 				}
+			}
 
-				if matches!(
-					*command,
-					WireLayoutCommand::DontRenderPrevious |
-					WireLayoutCommand::DontRenderPreviousHorizontal |
-					WireLayoutCommand::DontRenderPreviousVertical
-				) {
-					continue;
-				}
-
-				let commands = wire.layout_commands.get();
-
-				if idx == commands.len() - 1 {
-					ctx.line_to(current_pos.0, current_pos.1);
-					continue;
-				}
-
-				match commands[idx + 1] {
-					WireLayoutCommand::DontRenderPrevious => {},
-					WireLayoutCommand::DontRenderPreviousHorizontal => {
-						ctx.line_to(prev_pos.0, current_pos.1);
-					},
-					WireLayoutCommand::DontRenderPreviousVertical => {
-						ctx.line_to(current_pos.0, prev_pos.1);
-					},
-					_ => {
+			if let Some(commands) = wire.layout_commands.try_get() {
+				for (idx, command) in commands.iter().enumerate() {
+					let prev_pos = current_pos;
+	
+					match command {
+						WireLayoutCommand::AlignHorizontal => {
+							current_pos.1 = end.1;
+						},
+						WireLayoutCommand::AlignVertical => {
+							current_pos.0 = end.0;
+						},
+						WireLayoutCommand::CenterHorizontal => {
+							current_pos.0 = (start.0 + end.0) * 0.5;
+						},
+						WireLayoutCommand::CenterVertical => {
+							current_pos.1 = (start.1 + end.1) * 0.5;
+						},
+						WireLayoutCommand::MoveHorizontal(amount) => {
+							current_pos.0 += amount;
+						},
+						WireLayoutCommand::MoveVertical(amount) => {
+							current_pos.1 += amount;
+						},
+						WireLayoutCommand::Move((x, y)) => {
+							current_pos.0 += x;
+							current_pos.1 += y;
+						},
+						WireLayoutCommand::MoveXTo(x) => {
+							current_pos.0 = *x;
+						},
+						WireLayoutCommand::MoveYTo(y) => {
+							current_pos.1 = *y;
+						},
+						WireLayoutCommand::MoveTo((x, y)) => {
+							current_pos = (*x, *y);
+						},
+						WireLayoutCommand::DontRenderPrevious => {},
+						WireLayoutCommand::DontRenderPreviousHorizontal => {},
+						WireLayoutCommand::DontRenderPreviousVertical => {},
+					}
+	
+					if matches!(
+						*command,
+						WireLayoutCommand::DontRenderPrevious |
+						WireLayoutCommand::DontRenderPreviousHorizontal |
+						WireLayoutCommand::DontRenderPreviousVertical
+					) {
+						continue;
+					}
+	
+					if idx == commands.len() - 1 {
 						ctx.line_to(current_pos.0, current_pos.1);
-					},
+						continue;
+					}
+	
+					match commands[idx + 1] {
+						WireLayoutCommand::DontRenderPrevious => {},
+						WireLayoutCommand::DontRenderPreviousHorizontal => {
+							ctx.line_to(prev_pos.0, current_pos.1);
+						},
+						WireLayoutCommand::DontRenderPreviousVertical => {
+							ctx.line_to(current_pos.0, prev_pos.1);
+						},
+						_ => {
+							ctx.line_to(current_pos.0, current_pos.1);
+						},
+					}
 				}
 			}
 

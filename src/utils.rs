@@ -60,7 +60,7 @@ pub struct Lazy<T> {
 	/// The cell that contains the object. The cell may also be empty.
 	object: OnceCell<T>,
 	/// A closure that creates the object when it needs to be created.
-	make_object: Box<dyn Fn() -> T>,
+	make_object: Option<Box<dyn Fn() -> T>>,
 }
 
 impl<T> std::fmt::Debug for Lazy<T> {
@@ -74,25 +74,60 @@ impl<T> Lazy<T> {
 	pub fn new(make_object: Box<dyn Fn() -> T>) -> Self {
 		Self {
 			object: OnceCell::new(),
-			make_object,
+			make_object: Some(make_object),
 		}
 	}
+
+	/// Returns a new [`Lazy<T>`] with no make function.
+	pub fn empty() -> Self {
+		Self {
+			object: OnceCell::new(),
+			make_object: None,
+		}
+	}
+
 	/// Returns a new [`Lazy<T>`] given an existing object.
 	pub fn from(object: T) -> Self {
 		Self {
 			object: OnceCell::from(object),
-			make_object: Box::new(|| panic!("Unexpected make_object")),
+			make_object: None,
 		}
+	}
+
+	/// Manually sets the value of the object.
+	pub fn set(&self, value: T) {
+		// `.unwrap_or(())` just ignores the result since we
+		// don't care if it gets set or not
+		self.object.set(value).unwrap_or(())
 	}
 	
 	/// Returns a shared reference to the object.
 	pub fn get(&self) -> &T {
-		self.object.get_or_init(&self.make_object)
+		if let Some(make_object) = &self.make_object {
+			self.object.get_or_init(make_object)
+		} else {
+			self.object.get().unwrap()
+		}
 	}
 
 	/// Returns a mutable reference to the object.
 	pub fn get_mut(&mut self) -> &mut T {
-		self.object.get_or_init(&self.make_object);
+		if let Some(make_object) = &self.make_object {
+			self.object.get_or_init(make_object);
+		}
+
 		self.object.get_mut().unwrap()
+	}
+	
+	/// Returns an option that may contain a shared reference to the object
+	/// if it has been computed.
+	pub fn try_get(&self) -> Option<&T> {
+		self.object.get()
+	}
+
+	/// Returns an option that may contain a mutable reference to the object
+	/// if it has been computed.
+	pub fn try_get_mut(&mut self) -> Option<&mut T> {
+		self.object.get_mut()
 	}
 }
