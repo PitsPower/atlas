@@ -62,7 +62,7 @@ pub fn get_rom_circuit(address_size: usize, inner_scale: f64) -> Circuit {
 
 		circuit.connect((inputs[0], 0), (multiplexer, 32), &[
 			WireLayoutCommand::MoveHorizontal(200.0),
-			WireLayoutCommand::MoveVertical(1250.0),
+			WireLayoutCommand::MoveYTo(1000.0),
 			WireLayoutCommand::AlignVertical,
 		]);
 
