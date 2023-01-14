@@ -1,5 +1,7 @@
 //! A collection of ATLAS virtual machines. Used as a reference for the actual computer.
 
+use std::convert::TryFrom;
+
 use crate::assembler::*;
 
 /// The number of registers.
@@ -99,7 +101,7 @@ impl AtlasVM {
 			Err(err) => panic!("{}", err),
 		};
 
-		crate::log!("{}", machine_code.iter().map(|byte| format!("{:02x}", byte)).collect::<Vec<_>>().join(" "));
+		crate::log!("ASSEMBLED PROGRAM:\n\n{}", machine_code.iter().map(|byte| format!("{:02x}", byte)).collect::<Vec<_>>().join(" "));
 
 		for (addr, byte) in machine_code.iter().enumerate() {
 			self.memory.write_memory_byte(addr as u16, *byte);
@@ -169,9 +171,9 @@ impl AtlasVM {
 
 				// AddImmToReg
 				0x07 => {
-					let r1 = self.memory.read_memory_byte(self.program_counter + 1);
-					let imm = self.memory.read_memory_word(self.program_counter + 2);
-					let r2 = self.memory.read_memory_byte(self.program_counter + 4);
+					let r1 = self.memory.read_memory_byte(self.program_counter + 2);
+					let imm = self.memory.read_memory_word(self.program_counter + 4);
+					let r2 = self.memory.read_memory_byte(self.program_counter + 3);
 
 					self.registers[r2 as usize] = self.registers[r1 as usize].wrapping_add(imm);
 					
@@ -245,25 +247,63 @@ impl Default for AtlasVM {
 #[derive(Clone, Copy)]
 enum ControlRegister {
 	Gpr1 = 0,
-	// Gpr2 = 1,
-	// Gpr3 = 2,
+	Gpr2 = 1,
+	Gpr3 = 2,
 	Pc = 3,
 	PcPlusTwoN = 4,
 	Mar = 5,
 	Mdr = 6,
-	Ir = 7,
-	// AluA = 8,
-	// AluB = 9,
-	// AluO = 10,
-	// Branch = 11,
-	// BrAddr = 12,
+	Ir1 = 7,
+	Ir2 = 8,
+	AluA = 9,
+	AluB = 10,
+	AluO = 11,
+	Branch = 12,
+	BrAddr = 13,
+}
+
+impl std::convert::TryFrom<u8> for ControlRegister {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+			0 =>  Ok(ControlRegister::Gpr1),
+			1 =>  Ok(ControlRegister::Gpr2),
+			2 =>  Ok(ControlRegister::Gpr3),
+			3 =>  Ok(ControlRegister::Pc),
+			4 =>  Ok(ControlRegister::PcPlusTwoN),
+			5 =>  Ok(ControlRegister::Mar),
+			6 =>  Ok(ControlRegister::Mdr),
+			7 =>  Ok(ControlRegister::Ir1),
+			8 =>  Ok(ControlRegister::Ir2),
+			9 =>  Ok(ControlRegister::AluA),
+			10 =>  Ok(ControlRegister::AluB),
+			11 => Ok(ControlRegister::AluO),
+			12 => Ok(ControlRegister::Branch),
+			13 => Ok(ControlRegister::BrAddr),
+			_ => Err(()),
+		}
+    }
 }
 
 #[derive(Clone, Copy)]
 enum ControlFunc {
 	Plus = 0,
-	// Eq = 1,
-	// Leq = 2,
+	Eq = 1,
+	Leq = 2,
+}
+
+impl std::convert::TryFrom<u8> for ControlFunc {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+			0 => Ok(ControlFunc::Plus),
+			1 => Ok(ControlFunc::Eq),
+			2 => Ok(ControlFunc::Leq),
+			_ => Err(()),
+		}
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -281,7 +321,7 @@ impl ControlRomOutput {
 	}
 }
 
-const CONTROL_ROM_MAX_STEPS: usize = 8;
+const CONTROL_ROM_MAX_STEPS: usize = 16;
 
 macro_rules! cntrl {
 	($from:ident => $to:ident) => {
@@ -289,6 +329,15 @@ macro_rules! cntrl {
 			from: ControlRegister::$from,
 			to: ControlRegister::$to,
 			func: ControlFunc::Plus,
+			n: 0,
+			reset: false,
+		}
+	};
+	($from:ident => $to:ident, $op:ident) => {
+		ControlRomOutput {
+			from: ControlRegister::$from,
+			to: ControlRegister::$to,
+			func: ControlFunc::$op,
 			n: 0,
 			reset: false,
 		}
@@ -312,7 +361,7 @@ fn add_steps_to_rom_data(data: &mut [u16; 256 * CONTROL_ROM_MAX_STEPS], opcode: 
 
 	// These two steps are done for all instructions
 	data[opcode as usize * CONTROL_ROM_MAX_STEPS] = cntrl!(Pc => Mar).as_bytes();
-	data[opcode as usize * CONTROL_ROM_MAX_STEPS + 1] = cntrl!(Mdr => Ir).as_bytes();
+	data[opcode as usize * CONTROL_ROM_MAX_STEPS + 1] = cntrl!(Mdr => Ir1).as_bytes();
 
 	for (idx, step) in steps.iter().enumerate() {
 		// If it's the last step, set the "reset" flag
@@ -339,8 +388,54 @@ pub fn generate_control_rom_data() -> [u16; 256 * CONTROL_ROM_MAX_STEPS] {
 	// MoveImmToReg
 	add_steps_to_rom_data(&mut result, 0x02, vec![
 		cntrl!(Pc+2 => Mar),
-		cntrl!(Mdr  => Gpr1),
+		cntrl!(Mdr => Gpr1),
 		cntrl!(Pc+4 => Pc),
+	]);
+
+	// MoveRegToRegAddr
+	add_steps_to_rom_data(&mut result, 0x03, vec![
+		cntrl!(Pc+2 => Mar),
+		cntrl!(Mdr => Ir2),
+		cntrl!(Gpr3 => Mar),
+		cntrl!(Gpr2 => Mdr),
+		cntrl!(Pc+4 => Pc),
+	]);
+	
+	// MoveRegAddrToReg
+	add_steps_to_rom_data(&mut result, 0x04, vec![
+		cntrl!(Pc+2 => Mar),
+		cntrl!(Mdr => Ir2),
+		cntrl!(Gpr2 => Mar),
+		cntrl!(Mdr => Gpr3),
+		cntrl!(Pc+4 => Pc),
+	]);
+	
+	// AddImmToReg
+	add_steps_to_rom_data(&mut result, 0x07, vec![
+		cntrl!(Pc+4 => Mar),
+		cntrl!(Mdr => AluB),
+		cntrl!(Pc+2 => Mar),
+		cntrl!(Mdr => Ir2),
+		cntrl!(Gpr2 => AluA),
+		cntrl!(AluO => Gpr3),
+		cntrl!(Pc+6 => Pc),
+	]);
+
+	// Branch
+	add_steps_to_rom_data(&mut result, 0x08, vec![
+		cntrl!(Pc+2 => Mar),
+		cntrl!(Mdr => Pc),
+	]);
+	
+	// BranchIfEqual
+	add_steps_to_rom_data(&mut result, 0x09, vec![
+		cntrl!(Gpr1 => AluA),
+		cntrl!(Pc+2 => Mar),
+		cntrl!(Mdr => AluB),
+		cntrl!(Pc+4 => Mar),
+		cntrl!(Mdr => BrAddr),
+		cntrl!(Pc+6 => Pc),
+		cntrl!(Branch => Pc, Eq),
 	]);
 
 	result
@@ -352,14 +447,19 @@ pub struct LowLevelAtlasVM {
 	pub registers: [u16; REGISTER_AMOUNT],
 
 	program_counter: u16,
-	instruction_register: u16,
+	instruction_register_1: u16,
+	instruction_register_2: u16,
+
+	alu_register_a: u16,
+	alu_register_b: u16,
+	
+	branch_address_register: u16,
 
 	pub memory: Memory,
 	memory_address_register: u16,
 
 	control_rom: [u16; 256 * CONTROL_ROM_MAX_STEPS],
 	control_counter: u8,
-
 }
 
 impl LowLevelAtlasVM {
@@ -368,8 +468,14 @@ impl LowLevelAtlasVM {
 			registers: [0x0000; REGISTER_AMOUNT],
 
 			program_counter: 0x0000,
-			instruction_register: 0x0000,
+			instruction_register_1: 0x0000,
+			instruction_register_2: 0x0000,
 			
+			alu_register_a: 0x0000,
+			alu_register_b: 0x0000,
+			
+			branch_address_register: 0x0000,
+
 			memory: Memory::new(),
 			memory_address_register: 0x0000,
 
@@ -378,27 +484,90 @@ impl LowLevelAtlasVM {
 		}
 	}
 
-	fn read_register(&self, idx: u8, _func: u8, n: u8) -> u16 {
-		match idx {
-			3 => self.program_counter,
-			4 => self.program_counter + (n as u16) * 2,
-			6 => self.memory.read_memory_word(self.memory_address_register),
+	fn read_register(&self, idx: u8, func: u8, n: u8) -> Option<u16> {
+		if let Ok(reg) = ControlRegister::try_from(idx) {
+			Some(match reg {
+				ControlRegister::Gpr1 => self.registers[(self.instruction_register_1 & 0x0f) as usize],
+				ControlRegister::Gpr2 => self.registers[(self.instruction_register_2 >> 8) as usize],
+				ControlRegister::Gpr3 => self.registers[(self.instruction_register_2 & 0x0f) as usize],
+				
+				ControlRegister::Pc => self.program_counter,
+				ControlRegister::PcPlusTwoN => self.program_counter + (n as u16) * 2,
+				
+				ControlRegister::Mar => self.memory_address_register,
+				ControlRegister::Mdr => self.memory.read_memory_word(self.memory_address_register),
+				ControlRegister::Ir1 => self.instruction_register_1,
+				ControlRegister::Ir2 => self.instruction_register_2,
+				
+				ControlRegister::AluA => self.alu_register_a,
+				ControlRegister::AluB => self.alu_register_b,
+				ControlRegister::AluO => {
+					match ControlFunc::try_from(func).unwrap() {
+						ControlFunc::Plus => self.alu_register_a.wrapping_add(self.alu_register_b),
+						ControlFunc::Eq => u16::from(self.alu_register_a == self.alu_register_b),
+						ControlFunc::Leq => u16::from(self.alu_register_a <= self.alu_register_b),
+					}
+				},
+				
+				ControlRegister::Branch => {
+					if let Ok(func) = ControlFunc::try_from(func) {
+						let should_branch = match func {
+							ControlFunc::Plus => false,
+							ControlFunc::Eq => self.alu_register_a == self.alu_register_b,
+							ControlFunc::Leq => self.alu_register_a <= self.alu_register_b,
+						};
 
-			_ => panic!("Read from unknown register index: {}", idx),
+						if should_branch {
+							self.branch_address_register
+						} else {
+							self.program_counter
+						}
+					} else {
+						self.program_counter
+					}
+				},
+				ControlRegister::BrAddr => self.branch_address_register,
+			})
+		} else {
+			None
 		}
 	}
 
-	fn write_register(&mut self, idx: u8, value: u16) {
-		match idx {
-			0 => {
-				let reg = (self.instruction_register & 0xff) as usize;
-				self.registers[reg] = value;
-			},
-			3 => self.program_counter = value,
-			5 => self.memory_address_register = value,
-			7 => self.instruction_register = value,
+	fn write_register(&mut self, idx: u8, value: u16) -> bool {
+		if let Ok(reg) = ControlRegister::try_from(idx) {
+			match reg {
+				ControlRegister::Gpr1 => {
+					let reg = (self.instruction_register_1 & 0x0f) as usize;
+					self.registers[reg] = value;
+				},
+				ControlRegister::Gpr2 => {
+					let reg = (self.instruction_register_2 >> 8) as usize;
+					self.registers[reg] = value;
+				},
+				ControlRegister::Gpr3 => {
+					let reg = (self.instruction_register_2 & 0x0f) as usize;
+					self.registers[reg] = value;
+				},
+				
+				ControlRegister::Pc => self.program_counter = value,
+				ControlRegister::PcPlusTwoN => todo!(),
+				
+				ControlRegister::Mar => self.memory_address_register = value,
+				ControlRegister::Mdr => self.memory.write_memory_word(self.memory_address_register, value),
+				ControlRegister::Ir1 => self.instruction_register_1 = value,
+				ControlRegister::Ir2 => self.instruction_register_2 = value,
+				
+				ControlRegister::AluA => self.alu_register_a = value,
+				ControlRegister::AluB => self.alu_register_b = value,
+				ControlRegister::AluO => todo!(),
+				
+				ControlRegister::Branch => panic!("Write to ControlRegister::Branch"),
+				ControlRegister::BrAddr => self.branch_address_register = value,
+			};
 
-			_ => panic!("Write to unknown register index: {}", idx),
+			true
+		} else {
+			false
 		}
 	}
 
@@ -409,7 +578,7 @@ impl LowLevelAtlasVM {
 			Err(err) => panic!("{}", err),
 		};
 
-		crate::log!("{}", machine_code.iter().map(|byte| format!("{:02x}", byte)).collect::<Vec<_>>().join(" "));
+		crate::log!("ASSEMBLED PROGRAM:\n\n{}", machine_code.iter().map(|byte| format!("{:02x}", byte)).collect::<Vec<_>>().join(" "));
 
 		for (addr, byte) in machine_code.iter().enumerate() {
 			self.memory.write_memory_byte(addr as u16, *byte);
@@ -418,8 +587,8 @@ impl LowLevelAtlasVM {
 		let mut is_halted = false;
 
 		while !is_halted {
-			let opcode = self.instruction_register >> 8;
-			let control_rom_address = opcode << 3 | self.control_counter as u16;
+			let opcode = self.instruction_register_1 >> 8;
+			let control_rom_address = opcode << 4 | self.control_counter as u16;
 			let control_word = self.control_rom[control_rom_address as usize];
 
 			let from_reg = ((control_word >> 12) & 0x0f) as u8;
@@ -428,8 +597,12 @@ impl LowLevelAtlasVM {
 			let n = ((control_word >> 1) & 0x03) as u8;
 			let reset = (control_word & 0x01) as u8;
 
-			let reg_value = self.read_register(from_reg, func, n);
-			self.write_register(to_reg, reg_value);
+			let reg_value = self.read_register(from_reg, func, n)
+				.unwrap_or_else(|| panic!("Read from unknown register index: {}", from_reg));
+
+			if !self.write_register(to_reg, reg_value) {
+				panic!("Write to unknown register index: {}", to_reg);
+			}
 
 			self.control_counter += 1;
 			if reset == 1 {

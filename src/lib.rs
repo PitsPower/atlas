@@ -935,40 +935,9 @@ pub fn register_bus_example() -> Circuit {
 pub fn editor_example() -> Circuit {
 	let mut circuit = Circuit::new();
 
-	let c0 = add!(circuit, Rom, (0.000, 0.000), 11);
-	let c1 = add!(circuit, MultiBulb, (800.000, -200.000), 16);
-	let c2 = add!(circuit, MultiSwitch, (-800.000, -200.000), 16);
-	
-	circuit.set_memory(c0, &generate_control_rom_data());
+	let rom = add!(circuit, Rom, (0.000, 0.000), 12);
+	circuit.set_memory(rom, &generate_control_rom_data());
 
-	circuit.connect((c0, 11), (c1, 0), &[WireLayoutCommand::MoveTo((800.000, -75.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
-	circuit.connect((c0, 12), (c1, 1), &[WireLayoutCommand::MoveTo((800.000, -65.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
-	circuit.connect((c0, 13), (c1, 2), &[WireLayoutCommand::MoveTo((800.000, -55.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
-	circuit.connect((c0, 14), (c1, 3), &[WireLayoutCommand::MoveTo((800.000, -45.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
-	circuit.connect((c0, 15), (c1, 4), &[WireLayoutCommand::MoveTo((800.000, -35.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
-	circuit.connect((c0, 16), (c1, 5), &[WireLayoutCommand::MoveTo((800.000, -25.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
-	circuit.connect((c0, 17), (c1, 6), &[WireLayoutCommand::MoveTo((800.000, -15.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
-	circuit.connect((c0, 18), (c1, 7), &[WireLayoutCommand::MoveTo((800.000, -5.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
-	circuit.connect((c0, 19), (c1, 8), &[WireLayoutCommand::MoveTo((800.000, 5.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
-	circuit.connect((c0, 20), (c1, 9), &[WireLayoutCommand::MoveTo((800.000, 15.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
-	circuit.connect((c0, 21), (c1, 10), &[WireLayoutCommand::MoveTo((800.000, 25.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
-	circuit.connect((c0, 22), (c1, 11), &[WireLayoutCommand::MoveTo((800.000, 35.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
-	circuit.connect((c0, 23), (c1, 12), &[WireLayoutCommand::MoveTo((800.000, 45.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
-	circuit.connect((c0, 24), (c1, 13), &[WireLayoutCommand::MoveTo((800.000, 55.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
-	circuit.connect((c0, 25), (c1, 14), &[WireLayoutCommand::MoveTo((800.000, 65.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
-	circuit.connect((c0, 26), (c1, 15), &[WireLayoutCommand::MoveTo((800.000, 75.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
-	circuit.connect((c2, 5), (c0, 0), &[WireLayoutCommand::MoveTo((-925.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
-	circuit.connect((c2, 6), (c0, 1), &[WireLayoutCommand::MoveTo((-875.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
-	circuit.connect((c2, 7), (c0, 2), &[WireLayoutCommand::MoveTo((-825.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
-	circuit.connect((c2, 8), (c0, 3), &[WireLayoutCommand::MoveTo((-775.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
-	circuit.connect((c2, 9), (c0, 4), &[WireLayoutCommand::MoveTo((-725.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
-	circuit.connect((c2, 10), (c0, 5), &[WireLayoutCommand::MoveTo((-675.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
-	circuit.connect((c2, 11), (c0, 6), &[WireLayoutCommand::MoveTo((-625.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
-	circuit.connect((c2, 12), (c0, 7), &[WireLayoutCommand::MoveTo((-575.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
-	circuit.connect((c2, 13), (c0, 8), &[WireLayoutCommand::MoveTo((-525.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
-	circuit.connect((c2, 14), (c0, 9), &[WireLayoutCommand::MoveTo((-475.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
-	circuit.connect((c2, 15), (c0, 10), &[WireLayoutCommand::MoveTo((-425.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
-	
 	circuit
 }
 
@@ -977,13 +946,12 @@ pub fn start() {
 	log!("ATLAS has started!");
 	set_panic_hook();
 
-	let mut vm = AtlasVM::new();
+	let program = include_str!("./aasm/test.aasm").to_string();
+	crate::log!("{}", program);
 
-	crate::log!("{:?}", generate_control_rom_data());
+	let mut vm = LowLevelAtlasVM::new();
+	vm.run(program);
 
-	vm.run(include_str!("./aasm/helloworld.aasm").to_string());
-
-	crate::log!("{:?}", vm.registers);
 	crate::log!("{}", vm.memory.read_screen());
 }
 

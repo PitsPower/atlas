@@ -100,7 +100,7 @@ enum InstructionType {
 	MoveImmToReg(u16, usize),
 	/// Moves the data in the first register to the address stored in the second register.
 	MoveRegToRegAddr(usize, usize),
-	/// Moves the data from the address stored in the first address to the address in the second register.
+	/// Moves the data from the address stored in the first register to the address in the second register.
 	MoveRegAddrToReg(usize, usize),
 	/// Moves the data in the register to the address.
 	// MoveRegToImmAddr(usize, u16),
@@ -172,7 +172,7 @@ impl InstructionType {
 			},
 			Self::AddImmToReg(r1, imm, r2) => {
 				let immb = imm.to_be_bytes();
-				vec![0x07, *r1 as u8, immb[0], immb[1], *r2 as u8, 0xff]
+				vec![0x07, 0xff, *r1 as u8, *r2 as u8, immb[0], immb[1]]
 			},
 
 			Self::Branch(addr) => {
