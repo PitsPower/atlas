@@ -17,6 +17,7 @@ pub mod transistor;
 pub mod utils;
 pub mod vm;
 
+use assembler::assemble;
 use wasm_bindgen::prelude::*;
 
 use utils::set_panic_hook;
@@ -940,6 +941,14 @@ pub fn editor_example() -> Circuit {
 	let c2 = add!(circuit, MultiSwitch, (-900.000, -200.000), 16);
 	let c3 = add!(circuit, MultiSwitch, (-650.000, 600.000), 16);
 	let c4 = add!(circuit, Switch, (150.000, 600.000));
+
+	let program = include_str!("./aasm/test.aasm").to_string();
+	let machine_code = assemble(program).unwrap();
+	let code_words: Vec<_> = (0..machine_code.len()/2)
+		.map(|i| u16::from_be_bytes([machine_code[i*2], machine_code[i*2+1]]))
+		.collect();
+
+	circuit.set_memory(c0, &code_words);
 	
 	circuit.connect((c0, 33), (c1, 0), &[WireLayoutCommand::MoveTo((900.000, -75.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
 	circuit.connect((c0, 34), (c1, 1), &[WireLayoutCommand::MoveTo((900.000, -65.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);

@@ -33,6 +33,7 @@ impl std::fmt::Display for AssembleErrorType {
 
 /// An error that may occur when assembling. Includes the type of error as well as things
 /// such as the line number.
+#[derive(Debug)]
 pub struct AssembleError {
 	etype: AssembleErrorType,
 	line_no: usize,

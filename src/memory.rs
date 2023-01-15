@@ -322,7 +322,9 @@ impl RomSimulator {
 
 impl ComponentSimulator for RomSimulator {
 	fn give_memory(&mut self, memory: &[u16]) {
-		self.data = memory.to_vec();
+		for (i, word) in memory.iter().enumerate() {
+			self.data[i] = *word;
+		}
 	}
 
 	fn set_mode_to_high_level(&mut self, circuit: &Circuit) {
@@ -432,7 +434,9 @@ impl MemorySimulator {
 
 impl ComponentSimulator for MemorySimulator {
     fn give_memory(&mut self, memory: &[u16]) {
-		self.data = memory.to_vec();
+		for (i, word) in memory.iter().enumerate() {
+			self.data[i] = *word;
+		}
 	}
 
     fn take_memory(&self) -> &[u16] {
