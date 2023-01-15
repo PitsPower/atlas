@@ -1,3 +1,4 @@
+//! The AtlASM assembler.
 
 use std::collections::HashMap;
 
