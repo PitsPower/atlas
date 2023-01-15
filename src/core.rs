@@ -362,7 +362,7 @@ impl ComponentType {
 			},
 
 			ComponentType::Rom => (700.0, 500.0),
-			ComponentType::Memory => (900.0, 600.0),
+			ComponentType::Memory => (900.0, 700.0),
 
 			_ => {
 				let inner_scale = internals.get_inner_scale().unwrap();
@@ -521,6 +521,7 @@ impl ComponentType {
 			ComponentType::MultiSwitch => Some(Box::new(MultiSwitchSimulator::new(options.size))),
 			
 			ComponentType::Rom => Some(Box::new(RomSimulator::new(options.size))),
+			ComponentType::Memory => Some(Box::new(MemorySimulator::new(options.size))),
 			
 			_ => None,
 		};
@@ -726,7 +727,7 @@ pub trait ComponentSimulator {
 
 	}
 	/// Takes memory away from the simualotor (used for ROM and RAM).
-	fn take_memory(&mut self) -> &[u16] {
+	fn take_memory(&self) -> &[u16] {
 		&[]
 	}
 
@@ -1401,7 +1402,13 @@ impl Component {
 
 	/// Returns how many pins the component has.
 	fn get_pin_count(&self) -> usize {
-		self.get_pin_positions().len()
+		// Some components have hard-coded calculations to prevent
+		// excessive recursion (e.g. memory chips).
+
+		match self.get_type() {
+			ComponentType::Memory => 16 + 16 + 1 + self.options.size,
+			_ => self.get_pin_positions().len(),
+		}
 	}
 
 	/// Returns whether the component is an internal pin.

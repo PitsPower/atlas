@@ -96,7 +96,7 @@ pub fn get_rom_circuit(address_size: usize, inner_scale: f64) -> Circuit {
 
 pub fn get_memory_circuit(address_size: usize, inner_scale: f64) -> Circuit {
 	let chip_width = 900.0;
-	let chip_height = 600.0;
+	let chip_height = 700.0;
 	let spacing = 10.0 / inner_scale;
 
 	let mut circuit = Circuit::new();
@@ -149,10 +149,10 @@ pub fn get_memory_circuit(address_size: usize, inner_scale: f64) -> Circuit {
 		]);
 	} else {
 		let input_junction = add!(circuit, MultiJunction, (-290.0 / inner_scale, 0.0), 16);
-		let address_junction = add!(circuit, MultiJunction, (-150.0 / inner_scale, 220.0 / inner_scale), address_size - 1);
+		let address_junction = add!(circuit, MultiJunction, (-150.0 / inner_scale, 240.0 / inner_scale), address_size - 1);
 
 		let address_bit_junction_1_x = circuit.components[address[0]].position.0;
-		let address_bit_junction_1 = add!(circuit, Junction, (address_bit_junction_1_x, 240.0 / inner_scale), 3); 
+		let address_bit_junction_1 = add!(circuit, Junction, (address_bit_junction_1_x, 300.0 / inner_scale), 3); 
 
 		let memory1 = add!(circuit, Memory, (-120.0 / inner_scale, -100.0 / inner_scale), address_size - 1);
 		let memory2 = add!(circuit, Memory, (-120.0 / inner_scale, 100.0 / inner_scale), address_size - 1);
@@ -226,19 +226,30 @@ pub fn get_memory_circuit(address_size: usize, inner_scale: f64) -> Circuit {
 			BusLayoutCommand::AlignHorizontal,
 		]);
 
-		circuit.connect_groups(&address_pins[1..], &address_junction_pins_1, &[
-			BusLayoutCommand::CenterVertical,
-			BusLayoutCommand::AlignVertical,
-		]);
-		circuit.connect_groups(&address_junction_pins_2, &memory2_address_pins, &[
-			BusLayoutCommand::CenterVertical,
-			BusLayoutCommand::AlignVertical,
-		]);
-		circuit.connect_groups(&address_junction_pins_3, &memory1_address_pins, &[
-			BusLayoutCommand::MoveHorizontal(700.0),
-			BusLayoutCommand::MoveYTo(100.0),
-			BusLayoutCommand::CenterVertical,
-			BusLayoutCommand::AlignVertical,
+		if address_size > 1 {
+			circuit.connect_groups(&address_junction_pins_1[..address_size/2-1], &address_pins[1..address_size/2], &[
+				BusLayoutCommand::CenterVertical,
+				BusLayoutCommand::AlignVertical,
+			]);
+			circuit.connect_groups(&address_junction_pins_1[address_size/2-1..], &address_pins[address_size/2..], &[
+				BusLayoutCommand::CenterVertical,
+				BusLayoutCommand::AlignVertical,
+			]);
+			
+			circuit.connect_groups(&memory2_address_pins[..address_size/2-1], &address_junction_pins_2[..address_size/2-1], &[
+				BusLayoutCommand::CenterVertical,
+				BusLayoutCommand::AlignVertical,
+			]);
+			circuit.connect_groups(&memory2_address_pins[address_size/2-1..], &address_junction_pins_2[address_size/2-1..], &[
+				BusLayoutCommand::CenterVertical,
+				BusLayoutCommand::AlignVertical,
+			]);
+		}
+
+		circuit.connect_groups(&memory1_address_pins, &address_junction_pins_3, &[
+			BusLayoutCommand::MoveVertical(150.0),
+			BusLayoutCommand::MoveHorizontal(750.0),
+			BusLayoutCommand::AlignHorizontal,
 		]);
 
 		circuit.connect((address[0], 0), (address_bit_junction_1, 0), &[]);
@@ -247,8 +258,6 @@ pub fn get_memory_circuit(address_size: usize, inner_scale: f64) -> Circuit {
 		]);
 
 		circuit.connect((address_bit_junction_1, 2), (address_bit_junction_2, 0), &[
-			WireLayoutCommand::MoveHorizontal(-400.0),
-			WireLayoutCommand::MoveVertical(150.0),
 			WireLayoutCommand::AlignVertical,
 		]);
 		circuit.connect((address_bit_junction_2, 1), (not_gate, 0), &[
@@ -327,6 +336,8 @@ impl ComponentSimulator for RomSimulator {
 		// Either set the multi-switch to the correct value
 		// or give half of the memory to each ROM
 
+		// TODO: Use `self.size` instead of being DUMB
+
 		let (idx, comp) = circuit.components.iter()
 			.enumerate()
 			.find(|(_, c)| c.get_type() != ComponentType::Pin)
@@ -376,12 +387,159 @@ impl ComponentSimulator for RomSimulator {
 			Ok(())
 		}
 	}
+}
 
-    fn get_pin_state_external(&self, idx: usize) -> Result<PinState, PinError> {
-		self.get_pin_state_high_level(idx)
+/// A [`ComponentSimulator`] for memory.
+pub struct MemorySimulator {
+	/// The size of the address.
+	size: usize,
+
+	/// The states of the input pins.
+	input_states: Vec<PinState>,
+	/// The current input.
+	input: u16,
+
+	/// The states of the address pins.
+	address_states: Vec<PinState>,
+	/// The current address.
+	address: usize,
+
+	/// The current clock state.
+	clock_state: PinState,
+
+	/// The data stored in memory (stored in 16-bit words).
+	data: Vec<u16>,
+}
+
+impl MemorySimulator {
+	/// Returns a new [`MemorySimulator`].
+	pub fn new(size: usize) -> Self {
+		Self {
+			size,
+
+			input_states: vec![PinState::Disconnected; 16],
+			input: 0x0000,
+
+			address_states: vec![PinState::Disconnected; size],
+			address: 0,
+
+			clock_state: PinState::Disconnected,
+
+			data: vec![0x0000; 2_usize.pow(size as u32)],
+		}
+	}
+}
+
+impl ComponentSimulator for MemorySimulator {
+    fn give_memory(&mut self, memory: &[u16]) {
+		self.data = memory.to_vec();
 	}
 
-    fn set_pin_state_external(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
-		self.set_pin_state_high_level(idx, state)
+    fn take_memory(&self) -> &[u16] {
+		&self.data
+	}
+
+    fn set_mode_to_high_level(&mut self, circuit: &Circuit) {
+		if self.size == 0 {
+			let flipflop = circuit.components.iter()
+				.find(|c| c.get_type() == ComponentType::MultiDFlipFlop)
+				.unwrap();
+
+			let states = (17..17+16).map(|i| flipflop.get_pin_state(i).unwrap()).rev().collect();
+			let value = states_to_num(&states) as u16;
+			self.data[0] = value;
+		} else {
+			let mut memories = circuit.components.iter()
+				.filter(|c| c.get_type() == ComponentType::Memory);
+
+			let memory1 = memories.next().unwrap();
+			let memory2 = memories.next().unwrap();
+
+			let data_size = self.data.len();
+
+			for i in 0..data_size/2 {
+				self.data[i] = memory1.simulator.as_ref().unwrap().take_memory()[i];
+			}
+			for i in data_size/2..data_size {
+				self.data[i] = memory2.simulator.as_ref().unwrap().take_memory()[i - data_size / 2];
+			}
+		}
+
+		for i in 0..16+self.size+1 {
+			let state = circuit.get_pin(i).unwrap().get_pin_state(0).unwrap();
+			self.set_pin_state_high_level(i, state).unwrap();
+		}
+	}
+
+    fn set_mode_to_circuit(&mut self, circuit: &mut Circuit) {
+		if self.size == 0 {
+			let states = num_to_states(self.data[0] as u32, 16);
+
+			circuit.set_pin(16, PinState::Off);
+
+			for (i, state) in states.iter().enumerate() {
+				circuit.set_pin(i, *state);
+			}
+
+			circuit.set_pin(16, PinState::On);
+		} else {
+			let mut memories = circuit.components.iter()
+				.enumerate()
+				.filter(|(_, c)| c.get_type() == ComponentType::Memory);
+
+			let memory1 = memories.next().unwrap().0;
+			let memory2 = memories.next().unwrap().0;
+
+			let data_size = self.data.len();
+
+			circuit.set_memory(memory1, &self.data[..data_size / 2]);
+			circuit.set_memory(memory2, &self.data[data_size / 2..]);
+		}
+
+		// Update input, address, and clock pins
+
+		for (i, state) in self.input_states.iter().enumerate() {
+			circuit.set_pin(i, *state);
+		}
+		for (i, state) in self.address_states.iter().enumerate() {
+			circuit.set_pin(16 + i, *state);
+		}
+		
+		circuit.set_pin(16 + self.size, self.clock_state);
+	}
+
+    fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		if idx >= 16 + self.size + 1 + 16 {
+			Err(PinError::OutOfRange)
+		} else if idx < 16 + self.size + 1 {
+			Ok(PinState::Disconnected)
+		} else {
+			let result = self.data[self.address];
+			let states = num_to_states(result as u32, 16);
+			Ok(states[idx - (16 + self.size + 1)])
+		}
+	}
+
+    fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		if idx >= 16 + self.size + 1 + 16 {
+			Err(PinError::OutOfRange)
+		} else if idx < 16 {
+			self.input_states[idx] = state;
+			self.input = states_to_num(&self.input_states) as u16;
+			Ok(())
+		} else if idx < 16 + self.size {
+			self.address_states[idx - 16] = state;
+			self.address = states_to_num(&self.address_states) as usize;
+			Ok(())
+		} else if idx == 16 + self.size {
+			if self.clock_state != PinState::On && state == PinState::On {
+				self.data[self.address] = self.input;
+			}
+
+			self.clock_state = state;
+			Ok(())
+		} else {
+			Ok(())
+		}
 	}
 }

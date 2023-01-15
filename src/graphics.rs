@@ -88,11 +88,6 @@ impl RectangleChipDrawer {
 
 impl ChipDrawer for RectangleChipDrawer {
 	fn draw_front(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &Component) {
-		// match self.get_mode() {
-		// 	SimulationMode::Circuit => ctx.set_fill_style(&"#000".into()),
-		// 	SimulationMode::HighLevel => ctx.set_fill_style(&"#f00".into()),
-		// }
-
 		ctx.set_fill_style(&"#000".into());
 		
 		let (width, height) = component.size;
@@ -116,11 +111,6 @@ impl ChipDrawer for RectangleChipDrawer {
 	fn draw_back(&self, ctx: &web_sys::CanvasRenderingContext2d, component: &Component) {
 		ctx.set_line_width(10.0);
 		ctx.set_stroke_style(&"#fff".into());
-		
-		// match self.get_mode() {
-		// 	SimulationMode::Circuit => ctx.set_fill_style(&"#000".into()),
-		// 	SimulationMode::HighLevel => ctx.set_fill_style(&"#f00".into()),
-		// }
 
 		ctx.set_fill_style(&"#000".into());
 		
@@ -220,7 +210,7 @@ pub struct BoundingBox {
 
 impl BoundingBox {
 	/// Returns a new bounding box.
-	fn new(width: f64, height: f64) -> Self {
+	pub fn new(width: f64, height: f64) -> Self {
 		Self {
 			position: (0.0, 0.0),
 			size: (width, height),
@@ -321,7 +311,7 @@ fn get_chip_stack_from_viewport(circuit: &Circuit, cursor: BoundingBox, viewport
 }
 
 /// Updates the simulation modes for a given circuit and a given viewport.
-fn update_sim_modes_with_viewport(circuit: &mut Circuit, viewport: BoundingBox) {
+pub fn update_sim_modes_with_viewport(circuit: &mut Circuit, viewport: BoundingBox) {
 	for component in &mut circuit.components {
 		if component.are_internals_visible(&viewport) {
 			component.set_mode(SimulationMode::Circuit);
