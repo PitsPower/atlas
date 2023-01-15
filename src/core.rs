@@ -15,7 +15,7 @@ use crate::graphics::{
 	RectangleChipDrawer, TextInfo, WireLayoutCommand,
 };
 use crate::latches::*;
-use crate::memory::{get_rom_circuit, RomSimulator};
+use crate::memory::*;
 use crate::multiplexer::*;
 use crate::register::*;
 use crate::transistor::*;
@@ -165,6 +165,7 @@ pub enum ComponentType {
 	Register,
 
 	Rom,
+	Memory,
 }
 
 macro_rules! chip {
@@ -214,6 +215,7 @@ impl ComponentType {
 			ComponentType::Register => "Register",
 			
 			ComponentType::Rom => "Rom",
+			ComponentType::Memory => "Memory",
 		}
 	}
 
@@ -324,6 +326,10 @@ impl ComponentType {
 				let inner_scale = 0.2;
 				chip!(move || get_rom_circuit(options.size, inner_scale), inner_scale)
 			},
+			ComponentType::Memory => {
+				let inner_scale = 0.2;
+				chip!(move || get_memory_circuit(options.size, inner_scale), inner_scale)
+			},
 		};
 
 		let size = match self {
@@ -356,6 +362,7 @@ impl ComponentType {
 			},
 
 			ComponentType::Rom => (700.0, 500.0),
+			ComponentType::Memory => (900.0, 600.0),
 
 			_ => {
 				let inner_scale = internals.get_inner_scale().unwrap();
@@ -592,6 +599,10 @@ impl ComponentType {
 				text: format!("{}-bit ROM", options.size),
 				size: 60,
 			})),
+			ComponentType::Memory => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: format!("{}-bit Memory", options.size),
+				size: 60,
+			})),
 		};
 
 		Component {
@@ -659,6 +670,7 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 		ComponentType::Register => String::from("16-bit Register"),
 
 		ComponentType::Rom => String::from("16-bit ROM"),
+		ComponentType::Memory => String::from("16-bit Memory"),
 	}
 }
 
@@ -703,6 +715,7 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 		ComponentType::Register => String::from("register"),
 
 		ComponentType::Rom => String::from("rom"),
+		ComponentType::Memory => String::from("memory"),
 	}
 }
 

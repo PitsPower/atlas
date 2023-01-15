@@ -94,6 +94,199 @@ pub fn get_rom_circuit(address_size: usize, inner_scale: f64) -> Circuit {
 	circuit
 }
 
+pub fn get_memory_circuit(address_size: usize, inner_scale: f64) -> Circuit {
+	let chip_width = 900.0;
+	let chip_height = 600.0;
+	let spacing = 10.0 / inner_scale;
+
+	let mut circuit = Circuit::new();
+
+	let inputs: Vec<_> = get_pin_coords(0.0, 16, spacing).iter()
+		.map(|y| add!(circuit, Pin, (-chip_width * 0.5 / inner_scale, *y)))
+		.collect();
+
+	let address: Vec<_> = get_pin_coords(0.0, address_size, spacing).iter()
+		.map(|x| add!(circuit, Pin, (*x - 150.0 / inner_scale, chip_height * 0.5 / inner_scale)))
+		.collect();
+
+	let clock = add!(circuit, Pin, (150.0 / inner_scale, chip_height * 0.5 / inner_scale));
+
+	let outputs: Vec<_> = get_pin_coords(0.0, 16, spacing).iter()
+		.map(|y| add!(circuit, Pin, (chip_width * 0.5 / inner_scale, *y)))
+		.collect();
+
+	let input_pins: Vec<_> = inputs.iter().map(|i| (*i, 0)).collect();
+	let address_pins: Vec<_> = address.iter().map(|i| (*i, 0)).collect();
+	let output_pins: Vec<_> = outputs.iter().map(|i| (*i, 0)).collect();
+
+	if address_size == 0 {
+		let flipflop = add!(circuit, MultiDFlipFlop, (0.0, 0.0), 16);
+		
+		let flipflop_input_pins: Vec<_> = (0..16).map(|i| (flipflop, i)).rev().collect();
+		let flipflop_output_pins: Vec<_> = (17..17+16).map(|i| (flipflop, i)).rev().collect();
+
+		circuit.connect_groups(&input_pins[..8], &flipflop_input_pins[..8], &[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		]);
+		circuit.connect_groups(&input_pins[8..], &flipflop_input_pins[8..], &[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		]);
+
+		circuit.connect_groups(&flipflop_output_pins[..8], &output_pins[..8], &[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		]);
+		circuit.connect_groups(&flipflop_output_pins[8..], &output_pins[8..], &[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		]);
+
+		circuit.connect((clock, 0), (flipflop, 16), &[
+			WireLayoutCommand::CenterVertical,
+			WireLayoutCommand::AlignVertical,
+		]);
+	} else {
+		let input_junction = add!(circuit, MultiJunction, (-290.0 / inner_scale, 0.0), 16);
+		let address_junction = add!(circuit, MultiJunction, (-150.0 / inner_scale, 220.0 / inner_scale), address_size - 1);
+
+		let address_bit_junction_1_x = circuit.components[address[0]].position.0;
+		let address_bit_junction_1 = add!(circuit, Junction, (address_bit_junction_1_x, 240.0 / inner_scale), 3); 
+
+		let memory1 = add!(circuit, Memory, (-120.0 / inner_scale, -100.0 / inner_scale), address_size - 1);
+		let memory2 = add!(circuit, Memory, (-120.0 / inner_scale, 100.0 / inner_scale), address_size - 1);
+		let multiplexer = add!(circuit, MultiMultiplexer, (120.0 / inner_scale, 0.0), 16);
+
+		let not_gate = add!(circuit, NotGate, (-350.0 / inner_scale, 200.0 / inner_scale));
+		let and_gate_1 = add!(circuit, AndGate, (-300.0 / inner_scale, 200.0 / inner_scale));
+		let and_gate_2 = add!(circuit, AndGate, (-300.0 / inner_scale, 240.0 / inner_scale));
+
+		let and_gate_1_pin_y = circuit.components[and_gate_2].position.1
+			+ circuit.components[and_gate_2].get_pin_positions()[0].1;
+		let address_bit_junction_2 = add!(circuit, Junction, (-370.0 / inner_scale, and_gate_1_pin_y), 3);
+
+		let and_gate_2_pin_y = circuit.components[and_gate_2].position.1
+			+ circuit.components[and_gate_2].get_pin_positions()[1].1;
+		let clock_junction = add!(circuit, Junction, (-320.0 / inner_scale, and_gate_2_pin_y), 3);
+		
+		let input_junction_pins_1: Vec<_> = (0..16).map(|i| (input_junction, i * 3)).collect();
+		let input_junction_pins_2: Vec<_> = (0..16).map(|i| (input_junction, i * 3 + 1)).collect();
+		let input_junction_pins_3: Vec<_> = (0..16).map(|i| (input_junction, i * 3 + 2)).collect();
+		
+		let address_junction_pins_1: Vec<_> = (0..address_size-1).map(|i| (address_junction, i * 3)).collect();
+		let address_junction_pins_2: Vec<_> = (0..address_size-1).map(|i| (address_junction, i * 3 + 1)).collect();
+		let address_junction_pins_3: Vec<_> = (0..address_size-1).map(|i| (address_junction, i * 3 + 2)).collect();
+
+		let memory1_input_pins: Vec<_> = (0..16).map(|i| (memory1, i)).collect();
+		let memory2_input_pins: Vec<_> = (0..16).map(|i| (memory2, i)).collect();
+
+		let memory1_address_pins: Vec<_> = (16..16+address_size-1).map(|i| (memory1, i)).collect();
+		let memory2_address_pins: Vec<_> = (16..16+address_size-1).map(|i| (memory2, i)).collect();
+
+		let memory1_output_pins: Vec<_> = (16+(address_size-1)+1..16+(address_size-1)+1+16).map(|i| (memory1, i)).collect();
+		let memory2_output_pins: Vec<_> = (16+(address_size-1)+1..16+(address_size-1)+1+16).map(|i| (memory2, i)).collect();
+
+		let mult_inputs_1: Vec<_> = (0..16).map(|i| (multiplexer, i)).collect();
+		let mult_inputs_2: Vec<_> = (16..32).map(|i| (multiplexer, i)).collect();
+
+		let mult_outputs: Vec<_> = (33..33+16).map(|i| (multiplexer, i)).collect();
+
+		circuit.connect_groups(&input_pins[..8], &input_junction_pins_1[..8], &[
+			BusLayoutCommand::MoveHorizontal(300.0),
+			BusLayoutCommand::AlignHorizontal,
+		]);
+		circuit.connect_groups(&input_pins[8..], &input_junction_pins_1[8..], &[
+			BusLayoutCommand::MoveHorizontal(300.0),
+			BusLayoutCommand::AlignHorizontal,
+		]);
+		
+		circuit.connect_groups(&input_junction_pins_2, &memory1_input_pins, &[
+			BusLayoutCommand::AlignHorizontal,
+		]);
+		circuit.connect_groups(&input_junction_pins_3, &memory2_input_pins, &[
+			BusLayoutCommand::AlignHorizontal,
+		]);
+		
+		circuit.connect_groups(&memory1_output_pins, &mult_inputs_1, &[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		]);
+		circuit.connect_groups(&memory2_output_pins, &mult_inputs_2, &[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		]);
+		
+		circuit.connect_groups(&mult_outputs[..8], &output_pins[..8], &[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		]);
+		circuit.connect_groups(&mult_outputs[8..], &output_pins[8..], &[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		]);
+
+		circuit.connect_groups(&address_pins[1..], &address_junction_pins_1, &[
+			BusLayoutCommand::CenterVertical,
+			BusLayoutCommand::AlignVertical,
+		]);
+		circuit.connect_groups(&address_junction_pins_2, &memory2_address_pins, &[
+			BusLayoutCommand::CenterVertical,
+			BusLayoutCommand::AlignVertical,
+		]);
+		circuit.connect_groups(&address_junction_pins_3, &memory1_address_pins, &[
+			BusLayoutCommand::MoveHorizontal(700.0),
+			BusLayoutCommand::MoveYTo(100.0),
+			BusLayoutCommand::CenterVertical,
+			BusLayoutCommand::AlignVertical,
+		]);
+
+		circuit.connect((address[0], 0), (address_bit_junction_1, 0), &[]);
+		circuit.connect((address_bit_junction_1, 1), (multiplexer, 32), &[
+			WireLayoutCommand::AlignVertical,
+		]);
+
+		circuit.connect((address_bit_junction_1, 2), (address_bit_junction_2, 0), &[
+			WireLayoutCommand::MoveHorizontal(-400.0),
+			WireLayoutCommand::MoveVertical(150.0),
+			WireLayoutCommand::AlignVertical,
+		]);
+		circuit.connect((address_bit_junction_2, 1), (not_gate, 0), &[
+			WireLayoutCommand::AlignHorizontal,
+		]);
+		circuit.connect((address_bit_junction_2, 2), (and_gate_2, 0), &[]);
+
+		circuit.connect((clock, 0), (clock_junction, 0), &[
+			WireLayoutCommand::MoveVertical(-70.0),
+			WireLayoutCommand::AlignVertical,
+		]);
+		circuit.connect((clock_junction, 1), (and_gate_1, 1), &[
+			WireLayoutCommand::AlignHorizontal,
+		]);
+		circuit.connect((clock_junction, 2), (and_gate_2, 1), &[]);
+		
+		circuit.connect((not_gate, 1), (and_gate_1, 0), &[
+			WireLayoutCommand::CenterHorizontal,
+			WireLayoutCommand::AlignHorizontal,
+		]);
+
+		circuit.connect((and_gate_1, 2), (memory1, 16 + address_size - 1), &[
+			WireLayoutCommand::MoveHorizontal(50.0),
+			WireLayoutCommand::MoveVertical(-150.0),
+			WireLayoutCommand::MoveHorizontal(250.0),
+			WireLayoutCommand::MoveVertical(-800.0),
+			WireLayoutCommand::AlignVertical,
+		]);
+		circuit.connect((and_gate_2, 2), (memory2, 16 + address_size - 1), &[
+			WireLayoutCommand::MoveHorizontal(100.0),
+			WireLayoutCommand::MoveVertical(-300.0),
+			WireLayoutCommand::AlignVertical,
+		]);
+	}
+
+	circuit
+}
+
 /// A [`ComponentSimulator`] for read only memory.
 pub struct RomSimulator {
 	/// The size of the address.

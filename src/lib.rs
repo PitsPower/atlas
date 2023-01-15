@@ -935,9 +935,50 @@ pub fn register_bus_example() -> Circuit {
 pub fn editor_example() -> Circuit {
 	let mut circuit = Circuit::new();
 
-	let rom = add!(circuit, Rom, (0.000, 0.000), 12);
-	circuit.set_memory(rom, &generate_control_rom_data());
-
+	let c0 = add!(circuit, Memory, (0.000, 0.000), 4);
+	let c1 = add!(circuit, MultiSwitch, (-900.000, -200.000), 16);
+	let c2 = add!(circuit, MultiSwitch, (-600.000, 450.000), 16);
+	let c3 = add!(circuit, Switch, (150.000, 450.000));
+	let c4 = add!(circuit, MultiBulb, (900.000, -200.000), 16);
+	
+	circuit.connect((c1, 0), (c0, 0), &[WireLayoutCommand::MoveTo((-1275.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c1, 1), (c0, 1), &[WireLayoutCommand::MoveTo((-1225.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c1, 2), (c0, 2), &[WireLayoutCommand::MoveTo((-1175.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c1, 3), (c0, 3), &[WireLayoutCommand::MoveTo((-1125.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c1, 4), (c0, 4), &[WireLayoutCommand::MoveTo((-1075.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c1, 5), (c0, 5), &[WireLayoutCommand::MoveTo((-1025.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c1, 6), (c0, 6), &[WireLayoutCommand::MoveTo((-975.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c1, 7), (c0, 7), &[WireLayoutCommand::MoveTo((-925.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c1, 8), (c0, 8), &[WireLayoutCommand::MoveTo((-875.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c1, 9), (c0, 9), &[WireLayoutCommand::MoveTo((-825.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c1, 10), (c0, 10), &[WireLayoutCommand::MoveTo((-775.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c1, 11), (c0, 11), &[WireLayoutCommand::MoveTo((-725.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c1, 12), (c0, 12), &[WireLayoutCommand::MoveTo((-675.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c1, 13), (c0, 13), &[WireLayoutCommand::MoveTo((-625.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c1, 14), (c0, 14), &[WireLayoutCommand::MoveTo((-575.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c1, 15), (c0, 15), &[WireLayoutCommand::MoveTo((-525.000, 0.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c2, 12), (c0, 16), &[WireLayoutCommand::MoveTo((-375.000, 750.000)), WireLayoutCommand::DontRenderPrevious, WireLayoutCommand::Move((0.000, 75.000)), WireLayoutCommand::MoveTo((-150.000, 825.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c2, 13), (c0, 17), &[WireLayoutCommand::MoveTo((-325.000, 750.000)), WireLayoutCommand::DontRenderPrevious, WireLayoutCommand::Move((0.000, 25.000)), WireLayoutCommand::MoveTo((-150.000, 775.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c2, 14), (c0, 18), &[WireLayoutCommand::MoveTo((-275.000, 750.000)), WireLayoutCommand::DontRenderPrevious, WireLayoutCommand::Move((-0.000, -25.000)), WireLayoutCommand::MoveTo((-150.000, 725.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c2, 15), (c0, 19), &[WireLayoutCommand::MoveTo((-225.000, 750.000)), WireLayoutCommand::DontRenderPrevious, WireLayoutCommand::Move((-0.000, -75.000)), WireLayoutCommand::MoveTo((-150.000, 675.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 20), (c3, 0), &[]);
+	circuit.connect((c0, 21), (c4, 0), &[WireLayoutCommand::MoveTo((900.000, -75.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 22), (c4, 1), &[WireLayoutCommand::MoveTo((900.000, -65.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 23), (c4, 2), &[WireLayoutCommand::MoveTo((900.000, -55.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 24), (c4, 3), &[WireLayoutCommand::MoveTo((900.000, -45.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 25), (c4, 4), &[WireLayoutCommand::MoveTo((900.000, -35.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 26), (c4, 5), &[WireLayoutCommand::MoveTo((900.000, -25.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 27), (c4, 6), &[WireLayoutCommand::MoveTo((900.000, -15.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 28), (c4, 7), &[WireLayoutCommand::MoveTo((900.000, -5.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 29), (c4, 8), &[WireLayoutCommand::MoveTo((900.000, 5.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 30), (c4, 9), &[WireLayoutCommand::MoveTo((900.000, 15.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 31), (c4, 10), &[WireLayoutCommand::MoveTo((900.000, 25.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 32), (c4, 11), &[WireLayoutCommand::MoveTo((900.000, 35.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 33), (c4, 12), &[WireLayoutCommand::MoveTo((900.000, 45.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 34), (c4, 13), &[WireLayoutCommand::MoveTo((900.000, 55.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 35), (c4, 14), &[WireLayoutCommand::MoveTo((900.000, 65.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c0, 36), (c4, 15), &[WireLayoutCommand::MoveTo((900.000, 75.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	
 	circuit
 }
 
