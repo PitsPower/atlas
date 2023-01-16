@@ -51,8 +51,12 @@ pub fn num_to_states(num: u32, amount: usize) -> Vec<PinState> {
 /// Returns the coordinates of pins given the centre of the group of pins,
 /// the number of pins, and the desired spacing between them. 
 pub fn get_pin_coords(center: f64, pin_amount: usize, spacing: f64) -> Vec<f64> {
-	let first_pin_coord = center - (pin_amount - 1) as f64 * 0.5 * spacing;
-	(0..pin_amount).map(|i| first_pin_coord + i as f64 * spacing).collect()
+	if pin_amount == 0 {
+		vec![]
+	} else {
+		let first_pin_coord = center - (pin_amount - 1) as f64 * 0.5 * spacing;
+		(0..pin_amount).map(|i| first_pin_coord + i as f64 * spacing).collect()
+	}
 }
 
 /// A container for an object that only creates it when it is needed.
