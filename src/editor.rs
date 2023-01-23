@@ -105,7 +105,7 @@ impl Editor {
 				ComponentType::MultiBulb | ComponentType::MultiSwitch | ComponentType::MultiJunction |
 				ComponentType::Adder | ComponentType::MultiDFlipFlop |
 				ComponentType::MultiTriStateBuffer | ComponentType::MultiMultiplexer |
-				ComponentType::Rom => 16,
+				ComponentType::FourWayMultiMultiplexer | ComponentType::Rom => 16,
 				ComponentType::Junction => 3,
 				_ => 1,
 			},

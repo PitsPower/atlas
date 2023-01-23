@@ -161,6 +161,7 @@ pub enum ComponentType {
 
 	Multiplexer,
 	MultiMultiplexer,
+	FourWayMultiMultiplexer,
 
 	Register,
 
@@ -211,6 +212,7 @@ impl ComponentType {
 
 			ComponentType::Multiplexer => "Multiplexer",
 			ComponentType::MultiMultiplexer => "MultiMultiplexer",
+			ComponentType::FourWayMultiMultiplexer => "FourWayMultiMultiplexer",
 
 			ComponentType::Register => "Register",
 			
@@ -319,6 +321,7 @@ impl ComponentType {
 
 			ComponentType::Multiplexer => chip!(get_multiplexer_circuit, 0.4),
 			ComponentType::MultiMultiplexer => chip!(move || get_multi_multiplexer_circuit(options.size), 0.2),
+			ComponentType::FourWayMultiMultiplexer => chip!(move || get_four_way_circuit(options.size), 0.3),
 
 			ComponentType::Register => chip!(get_register_circuit, 0.2),
 			
@@ -590,6 +593,10 @@ impl ComponentType {
 				text: format!("{}-bit Multiplexer", options.size),
 				size: 60,
 			})),
+			ComponentType::FourWayMultiMultiplexer => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: format!("{}-bit Four Way Multiplexer", options.size),
+				size: 60,
+			})),
 
 			ComponentType::Register => Box::new(RectangleChipDrawer::new(TextInfo {
 				text: String::from("16-bit Register"),
@@ -667,6 +674,7 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 
 		ComponentType::Multiplexer => String::from("Multiplexer"),
 		ComponentType::MultiMultiplexer => String::from("Multi Multiplexer"),
+		ComponentType::FourWayMultiMultiplexer => String::from("Four-way Multi Multiplexer"),
 
 		ComponentType::Register => String::from("16-bit Register"),
 
@@ -712,6 +720,7 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 
 		ComponentType::Multiplexer => String::from("multiplexer"),
 		ComponentType::MultiMultiplexer => String::from("multiplexer"),
+		ComponentType::FourWayMultiMultiplexer => String::from("fourway"),
 
 		ComponentType::Register => String::from("register"),
 

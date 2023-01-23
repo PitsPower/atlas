@@ -4,6 +4,7 @@ use crate::add;
 use crate::bus::*;
 use crate::core::{Circuit, ComponentOptions, ComponentType};
 use crate::graphics::WireLayoutCommand;
+use crate::utils::get_pin_coords;
 
 pub fn get_multiplexer_circuit() -> Circuit {
 	let mut circuit = Circuit::new();
@@ -157,32 +158,120 @@ pub fn get_multi_multiplexer_circuit(size: usize) -> Circuit {
 	circuit
 }
 
-pub fn get_two_bit_multiplexer_circuit() -> Circuit {
+pub fn get_four_way_circuit(size: usize) -> Circuit {
 	let mut circuit = Circuit::new();
 
-	let c0 = add!(circuit, Multiplexer, (-250.000, -200.000));
-	let c1 = add!(circuit, Multiplexer, (-250.000, 200.000));
-	let c2 = add!(circuit, Multiplexer, (250.000, 0.000));
-	let c3 = add!(circuit, Pin, (-550.000, -100.000));
-	let c4 = add!(circuit, Pin, (-550.000, 100.000));
-	let c5 = add!(circuit, Pin, (-550.000, -300.000));
-	let c6 = add!(circuit, Pin, (-550.000, 300.000));
-	let c7 = add!(circuit, Pin, (550.000, 0.000));
-	let c8 = add!(circuit, Pin, (100.000, 500.000));
-	let c9 = add!(circuit, Pin, (-100.000, 500.000));
-	let c10 = add!(circuit, Junction, (50.000, 400.000), 3);
-	
-	circuit.connect((c0, 2), (c2, 0), &[WireLayoutCommand::CenterHorizontal, WireLayoutCommand::AlignHorizontal]);
-	circuit.connect((c1, 2), (c2, 1), &[WireLayoutCommand::CenterHorizontal, WireLayoutCommand::AlignHorizontal]);
-	circuit.connect((c5, 0), (c0, 0), &[WireLayoutCommand::CenterHorizontal, WireLayoutCommand::AlignHorizontal]);
-	circuit.connect((c3, 0), (c0, 1), &[WireLayoutCommand::CenterHorizontal, WireLayoutCommand::AlignHorizontal]);
-	circuit.connect((c4, 0), (c1, 0), &[WireLayoutCommand::CenterHorizontal, WireLayoutCommand::AlignHorizontal]);
-	circuit.connect((c6, 0), (c1, 1), &[WireLayoutCommand::CenterHorizontal, WireLayoutCommand::AlignHorizontal]);
-	circuit.connect((c2, 2), (c7, 0), &[]);
-	circuit.connect((c8, 0), (c10, 0), &[WireLayoutCommand::AlignHorizontal]);
-	circuit.connect((c10, 1), (c1, 3), &[WireLayoutCommand::AlignVertical]);
-	circuit.connect((c10, 2), (c0, 3), &[WireLayoutCommand::MoveTo((50.000, 0.000)), WireLayoutCommand::AlignVertical]);
-	circuit.connect((c9, 0), (c2, 3), &[WireLayoutCommand::MoveTo((-100.000, 450.000)), WireLayoutCommand::AlignVertical]);
+	let chip_width = 4000.0;
+	let chip_height = 5000.0;
+	let group_spacing = 1333.0;
+	let pin_spacing = 50.0;
+
+	let group_positions = get_pin_coords(0.0, 4, group_spacing);
+
+	let input_groups: Vec<Vec<_>> = group_positions.iter()
+		.map(|y| {
+			get_pin_coords(*y, 16, pin_spacing).iter()
+				.map(|y| add!(circuit, Pin, (-chip_width * 0.5, *y)))
+				.collect()
+		})
+		.collect();
+
+	let selector_pin_1 = add!(circuit, Pin, (-500.0, chip_height * 0.5));
+	let selector_pin_2 = add!(circuit, Pin, (500.0, chip_height * 0.5));
+
+	let output_pins: Vec<_> = get_pin_coords(0.0, size, pin_spacing).iter()
+		.map(|y| add!(circuit, Pin, (chip_width * 0.5, *y)))
+		.collect();
+
+	let mult1 = add!(circuit, MultiMultiplexer, (-700.0, (group_positions[0] + group_positions[1]) * 0.5), 16);
+	let mult2 = add!(circuit, MultiMultiplexer, (-700.0, (group_positions[2] + group_positions[3]) * 0.5), 16);
+	let mult3 = add!(circuit, MultiMultiplexer, (700.0, 0.0), 16);
+
+	let pos = circuit.components[selector_pin_2].position;
+	let junc = add!(circuit, Junction, (pos.0, pos.1 - 300.0), 3);
+
+	circuit.connect_groups(
+		&(0..16).map(|i| (mult1, i)).collect::<Vec<_>>(),
+		&input_groups[0].iter().map(|i| (*i, 0usize)).collect::<Vec<_>>(),
+		&[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		],
+	);
+	circuit.connect_groups(
+		&(0..16).map(|i| (mult1, 16 + i)).collect::<Vec<_>>(),
+		&input_groups[1].iter().map(|i| (*i, 0usize)).collect::<Vec<_>>(),
+		&[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		],
+	);
+	circuit.connect_groups(
+		&(0..16).map(|i| (mult2, i)).collect::<Vec<_>>(),
+		&input_groups[2].iter().map(|i| (*i, 0usize)).collect::<Vec<_>>(),
+		&[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		],
+	);
+	circuit.connect_groups(
+		&(0..16).map(|i| (mult2, 16 + i)).collect::<Vec<_>>(),
+		&input_groups[3].iter().map(|i| (*i, 0usize)).collect::<Vec<_>>(),
+		&[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		],
+	);
+
+	circuit.connect_groups(
+		&(0..16).map(|i| (mult1, 33 + i)).collect::<Vec<_>>(),
+		&(0..16).map(|i| (mult3, i)).collect::<Vec<_>>(),
+		&[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		],
+	);
+	circuit.connect_groups(
+		&(0..16).map(|i| (mult2, 33 + i)).collect::<Vec<_>>(),
+		&(0..16).map(|i| (mult3, 16 + i)).collect::<Vec<_>>(),
+		&[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		],
+	);
+
+	circuit.connect_groups(
+		&(0..8).map(|i| (mult3, 33 + i)).collect::<Vec<_>>(),
+		&output_pins[..8].iter().map(|i| (*i, 0usize)).collect::<Vec<_>>(),
+		&[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		],
+	);
+	circuit.connect_groups(
+		&(8..16).map(|i| (mult3, 33 + i)).collect::<Vec<_>>(),
+		&output_pins[8..].iter().map(|i| (*i, 0usize)).collect::<Vec<_>>(),
+		&[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		],
+	);
+
+	circuit.connect((selector_pin_1, 0), (mult3, 32), &[
+		WireLayoutCommand::MoveVertical(-200.0),
+		WireLayoutCommand::AlignVertical,
+	]);
+
+	circuit.connect((selector_pin_2, 0), (junc, 0), &[]);
+	circuit.connect((junc, 1), (mult2, 32), &[
+		WireLayoutCommand::AlignVertical,
+	]);
+	circuit.connect((junc, 2), (mult1, 32), &[
+		WireLayoutCommand::MoveVertical(-500.0),
+		WireLayoutCommand::MoveHorizontal(-700.0),
+		WireLayoutCommand::MoveVertical(-1500.0),
+		WireLayoutCommand::AlignVertical,
+	]);
 
 	circuit
 }
