@@ -471,14 +471,25 @@ impl Editor {
 
 		for (idx, component) in self.circuit.components.iter().enumerate() {
 			let string = if component.options.size > 1 {
-				format!(
-					"let c{} = add!(circuit, {}, ({:.3}, {:.3}), {});\n",
-					idx,
-					component.get_name(),
-					component.position.0,
-					component.position.1,
-					component.options.size,
-				)
+				if component.options.should_flip_multi_junction {
+					format!(
+						"let c{} = add!(circuit, {}, ({:.3}, {:.3}), {}, true);\n",
+						idx,
+						component.get_name(),
+						component.position.0,
+						component.position.1,
+						component.options.size,
+					)
+				} else {
+					format!(
+						"let c{} = add!(circuit, {}, ({:.3}, {:.3}), {});\n",
+						idx,
+						component.get_name(),
+						component.position.0,
+						component.position.1,
+						component.options.size,
+					)
+				}
 			} else {
 				format!(
 					"let c{} = add!(circuit, {}, ({:.3}, {:.3}));\n",

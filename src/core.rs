@@ -167,6 +167,7 @@ pub enum ComponentType {
 
 	Rom,
 	Memory,
+	Ram,
 }
 
 macro_rules! chip {
@@ -218,6 +219,7 @@ impl ComponentType {
 			
 			ComponentType::Rom => "Rom",
 			ComponentType::Memory => "Memory",
+			ComponentType::Ram => "Ram",
 		}
 	}
 
@@ -333,6 +335,7 @@ impl ComponentType {
 				let inner_scale = 0.2;
 				chip!(move || get_memory_circuit(options.size, inner_scale), inner_scale)
 			},
+			ComponentType::Ram => chip!(get_ram_circuit, 0.2),
 		};
 
 		let size = match self {
@@ -407,7 +410,7 @@ impl ComponentType {
 
 				// TODO: Add an option maybe
 				match self {
-					ComponentType::Register => {
+					ComponentType::Register | ComponentType::Ram => {
 						let mut min_side_x = f64::INFINITY;
 						let mut max_side_x = f64::NEG_INFINITY;
 
@@ -611,6 +614,10 @@ impl ComponentType {
 				text: format!("{}-bit Memory", options.size),
 				size: 60,
 			})),
+			ComponentType::Ram => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: String::from("RAM"),
+				size: 240,
+			})),
 		};
 
 		Component {
@@ -680,6 +687,7 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 
 		ComponentType::Rom => String::from("16-bit ROM"),
 		ComponentType::Memory => String::from("16-bit Memory"),
+		ComponentType::Ram => String::from("RAM"),
 	}
 }
 
@@ -726,6 +734,7 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 
 		ComponentType::Rom => String::from("rom"),
 		ComponentType::Memory => String::from("memory"),
+		ComponentType::Ram => String::from("ram"),
 	}
 }
 
