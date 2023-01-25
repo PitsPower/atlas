@@ -1,6 +1,6 @@
 use wasm_bindgen::prelude::*;
 
-use crate::editor_example;
+use crate::{editor_example, register_bus_example};
 use crate::bus::{BusLayoutCommand, compute_wire_commands};
 use crate::core::{Circuit, ComponentOptions, ComponentType, ExternalPin, PinState};
 use crate::graphics::{BoundingBox, Renderer};
