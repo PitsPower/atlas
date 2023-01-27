@@ -56,7 +56,7 @@ impl Editor {
 	/// Creates a new editor instance.
 	#[wasm_bindgen(constructor)]
 	pub fn new(ctx: web_sys::CanvasRenderingContext2d) -> Self {
-		let mut circuit = editor_example();
+		let mut circuit = register_bus_example();
 		let mut renderer = Renderer::new(ctx);
 		
 		renderer.update_sim_modes(&mut circuit);

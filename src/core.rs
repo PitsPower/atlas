@@ -9,6 +9,7 @@ use wasm_bindgen::prelude::*;
 use crate::add;
 use crate::adder::*;
 use crate::bus::{BusLayoutCommand, compute_wire_commands};
+use crate::control::*;
 use crate::gates::*;
 use crate::graphics::{
 	BoundingBox, ComponentDrawer, Drawable, NothingDrawer,
@@ -168,6 +169,9 @@ pub enum ComponentType {
 	Rom,
 	Memory,
 	Ram,
+
+	Counter,
+	ControlUnit,
 }
 
 macro_rules! chip {
@@ -180,52 +184,55 @@ impl ComponentType {
 	/// Returns the value of the component type as a string.
 	fn as_string(&self) -> &'static str {
 		match self {
-			ComponentType::Bulb => "Bulb",
-			ComponentType::Junction => "Junction",
-			ComponentType::Pin => "Pin",
-			ComponentType::Switch => "Switch",
+			Self::Bulb => "Bulb",
+			Self::Junction => "Junction",
+			Self::Pin => "Pin",
+			Self::Switch => "Switch",
 
-			ComponentType::NTransistor => "NTransistor",
-			ComponentType::PTransistor => "PTransistor",
+			Self::NTransistor => "NTransistor",
+			Self::PTransistor => "PTransistor",
 
-			ComponentType::AndGate => "AndGate",
-			ComponentType::NandGate => "NandGate",
-			ComponentType::NorGate => "NorGate",
-			ComponentType::NotGate => "NotGate",
-			ComponentType::OrGate => "OrGate",
-			ComponentType::TriStateBuffer => "TriStateBuffer",
-			ComponentType::XorGate => "XorGate",
+			Self::AndGate => "AndGate",
+			Self::NandGate => "NandGate",
+			Self::NorGate => "NorGate",
+			Self::NotGate => "NotGate",
+			Self::OrGate => "OrGate",
+			Self::TriStateBuffer => "TriStateBuffer",
+			Self::XorGate => "XorGate",
 
-			ComponentType::MultiBulb => "MultiBulb",
-			ComponentType::MultiJunction => "MultiJunction",
-			ComponentType::MultiSwitch => "MultiSwitch",
+			Self::MultiBulb => "MultiBulb",
+			Self::MultiJunction => "MultiJunction",
+			Self::MultiSwitch => "MultiSwitch",
 			
-			ComponentType::MultiTriStateBuffer => "MultiTriStateBuffer",
+			Self::MultiTriStateBuffer => "MultiTriStateBuffer",
 
-			ComponentType::HalfAdder => "Half Adder",
-			ComponentType::FullAdder => "Full Adder",
-			ComponentType::Adder => "Adder",
+			Self::HalfAdder => "Half Adder",
+			Self::FullAdder => "Full Adder",
+			Self::Adder => "Adder",
 
-			ComponentType::SRLatch => "SRLatch",
-			ComponentType::DLatch => "DLatch",
-			ComponentType::DFlipFlop => "DFlipFlop",
-			ComponentType::MultiDFlipFlop => "MultiDFlipFlop",
+			Self::SRLatch => "SRLatch",
+			Self::DLatch => "DLatch",
+			Self::DFlipFlop => "DFlipFlop",
+			Self::MultiDFlipFlop => "MultiDFlipFlop",
 
-			ComponentType::Multiplexer => "Multiplexer",
-			ComponentType::MultiMultiplexer => "MultiMultiplexer",
-			ComponentType::FourWayMultiMultiplexer => "FourWayMultiMultiplexer",
+			Self::Multiplexer => "Multiplexer",
+			Self::MultiMultiplexer => "MultiMultiplexer",
+			Self::FourWayMultiMultiplexer => "FourWayMultiMultiplexer",
 
-			ComponentType::Register => "Register",
+			Self::Register => "Register",
 			
-			ComponentType::Rom => "Rom",
-			ComponentType::Memory => "Memory",
-			ComponentType::Ram => "Ram",
+			Self::Rom => "Rom",
+			Self::Memory => "Memory",
+			Self::Ram => "Ram",
+			
+			Self::Counter => "Counter",
+			Self::ControlUnit => "ControlUnit",
 		}
 	}
 
 	/// Returns whether or not the component has switches.
 	fn has_switches(&self) -> bool {
-		matches!(self, ComponentType::MultiSwitch | ComponentType::Switch)
+		matches!(self, Self::MultiSwitch | Self::Switch)
 	}
 
 	/// Whether the circuit should become full-sized when zooming in.
@@ -233,15 +240,23 @@ impl ComponentType {
 	fn should_expand_circuit(&self) -> bool {
 		!matches!(
 			self,
-			ComponentType::AndGate | ComponentType::NandGate | ComponentType::NorGate |
-			ComponentType::NotGate | ComponentType::OrGate | ComponentType::TriStateBuffer |
-			ComponentType::XorGate
+			Self::AndGate | Self::NandGate | Self::NorGate |
+			Self::NotGate | Self::OrGate | Self::TriStateBuffer |
+			Self::XorGate
 		)
+	}
+
+	/// Whether the circuit should be padded horizontally instead of vertically.
+	fn should_pad_horizontally(&self) -> bool {
+		matches!(self, Self::Register | Self::Ram | Self::Counter | Self::ControlUnit)
 	}
 
 	/// The top/bottom padding size.
 	fn get_pad_size(&self) -> f64 {
-		100.0
+		match self {
+			Self::Counter => 1000.0,
+			_ => 100.0,
+		}
 	}
 
 	/// Returns a new [`Component`] of the given type.
@@ -250,20 +265,20 @@ impl ComponentType {
 		let transistor_height = 110.0;
 
 		let mut internals = match self {
-			ComponentType::Bulb | ComponentType::Pin | ComponentType::Switch => {
+			Self::Bulb | Self::Pin | Self::Switch => {
 				ComponentInternals::Atomic(vec![(0.0, 0.0)])
 			},
 
-			ComponentType::Junction => ComponentInternals::Atomic(vec![(0.0, 0.0); options.size]),
+			Self::Junction => ComponentInternals::Atomic(vec![(0.0, 0.0); options.size]),
 
-			ComponentType::NTransistor => {
+			Self::NTransistor => {
 				ComponentInternals::Atomic(vec![
 					(-transistor_width * 0.5 - 15.0, 0.0),
 					(transistor_width * 0.5, transistor_height * 0.5),
 					(transistor_width * 0.5, -transistor_height * 0.5),
 				])
 			},
-			ComponentType::PTransistor => {
+			Self::PTransistor => {
 				ComponentInternals::Atomic(vec![
 					(-transistor_width * 0.5 - 15.0, 0.0),
 					(transistor_width * 0.5, -transistor_height * 0.5),
@@ -271,15 +286,15 @@ impl ComponentType {
 				])
 			},
 
-			ComponentType::AndGate => chip!(get_and_gate_circuit, 0.15),
-			ComponentType::NandGate => chip!(get_nand_gate_circuit, 0.07),
-			ComponentType::NorGate => chip!(get_nor_gate_circuit, 0.07),
-			ComponentType::NotGate => chip!(get_not_gate_circuit, 0.07),
-			ComponentType::OrGate => chip!(get_or_gate_circuit, 0.15),
-			ComponentType::TriStateBuffer => chip!(get_tri_state_buffer_circuit, 0.04),
-			ComponentType::XorGate => chip!(get_xor_gate_circuit, 0.15),
+			Self::AndGate => chip!(get_and_gate_circuit, 0.15),
+			Self::NandGate => chip!(get_nand_gate_circuit, 0.07),
+			Self::NorGate => chip!(get_nor_gate_circuit, 0.07),
+			Self::NotGate => chip!(get_not_gate_circuit, 0.07),
+			Self::OrGate => chip!(get_or_gate_circuit, 0.15),
+			Self::TriStateBuffer => chip!(get_tri_state_buffer_circuit, 0.04),
+			Self::XorGate => chip!(get_xor_gate_circuit, 0.15),
 			
-			ComponentType::MultiBulb | ComponentType::MultiSwitch => {
+			Self::MultiBulb | Self::MultiSwitch => {
 				let spacing = 50.0;
 				let size = options.size;
 		
@@ -290,7 +305,7 @@ impl ComponentType {
 
 				ComponentInternals::Atomic(pin_positions)
 			},
-			ComponentType::MultiJunction => {
+			Self::MultiJunction => {
 				let spacing = 30.0;
 				let size = options.size;
 		
@@ -310,65 +325,68 @@ impl ComponentType {
 				ComponentInternals::Atomic(pin_positions)
 			},
 
-			ComponentType::MultiTriStateBuffer => chip!(move || get_multi_tri_state_buffer_circuit(options.size), 0.3),
+			Self::MultiTriStateBuffer => chip!(move || get_multi_tri_state_buffer_circuit(options.size), 0.3),
 
-			ComponentType::HalfAdder => chip!(get_half_adder_circuit, 0.4),
-			ComponentType::FullAdder => chip!(get_full_adder_circuit, 0.4),
-			ComponentType::Adder => chip!(move || get_adder_circuit(options.size), 0.3),
+			Self::HalfAdder => chip!(get_half_adder_circuit, 0.4),
+			Self::FullAdder => chip!(get_full_adder_circuit, 0.4),
+			Self::Adder => chip!(move || get_adder_circuit(options.size), 0.3),
 			
-			ComponentType::SRLatch => chip!(get_sr_latch_circuit, 0.8),
-			ComponentType::DLatch => chip!(get_d_latch_circuit, 0.5),
-			ComponentType::DFlipFlop => chip!(get_d_flip_flop_circuit, 0.3),
-			ComponentType::MultiDFlipFlop => chip!(move || get_multi_d_flip_flop_circuit(options.size), 0.19),
+			Self::SRLatch => chip!(get_sr_latch_circuit, 0.8),
+			Self::DLatch => chip!(get_d_latch_circuit, 0.5),
+			Self::DFlipFlop => chip!(get_d_flip_flop_circuit, 0.3),
+			Self::MultiDFlipFlop => chip!(move || get_multi_d_flip_flop_circuit(options.size), 0.19),
 
-			ComponentType::Multiplexer => chip!(get_multiplexer_circuit, 0.4),
-			ComponentType::MultiMultiplexer => chip!(move || get_multi_multiplexer_circuit(options.size), 0.2),
-			ComponentType::FourWayMultiMultiplexer => chip!(move || get_four_way_circuit(options.size), 0.3),
+			Self::Multiplexer => chip!(get_multiplexer_circuit, 0.4),
+			Self::MultiMultiplexer => chip!(move || get_multi_multiplexer_circuit(options.size), 0.2),
+			Self::FourWayMultiMultiplexer => chip!(move || get_four_way_circuit(options.size), 0.3),
 
-			ComponentType::Register => chip!(get_register_circuit, 0.2),
+			Self::Register => chip!(get_register_circuit, 0.2),
 			
-			ComponentType::Rom => {
+			Self::Rom => {
 				let inner_scale = 0.2;
 				chip!(move || get_rom_circuit(options.size, inner_scale), inner_scale)
 			},
-			ComponentType::Memory => {
+			Self::Memory => {
 				let inner_scale = 0.2;
 				chip!(move || get_memory_circuit(options.size, inner_scale), inner_scale)
 			},
-			ComponentType::Ram => chip!(get_ram_circuit, 0.2),
+			Self::Ram => chip!(get_ram_circuit, 0.2),
+
+			Self::Counter => chip!(get_counter_circuit, 0.2),
+			Self::ControlUnit => chip!(get_control_unit_circuit, 0.2),
 		};
 
 		let size = match self {
-			ComponentType::Pin => (0.0, 0.0),
-			ComponentType::Junction => (50.0, 50.0),
-			ComponentType::Bulb | ComponentType::Switch => (100.0, 100.0),
+			Self::Pin => (0.0, 0.0),
+			Self::Junction => (50.0, 50.0),
+			Self::Bulb | Self::Switch => (100.0, 100.0),
 
-			ComponentType::NTransistor | ComponentType::PTransistor => (transistor_width, transistor_height),
+			Self::NTransistor | Self::PTransistor => (transistor_width, transistor_height),
 
-			ComponentType::AndGate | ComponentType::NandGate | ComponentType::NorGate | ComponentType::NotGate |
-			ComponentType::OrGate | ComponentType::TriStateBuffer | ComponentType::XorGate => (110.0, 110.0),
+			Self::AndGate | Self::NandGate | Self::NorGate | Self::NotGate |
+			Self::OrGate | Self::TriStateBuffer | Self::XorGate => (110.0, 110.0),
 
-			ComponentType::HalfAdder => (200.0, 200.0),
-			ComponentType::FullAdder => (400.0, 200.0),
-			ComponentType::Adder => (800.0, options.size as f64 * 100.0),
+			Self::HalfAdder => (200.0, 200.0),
+			Self::FullAdder => (400.0, 200.0),
+			Self::Adder => (800.0, options.size as f64 * 100.0),
 			
-			ComponentType::SRLatch => (400.0, 400.0),
-			ComponentType::DLatch => (600.0, 400.0),
-			ComponentType::DFlipFlop => (600.0, 400.0),
-			ComponentType::MultiDFlipFlop => (400.0, options.size as f64 * 100.0),
+			Self::SRLatch => (400.0, 400.0),
+			Self::DLatch => (600.0, 400.0),
+			Self::DFlipFlop => (600.0, 400.0),
+			Self::MultiDFlipFlop => (400.0, options.size as f64 * 100.0),
 
-			ComponentType::MultiBulb | ComponentType::MultiSwitch => {
+			Self::MultiBulb | Self::MultiSwitch => {
 				let width = 50.0 * options.size as f64;
 				let height = 200.0;
 				(width, height)
 			},
-			ComponentType::MultiJunction => {
+			Self::MultiJunction => {
 				let size = 30.0 * options.size as f64;
 				(size, size)
 			},
 
-			ComponentType::Rom => (700.0, 500.0),
-			ComponentType::Memory => (900.0, 700.0),
+			Self::Rom => (700.0, 500.0),
+			Self::Memory => (900.0, 700.0),
 
 			_ => {
 				let inner_scale = internals.get_inner_scale().unwrap();
@@ -408,78 +426,74 @@ impl ComponentType {
 					-(max_y - min_y) * 0.5 - min_y,
 				);
 
-				// TODO: Add an option maybe
-				match self {
-					ComponentType::Register | ComponentType::Ram => {
-						let mut min_side_x = f64::INFINITY;
-						let mut max_side_x = f64::NEG_INFINITY;
+				if self.should_pad_horizontally() {
+					let mut min_side_x = f64::INFINITY;
+					let mut max_side_x = f64::NEG_INFINITY;
 
-						for component in &circuit.components {
-							if component.is_pin() {
-								let pos = component.position;
+					for component in &circuit.components {
+						if component.is_pin() {
+							let pos = component.position;
 
-								if pos.1 == min_y || pos.1 == max_y {
-									if min_side_x > pos.0 {
-										min_side_x = pos.0;
-									}
-									if max_side_x < pos.0 {
-										max_side_x = pos.0;
-									}
+							if pos.1 == min_y || pos.1 == max_y {
+								if min_side_x > pos.0 {
+									min_side_x = pos.0;
+								}
+								if max_side_x < pos.0 {
+									max_side_x = pos.0;
 								}
 							}
 						}
+					}
 
-						let left_pad = min_x - min_side_x;
-						let right_pad = max_x - max_side_x;
+					let left_pad = min_x - min_side_x;
+					let right_pad = max_x - max_side_x;
 
-						let pad_diff = right_pad - left_pad;
-						chip_size.0 += pad_diff * inner_scale;
+					let pad_diff = right_pad - left_pad;
+					chip_size.0 += pad_diff * inner_scale;
 
-						if right_pad > -left_pad {
-							circuit_offset.0 += pad_diff * 0.5;
-						} else {
-							circuit_offset.0 -= pad_diff * 0.5;
-						}
+					if right_pad > -left_pad {
+						circuit_offset.0 += pad_diff * 0.5;
+					} else {
+						circuit_offset.0 -= pad_diff * 0.5;
+					}
 
-						if left_pad == 0.0 && right_pad == 0.0 {
-							chip_size.0 += self.get_pad_size();
-						}
-					},
-					_ => {
-						let mut min_side_y = f64::INFINITY;
-						let mut max_side_y = f64::NEG_INFINITY;
+					if left_pad == 0.0 && right_pad == 0.0 {
+						chip_size.0 += self.get_pad_size();
+					}
+				} else {
+					let mut min_side_y = f64::INFINITY;
+					let mut max_side_y = f64::NEG_INFINITY;
 
-						for component in &circuit.components {
-							if component.is_pin() {
-								let pos = component.position;
+					for component in &circuit.components {
+						if component.is_pin() {
+							let pos = component.position;
 
-								if pos.0 == min_x || pos.0 == max_x {
-									if min_side_y > pos.1 {
-										min_side_y = pos.1;
-									}
-									if max_side_y < pos.1 {
-										max_side_y = pos.1;
-									}
+							if pos.0 == min_x || pos.0 == max_x {
+								if min_side_y > pos.1 {
+									min_side_y = pos.1;
+								}
+								if max_side_y < pos.1 {
+									max_side_y = pos.1;
 								}
 							}
 						}
+					}
 
-						let top_pad = min_y - min_side_y;
-						let bottom_pad = max_y - max_side_y;
+					let top_pad = min_y - min_side_y;
+					let bottom_pad = max_y - max_side_y;
 
-						let pad_diff = bottom_pad - top_pad;
-						chip_size.1 += pad_diff * inner_scale;
+					let pad_diff = bottom_pad - top_pad;
+					chip_size.1 += pad_diff * inner_scale;
 
-						if bottom_pad > -top_pad {
-							circuit_offset.1 += pad_diff * 0.5;
-						} else {
-							circuit_offset.1 -= pad_diff * 0.5;
-						}
+					if bottom_pad > -top_pad {
+						circuit_offset.1 += pad_diff * 0.5;
+					} else {
+						circuit_offset.1 -= pad_diff * 0.5;
+					}
 
-						if top_pad == 0.0 && bottom_pad == 0.0 {
-							chip_size.1 += self.get_pad_size();
-						}
-					},
+					if top_pad == 0.0 && bottom_pad == 0.0 {
+						chip_size.1 += self.get_pad_size();
+					}
 				}
 
 				for component in &mut circuit.components {
@@ -514,109 +528,118 @@ impl ComponentType {
 		};
 
 		let simulator: Option<Box<dyn ComponentSimulator>> = match self {
-			ComponentType::Bulb => Some(Box::new(BulbSimulator::new())),
-			ComponentType::Junction => Some(Box::new(JunctionSimulator::new(options.size))),
-			ComponentType::Pin => Some(Box::new(PinSimulator::new())),
-			ComponentType::Switch => Some(Box::new(SwitchSimulator::new())),
+			Self::Bulb => Some(Box::new(BulbSimulator::new())),
+			Self::Junction => Some(Box::new(JunctionSimulator::new(options.size))),
+			Self::Pin => Some(Box::new(PinSimulator::new())),
+			Self::Switch => Some(Box::new(SwitchSimulator::new())),
 
-			ComponentType::NTransistor => Some(Box::new(NTransistorSimulator::new())),
-			ComponentType::PTransistor => Some(Box::new(PTransistorSimulator::new())),
+			Self::NTransistor => Some(Box::new(NTransistorSimulator::new())),
+			Self::PTransistor => Some(Box::new(PTransistorSimulator::new())),
 
-			ComponentType::MultiBulb => Some(Box::new(MultiBulbSimulator::new(options.size))),
-			ComponentType::MultiJunction => Some(Box::new(MultiJunctionSimulator::new(options.size))),
-			ComponentType::MultiSwitch => Some(Box::new(MultiSwitchSimulator::new(options.size))),
+			Self::MultiBulb => Some(Box::new(MultiBulbSimulator::new(options.size))),
+			Self::MultiJunction => Some(Box::new(MultiJunctionSimulator::new(options.size))),
+			Self::MultiSwitch => Some(Box::new(MultiSwitchSimulator::new(options.size))),
 			
-			ComponentType::Rom => Some(Box::new(RomSimulator::new(options.size))),
-			ComponentType::Memory => Some(Box::new(MemorySimulator::new(options.size))),
+			Self::Rom => Some(Box::new(RomSimulator::new(options.size))),
+			Self::Memory => Some(Box::new(MemorySimulator::new(options.size))),
 			
 			_ => None,
 		};
 
 		let drawer: Box<dyn ComponentDrawer> = match self {
-			ComponentType::Bulb => Box::new(BulbDrawer::new()),
-			ComponentType::Junction => Box::new(JunctionDrawer::new()),
-			ComponentType::Pin => Box::new(NothingDrawer::new()),
-			ComponentType::Switch => Box::new(SwitchDrawer::new()),
+			Self::Bulb => Box::new(BulbDrawer::new()),
+			Self::Junction => Box::new(JunctionDrawer::new()),
+			Self::Pin => Box::new(NothingDrawer::new()),
+			Self::Switch => Box::new(SwitchDrawer::new()),
 
-			ComponentType::NTransistor => Box::new(NTransistorDrawer::new()),
-			ComponentType::PTransistor => Box::new(PTransistorDrawer::new()),
+			Self::NTransistor => Box::new(NTransistorDrawer::new()),
+			Self::PTransistor => Box::new(PTransistorDrawer::new()),
 
-			ComponentType::AndGate => Box::new(AndGateDrawer::new()),
-			ComponentType::NandGate => Box::new(NandGateDrawer::new()),
-			ComponentType::NorGate => Box::new(NorGateDrawer::new()),
-			ComponentType::NotGate => Box::new(NotGateDrawer::new()),
-			ComponentType::OrGate => Box::new(OrGateDrawer::new()),
-			ComponentType::TriStateBuffer => Box::new(TriStateBufferDrawer::new()),
-			ComponentType::XorGate => Box::new(XorGateDrawer::new()),
+			Self::AndGate => Box::new(AndGateDrawer::new()),
+			Self::NandGate => Box::new(NandGateDrawer::new()),
+			Self::NorGate => Box::new(NorGateDrawer::new()),
+			Self::NotGate => Box::new(NotGateDrawer::new()),
+			Self::OrGate => Box::new(OrGateDrawer::new()),
+			Self::TriStateBuffer => Box::new(TriStateBufferDrawer::new()),
+			Self::XorGate => Box::new(XorGateDrawer::new()),
 			
-			ComponentType::MultiBulb => Box::new(MultiBulbDrawer::new()),
-			ComponentType::MultiJunction => Box::new(MultiJunctionDrawer::new()),
-			ComponentType::MultiSwitch => Box::new(MultiSwitchDrawer::new()),
+			Self::MultiBulb => Box::new(MultiBulbDrawer::new()),
+			Self::MultiJunction => Box::new(MultiJunctionDrawer::new()),
+			Self::MultiSwitch => Box::new(MultiSwitchDrawer::new()),
 			
-			ComponentType::MultiTriStateBuffer => Box::new(RectangleChipDrawer::new(TextInfo {
+			Self::MultiTriStateBuffer => Box::new(RectangleChipDrawer::new(TextInfo {
 				text: format!("{}-bit Tri-State Buffer", options.size),
 				size: 17,
 			})),
 
-			ComponentType::HalfAdder => Box::new(RectangleChipDrawer::new(TextInfo {
+			Self::HalfAdder => Box::new(RectangleChipDrawer::new(TextInfo {
 				text: String::from("Half Adder"),
 				size: 27,
 			})),
-			ComponentType::FullAdder => Box::new(RectangleChipDrawer::new(TextInfo {
+			Self::FullAdder => Box::new(RectangleChipDrawer::new(TextInfo {
 				text: String::from("Full Adder"),
 				size: 50,
 			})),
-			ComponentType::Adder => Box::new(RectangleChipDrawer::new(TextInfo {
+			Self::Adder => Box::new(RectangleChipDrawer::new(TextInfo {
 				text: format!("{}-bit Adder", options.size),
 				size: 75,
 			})),
 
-			ComponentType::SRLatch => Box::new(RectangleChipDrawer::new(TextInfo {
+			Self::SRLatch => Box::new(RectangleChipDrawer::new(TextInfo {
 				text: String::from("SR Latch"),
 				size: 70,
 			})),
-			ComponentType::DLatch => Box::new(RectangleChipDrawer::new(TextInfo {
+			Self::DLatch => Box::new(RectangleChipDrawer::new(TextInfo {
 				text: String::from("D Latch"),
 				size: 70,
 			})),
-			ComponentType::DFlipFlop => Box::new(RectangleChipDrawer::new(TextInfo {
+			Self::DFlipFlop => Box::new(RectangleChipDrawer::new(TextInfo {
 				text: String::from("D Flip-Flop"),
 				size: 70,
 			})),
-			ComponentType::MultiDFlipFlop => Box::new(RectangleChipDrawer::new(TextInfo {
+			Self::MultiDFlipFlop => Box::new(RectangleChipDrawer::new(TextInfo {
 				text: format!("{}-bit D Flip-Flop", options.size),
 				size: 40,
 			})),
 			
-			ComponentType::Multiplexer => Box::new(RectangleChipDrawer::new(TextInfo {
+			Self::Multiplexer => Box::new(RectangleChipDrawer::new(TextInfo {
 				text: String::from("Multiplexer"),
 				size: 27,
 			})),
-			ComponentType::MultiMultiplexer => Box::new(RectangleChipDrawer::new(TextInfo {
+			Self::MultiMultiplexer => Box::new(RectangleChipDrawer::new(TextInfo {
 				text: format!("{}-bit Multiplexer", options.size),
 				size: 60,
 			})),
-			ComponentType::FourWayMultiMultiplexer => Box::new(RectangleChipDrawer::new(TextInfo {
+			Self::FourWayMultiMultiplexer => Box::new(RectangleChipDrawer::new(TextInfo {
 				text: format!("{}-bit Four Way Multiplexer", options.size),
 				size: 60,
 			})),
 
-			ComponentType::Register => Box::new(RectangleChipDrawer::new(TextInfo {
+			Self::Register => Box::new(RectangleChipDrawer::new(TextInfo {
 				text: String::from("16-bit Register"),
 				size: 60,
 			})),
 
-			ComponentType::Rom => Box::new(RectangleChipDrawer::new(TextInfo {
+			Self::Rom => Box::new(RectangleChipDrawer::new(TextInfo {
 				text: format!("{}-bit ROM", options.size),
 				size: 60,
 			})),
-			ComponentType::Memory => Box::new(RectangleChipDrawer::new(TextInfo {
+			Self::Memory => Box::new(RectangleChipDrawer::new(TextInfo {
 				text: format!("{}-bit Memory", options.size),
 				size: 60,
 			})),
-			ComponentType::Ram => Box::new(RectangleChipDrawer::new(TextInfo {
+			Self::Ram => Box::new(RectangleChipDrawer::new(TextInfo {
 				text: String::from("RAM"),
 				size: 240,
+			})),
+			
+			Self::Counter => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: String::from("Counter"),
+				size: 120,
+			})),
+			Self::ControlUnit => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: String::from("Control Unit"),
+				size: 120,
 			})),
 		};
 
@@ -688,6 +711,9 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 		ComponentType::Rom => String::from("16-bit ROM"),
 		ComponentType::Memory => String::from("16-bit Memory"),
 		ComponentType::Ram => String::from("RAM"),
+		
+		ComponentType::Counter => String::from("Counter"),
+		ComponentType::ControlUnit => String::from("Control Unit"),
 	}
 }
 
@@ -735,6 +761,9 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 		ComponentType::Rom => String::from("rom"),
 		ComponentType::Memory => String::from("memory"),
 		ComponentType::Ram => String::from("ram"),
+		
+		ComponentType::Counter => String::from("counter"),
+		ComponentType::ControlUnit => String::from("controlunit"),
 	}
 }
 
