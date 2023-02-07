@@ -160,9 +160,9 @@ pub fn get_control_unit_circuit() -> Circuit {
 	let c12 = add!(circuit, NotGate, (-750.000, 1200.000));
 	let c13 = add!(circuit, Junction, (-1000.000, 1200.000), 3);
 	let c14 = add!(circuit, Switch, (-1600.000, 1200.000));
-	let c15 = add!(circuit, AndGate, (1700.000, -1400.000));
-	let c16 = add!(circuit, AndGate, (1700.000, -850.000));
-	let c17 = add!(circuit, AndGate, (1900.000, -800.000));
+	let c15 = add!(circuit, OrGate, (1700.000, -1400.000));
+	let c16 = add!(circuit, OrGate, (1700.000, -850.000));
+	let c17 = add!(circuit, OrGate, (1900.000, -800.000));
 	let c18 = add!(circuit, Junction, (-1000.000, 1700.000), 3);
 	let c19 = add!(circuit, MultiSwitch, (950.000, -2800.000), 12);
 	let c20 = add!(circuit, MultiSwitch, (1550.000, -2800.000), 5);
@@ -171,7 +171,7 @@ pub fn get_control_unit_circuit() -> Circuit {
 	let c23 = add!(circuit, MultiSwitch, (2550.000, -2800.000), 4);
 	let c24 = add!(circuit, MultiJunction, (600.000, 3200.000), 16);
 	let c25 = add!(circuit, MultiSwitch, (200.000, -2800.000), 12);
-	let c26 = add!(circuit, AndGate, (1900.000, -1350.000));
+	let c26 = add!(circuit, OrGate, (1900.000, -1350.000));
 	let c27 = add!(circuit, MultiSwitch, (1275.000, 3800.000), 16);
 
 	let decoder_data: Vec<_> = (0..16).map(|i| 1 << (15 - i)).collect();

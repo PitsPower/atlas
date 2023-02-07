@@ -205,7 +205,7 @@ pub fn get_register_file_circuit(inner_scale: f64) -> Circuit {
 
 	circuit.connect_groups(
 		&(33..33+16).rev().map(|i| (mult1, i)).collect::<Vec<_>>(),
-		&registers.iter().map(|r| (*r, 34)).collect::<Vec<_>>(),
+		&registers.iter().map(|r| (*r, 0)).collect::<Vec<_>>(),
 		&[
 			BusLayoutCommand::MoveHorizontal(5000.0),
 			BusLayoutCommand::MoveVertical(3000.0),
@@ -217,7 +217,7 @@ pub fn get_register_file_circuit(inner_scale: f64) -> Circuit {
 	);
 	circuit.connect_groups(
 		&(33..33+16).rev().map(|i| (mult2, i)).collect::<Vec<_>>(),
-		&registers.iter().map(|r| (*r, 0)).collect::<Vec<_>>(),
+		&registers.iter().map(|r| (*r, 34)).collect::<Vec<_>>(),
 		&[
 			BusLayoutCommand::MoveHorizontal(4000.0),
 			BusLayoutCommand::MoveVertical(1000.0),
@@ -285,7 +285,7 @@ pub fn get_register_file_circuit(inner_scale: f64) -> Circuit {
 		WireLayoutCommand::CenterHorizontal,
 		WireLayoutCommand::AlignHorizontal,
 	]);
-	circuit.connect((clock_junctions[14], 0), (registers[15], 33), &[
+	circuit.connect((clock_junctions[14], 1), (registers[15], 33), &[
 		WireLayoutCommand::MoveHorizontal(900.0),
 		WireLayoutCommand::AlignHorizontal,
 	]);

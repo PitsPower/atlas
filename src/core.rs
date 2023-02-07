@@ -1916,7 +1916,7 @@ impl Circuit {
 		let mut wire_ends_to_update = vec![];
 
 		for (i, old_pin_state) in old_pin_states.iter().enumerate().take(component.get_pin_count()) {
-			if i == pin.pin_idx && !set_manually {
+			if i == pin.pin_idx && !set_manually && state != PinState::Disconnected {
 				continue;
 			}
 

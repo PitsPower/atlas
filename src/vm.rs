@@ -385,6 +385,14 @@ pub fn generate_control_rom_data() -> [u16; 256 * CONTROL_ROM_MAX_STEPS] {
 		cntrl!(Pc => Pc),
 	]);
 	
+	// MoveRegToReg
+	add_steps_to_rom_data(&mut result, 0x01, vec![
+		cntrl!(Pc+2 => Mar),
+		cntrl!(Mdr => Ir2),
+		cntrl!(Gpr2 => Gpr3),
+		cntrl!(Pc+4 => Pc),
+	]);
+	
 	// MoveImmToReg
 	add_steps_to_rom_data(&mut result, 0x02, vec![
 		cntrl!(Pc+2 => Mar),
