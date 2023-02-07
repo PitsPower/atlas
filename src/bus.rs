@@ -25,6 +25,8 @@ pub enum BusLayoutCommand {
 	MoveYTo(f64),
 	/// Moves the bus to an absolute location.
 	MoveTo((f64, f64)),
+	/// Performs a wire command on each wire individually
+	Individual(WireLayoutCommand),
 }
 
 /// Computes the wire layouts given the bus layout and the positions of the pins.
@@ -105,6 +107,7 @@ pub fn compute_wire_commands(
 			BusLayoutCommand::MoveTo((x, y)) => {
 				new_bus_pos = (*x, *y);
 			},
+			BusLayoutCommand::Individual(_) => {},
 		}
 
 		let (x, y) = new_bus_pos;
@@ -168,6 +171,11 @@ pub fn compute_wire_commands(
 				for wire in &mut result {
 					wire.push(WireLayoutCommand::DontRenderPreviousHorizontal);
 					wire.push(WireLayoutCommand::AlignVertical);
+				}
+			},
+			BusLayoutCommand::Individual(command) => {
+				for wire in &mut result {
+					wire.push(*command);
 				}
 			},
 			_ => {},

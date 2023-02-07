@@ -165,6 +165,7 @@ pub enum ComponentType {
 	FourWayMultiMultiplexer,
 
 	Register,
+	RegisterFile,
 
 	Rom,
 	Memory,
@@ -220,6 +221,7 @@ impl ComponentType {
 			Self::FourWayMultiMultiplexer => "FourWayMultiMultiplexer",
 
 			Self::Register => "Register",
+			Self::RegisterFile => "RegisterFile",
 			
 			Self::Rom => "Rom",
 			Self::Memory => "Memory",
@@ -341,6 +343,7 @@ impl ComponentType {
 			Self::FourWayMultiMultiplexer => chip!(move || get_four_way_circuit(options.size), 0.3),
 
 			Self::Register => chip!(get_register_circuit, 0.2),
+			Self::RegisterFile => chip!(move || get_register_file_circuit(0.06), 0.06),
 			
 			Self::Rom => {
 				let inner_scale = 0.2;
@@ -374,6 +377,8 @@ impl ComponentType {
 			Self::DLatch => (600.0, 400.0),
 			Self::DFlipFlop => (600.0, 400.0),
 			Self::MultiDFlipFlop => (400.0, options.size as f64 * 100.0),
+
+			Self::RegisterFile => (1000.0, 500.0),
 
 			Self::MultiBulb | Self::MultiSwitch => {
 				let width = 50.0 * options.size as f64;
@@ -619,6 +624,10 @@ impl ComponentType {
 				text: String::from("16-bit Register"),
 				size: 60,
 			})),
+			Self::RegisterFile => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: String::from("Register File"),
+				size: 60,
+			})),
 
 			Self::Rom => Box::new(RectangleChipDrawer::new(TextInfo {
 				text: format!("{}-bit ROM", options.size),
@@ -707,6 +716,7 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 		ComponentType::FourWayMultiMultiplexer => String::from("Four-way Multi Multiplexer"),
 
 		ComponentType::Register => String::from("16-bit Register"),
+		ComponentType::RegisterFile => String::from("Register File"),
 
 		ComponentType::Rom => String::from("16-bit ROM"),
 		ComponentType::Memory => String::from("16-bit Memory"),
@@ -757,6 +767,7 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 		ComponentType::FourWayMultiMultiplexer => String::from("fourway"),
 
 		ComponentType::Register => String::from("register"),
+		ComponentType::RegisterFile => String::from("registerfile"),
 
 		ComponentType::Rom => String::from("rom"),
 		ComponentType::Memory => String::from("memory"),

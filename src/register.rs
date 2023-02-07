@@ -1,6 +1,8 @@
 use crate::add;
+use crate::bus::BusLayoutCommand;
 use crate::core::{Circuit, ComponentOptions, ComponentType};
 use crate::graphics::WireLayoutCommand;
+use crate::utils::get_pin_coords;
 
 pub fn get_register_circuit() -> Circuit {
 	let mut circuit = Circuit::new();
@@ -118,6 +120,188 @@ pub fn get_register_circuit() -> Circuit {
 	circuit.connect((c9, 0), (c0, 16), &[WireLayoutCommand::MoveTo((-1400.000, -250.000)), WireLayoutCommand::DontRenderPrevious, WireLayoutCommand::Move((0.000, 0.000)), WireLayoutCommand::MoveTo((-1400.000, -900.000)), WireLayoutCommand::DontRenderPrevious, WireLayoutCommand::Move((0.000, -0.000)), WireLayoutCommand::MoveTo((650.000, -900.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
 	
 	circuit.pinify(&mut [c2, c3, c9, c4, c6]);
+
+	circuit
+}
+
+pub fn get_register_file_circuit(inner_scale: f64) -> Circuit {
+	let mut circuit = Circuit::new();
+
+	let port_pins: Vec<_> = get_pin_coords(0.0, 16, 250.0).iter()
+		.map(|x| add!(circuit, Pin, (*x, 250.0 / inner_scale)))
+		.collect();
+
+	let address_1_pins: Vec<_> = get_pin_coords(-75.0 / inner_scale, 4, 250.0).iter()
+		.map(|y| add!(circuit, Pin, (-500.0 / inner_scale, *y)))
+		.collect();
+
+	let address_2_pins: Vec<_> = get_pin_coords(0.0, 4, 250.0).iter()
+		.map(|y| add!(circuit, Pin, (-500.0 / inner_scale, *y)))
+		.collect();
+
+	let wtb = add!(circuit, Pin, (-500.0 / inner_scale, 75.0 / inner_scale));
+	let rfb = add!(circuit, Pin, (-500.0 / inner_scale, 100.0 / inner_scale));
+	let clock = add!(circuit, Pin, (-500.0 / inner_scale, 125.0 / inner_scale));
+
+	let mut register_coords = get_pin_coords(0.0, 16, 900.0);
+
+	let registers: Vec<_> = register_coords.iter()
+		.map(|x| add!(circuit, Register, (*x, 100.0 / inner_scale)))
+		.collect();
+
+	register_coords.pop();
+
+	let junctions: Vec<_> = register_coords.iter()
+		.map(|x| add!(circuit, MultiJunction, (*x, 150.0 / inner_scale), 16))
+		.collect();
+
+	let clock_junctions: Vec<_> = register_coords.iter()
+		.map(|x| add!(circuit, Junction, (*x - 25.0 / inner_scale, 130.0 / inner_scale), 3))
+		.collect();
+
+	let decoder1 = add!(circuit, Rom, (-450.0 / inner_scale, -120.0 / inner_scale), 4);
+	let decoder2 = add!(circuit, Rom, (-450.0 / inner_scale, -70.0 / inner_scale), 4);
+
+	let decoder_data: Vec<_> = (0..16).map(|i| 1 << (15 - i)).collect();
+	circuit.set_memory(decoder1, &decoder_data);
+	circuit.set_memory(decoder2, &decoder_data);
+
+	let mult1 = add!(circuit, MultiMultiplexer, (-350.0 / inner_scale, -150.0 / inner_scale), 16);
+	let mult2 = add!(circuit, MultiMultiplexer, (-350.0 / inner_scale, -50.0 / inner_scale), 16);
+
+	circuit.connect_groups(
+		&(0..4).map(|i| (decoder1, i)).collect::<Vec<_>>(),
+		&address_1_pins.iter().map(|c| (*c, 0)).collect::<Vec<_>>(),
+		&[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		],
+	);
+	circuit.connect_groups(
+		&(0..4).map(|i| (decoder2, i)).collect::<Vec<_>>(),
+		&address_2_pins.iter().map(|c| (*c, 0)).collect::<Vec<_>>(),
+		&[
+			BusLayoutCommand::MoveHorizontal(-100.0),
+			BusLayoutCommand::AlignHorizontal,
+		],
+	);
+
+	circuit.connect_groups(
+		&(4..20).map(|i| (decoder1, i)).collect::<Vec<_>>(),
+		&(16..32).map(|i| (mult1, i)).collect::<Vec<_>>(),
+		&[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		],
+	);
+	circuit.connect_groups(
+		&(4..20).map(|i| (decoder2, i)).collect::<Vec<_>>(),
+		&(16..32).map(|i| (mult2, i)).collect::<Vec<_>>(),
+		&[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		],
+	);
+
+	circuit.connect_groups(
+		&(33..33+16).rev().map(|i| (mult1, i)).collect::<Vec<_>>(),
+		&registers.iter().map(|r| (*r, 34)).collect::<Vec<_>>(),
+		&[
+			BusLayoutCommand::MoveHorizontal(5000.0),
+			BusLayoutCommand::MoveVertical(3000.0),
+			BusLayoutCommand::AlignVertical,
+			BusLayoutCommand::Individual(WireLayoutCommand::DontRenderPrevious),
+			BusLayoutCommand::Individual(WireLayoutCommand::MoveHorizontal(-100.0)),
+			BusLayoutCommand::Individual(WireLayoutCommand::AlignHorizontal),
+		],
+	);
+	circuit.connect_groups(
+		&(33..33+16).rev().map(|i| (mult2, i)).collect::<Vec<_>>(),
+		&registers.iter().map(|r| (*r, 0)).collect::<Vec<_>>(),
+		&[
+			BusLayoutCommand::MoveHorizontal(4000.0),
+			BusLayoutCommand::MoveVertical(1000.0),
+			BusLayoutCommand::AlignVertical,
+			BusLayoutCommand::Individual(WireLayoutCommand::DontRenderPrevious),
+			BusLayoutCommand::Individual(WireLayoutCommand::MoveHorizontal(-50.0)),
+			BusLayoutCommand::Individual(WireLayoutCommand::AlignHorizontal),
+		],
+	);
+	
+	circuit.connect_groups(
+		&(0..16).map(|i| (junctions[14], i * 3 + 1)).collect::<Vec<_>>(),
+		&(0..16).map(|i| (registers[15], i + 17)).collect::<Vec<_>>(),
+		&[
+			BusLayoutCommand::AlignVertical,
+		],
+	);
+
+	for i in 0..14 {
+		circuit.connect_groups(
+			&(0..16).map(|idx| (junctions[i], idx * 3 + 1)).collect::<Vec<_>>(),
+			&(0..16).map(|idx| (junctions[i + 1], idx * 3 + 2)).collect::<Vec<_>>(),
+			&[],
+		);
+	}
+
+	for i in 0..15 {
+		circuit.connect_groups(
+			&(0..8).map(|idx| (registers[i], idx + 17)).collect::<Vec<_>>(),
+			&(0..8).map(|idx| (junctions[i], idx * 3)).collect::<Vec<_>>(),
+			&[
+				BusLayoutCommand::MoveVertical(200.0),
+				BusLayoutCommand::AlignVertical,
+			],
+		);
+		circuit.connect_groups(
+			&(8..16).map(|idx| (registers[i], idx + 17)).collect::<Vec<_>>(),
+			&(8..16).map(|idx| (junctions[i], idx * 3)).collect::<Vec<_>>(),
+			&[
+				BusLayoutCommand::MoveVertical(200.0),
+				BusLayoutCommand::AlignVertical,
+			],
+		);
+	}
+
+	circuit.connect_groups(
+		&(0..16).map(|i| (junctions[0], i * 3 + 2)).collect::<Vec<_>>(),
+		&port_pins.iter().map(|c| (*c, 0)).collect::<Vec<_>>(),
+		&[
+			BusLayoutCommand::CenterVertical,
+			BusLayoutCommand::AlignVertical,
+		],
+	);
+
+	for i in 0..14 {
+		circuit.connect((clock_junctions[i], 1), (clock_junctions[i + 1], 2), &[]);
+	}
+	for i in 0..15 {
+		circuit.connect((clock_junctions[i], 0), (registers[i], 33), &[
+			WireLayoutCommand::AlignHorizontal,
+		]);
+	}
+
+	circuit.connect((clock, 0), (clock_junctions[0], 2), &[
+		WireLayoutCommand::CenterHorizontal,
+		WireLayoutCommand::AlignHorizontal,
+	]);
+	circuit.connect((clock_junctions[14], 0), (registers[15], 33), &[
+		WireLayoutCommand::MoveHorizontal(900.0),
+		WireLayoutCommand::AlignHorizontal,
+	]);
+
+	circuit.connect((wtb, 0), (mult1, 32), &[
+		WireLayoutCommand::MoveHorizontal(600.0),
+		WireLayoutCommand::MoveVertical(-2000.0),
+		WireLayoutCommand::MoveHorizontal(800.0),
+		WireLayoutCommand::MoveVertical(-1000.0),
+		WireLayoutCommand::AlignVertical,
+	]);
+	circuit.connect((rfb, 0), (mult2, 32), &[
+		WireLayoutCommand::MoveHorizontal(800.0),
+		WireLayoutCommand::MoveVertical(-1700.0),
+		WireLayoutCommand::AlignVertical,
+	]);
 
 	circuit
 }
