@@ -73,6 +73,13 @@ window.addEventListener("keydown", (e) => {
 	// }
 
 	switch (e.key.toLowerCase()) {
+		case " ": {
+			const time = Date.now();
+			editor.toggle_switch(0);
+			console.log(Date.now() - time);
+			break;
+		}
+
 		case "w": {
 			editor.toggle_wire_mode();
 			break;

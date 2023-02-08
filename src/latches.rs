@@ -219,3 +219,25 @@ pub fn get_multi_d_flip_flop_circuit(size: usize) -> Circuit {
 
 	circuit
 }
+
+pub fn get_controlled_clock_circuit() -> Circuit {
+	let mut circuit = Circuit::new();
+
+	let c0 = add!(circuit, DLatch, (0.000, 0.000));
+	let c1 = add!(circuit, NotGate, (-450.000, 100.000));
+	let c2 = add!(circuit, Pin, (-700.000, -100.000));
+	let c4 = add!(circuit, Pin, (-700.000, 100.000));
+	let c3 = add!(circuit, Pin, (750.000, 0.000));
+	let c5 = add!(circuit, Junction, (-550.000, 100.000), 3);
+	let c6 = add!(circuit, AndGate, (550.000, 0.000));
+
+	circuit.connect((c4, 0), (c5, 0), &[]);
+	circuit.connect((c5, 1), (c1, 0), &[]);
+	circuit.connect((c1, 1), (c0, 1), &[]);
+	circuit.connect((c2, 0), (c0, 0), &[]);
+	circuit.connect((c0, 2), (c6, 0), &[WireLayoutCommand::MoveTo((397.250, -100.000)), WireLayoutCommand::DontRenderPrevious, WireLayoutCommand::Move((0.000, 0.000)), WireLayoutCommand::MoveTo((397.250, 20.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c5, 2), (c6, 1), &[WireLayoutCommand::MoveTo((-550.000, 250.000)), WireLayoutCommand::DontRenderPrevious, WireLayoutCommand::Move((0.000, 0.000)), WireLayoutCommand::MoveTo((400.000, 250.000)), WireLayoutCommand::DontRenderPrevious, WireLayoutCommand::Move((0.000, 0.000)), WireLayoutCommand::MoveTo((400.000, 80.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
+	circuit.connect((c6, 2), (c3, 0), &[]);
+	
+	circuit
+}

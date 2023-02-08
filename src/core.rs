@@ -159,6 +159,7 @@ pub enum ComponentType {
 	DLatch,
 	DFlipFlop,
 	MultiDFlipFlop,
+	ControlledClock,
 
 	Multiplexer,
 	MultiMultiplexer,
@@ -215,6 +216,7 @@ impl ComponentType {
 			Self::DLatch => "DLatch",
 			Self::DFlipFlop => "DFlipFlop",
 			Self::MultiDFlipFlop => "MultiDFlipFlop",
+			Self::ControlledClock => "ControlledClock",
 
 			Self::Multiplexer => "Multiplexer",
 			Self::MultiMultiplexer => "MultiMultiplexer",
@@ -337,6 +339,7 @@ impl ComponentType {
 			Self::DLatch => chip!(get_d_latch_circuit, 0.5),
 			Self::DFlipFlop => chip!(get_d_flip_flop_circuit, 0.3),
 			Self::MultiDFlipFlop => chip!(move || get_multi_d_flip_flop_circuit(options.size), 0.19),
+			Self::ControlledClock => chip!(get_controlled_clock_circuit, 0.19),
 
 			Self::Multiplexer => chip!(get_multiplexer_circuit, 0.4),
 			Self::MultiMultiplexer => chip!(move || get_multi_multiplexer_circuit(options.size), 0.2),
@@ -606,6 +609,10 @@ impl ComponentType {
 				text: format!("{}-bit D Flip-Flop", options.size),
 				size: 40,
 			})),
+			Self::ControlledClock => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: String::from("Controlled Clock"),
+				size: 30,
+			})),
 			
 			Self::Multiplexer => Box::new(RectangleChipDrawer::new(TextInfo {
 				text: String::from("Multiplexer"),
@@ -710,6 +717,7 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 		ComponentType::DLatch => String::from("D Latch"),
 		ComponentType::DFlipFlop => String::from("D Flip-Flop"),
 		ComponentType::MultiDFlipFlop => String::from("Multi D Flip-Flop"),
+		ComponentType::ControlledClock => String::from("Controlled Clock"),
 
 		ComponentType::Multiplexer => String::from("Multiplexer"),
 		ComponentType::MultiMultiplexer => String::from("Multi Multiplexer"),
@@ -761,6 +769,7 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 		ComponentType::DLatch => String::from("dlatch"),
 		ComponentType::DFlipFlop => String::from("dflipflop"),
 		ComponentType::MultiDFlipFlop => String::from("multidflipflop"),
+		ComponentType::ControlledClock => String::from("controlledclock"),
 
 		ComponentType::Multiplexer => String::from("multiplexer"),
 		ComponentType::MultiMultiplexer => String::from("multiplexer"),

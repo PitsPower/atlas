@@ -15,7 +15,7 @@ pub fn get_register_circuit() -> Circuit {
 	let c5 = add!(circuit, MultiJunction, (0.000, 0.000), 16);
 	let c6 = add!(circuit, MultiBulb, (0.000, -2000.000), 16);
 	let c7 = add!(circuit, MultiJunction, (0.000, 1300.000), 16, true);
-	let c8 = add!(circuit, AndGate, (-1550.000, 150.000));
+	let c8 = add!(circuit, ControlledClock, (-1500.000, 150.000));
 	let c9 = add!(circuit, Switch, (-1750.000, -250.000));
 	
 	circuit.connect((c1, 32), (c5, 0), &[WireLayoutCommand::MoveTo((-350.000, -128.250)), WireLayoutCommand::DontRenderPrevious, WireLayoutCommand::Move((-59.850, -0.000)), WireLayoutCommand::MoveTo((-409.850, -120.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
@@ -116,7 +116,7 @@ pub fn get_register_circuit() -> Circuit {
 	circuit.connect((c7, 47), (c4, 15), &[WireLayoutCommand::MoveTo((225.000, 1700.000)), WireLayoutCommand::DontRenderPrevious, WireLayoutCommand::Move((-0.000, -105.000)), WireLayoutCommand::MoveTo((200.000, 1595.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
 	circuit.connect((c2, 0), (c8, 0), &[WireLayoutCommand::MoveTo((-1677.750, 0.000)), WireLayoutCommand::DontRenderPrevious, WireLayoutCommand::Move((0.000, 0.000)), WireLayoutCommand::MoveTo((-1677.750, 120.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
 	circuit.connect((c3, 0), (c8, 1), &[WireLayoutCommand::MoveTo((-1677.750, 250.000)), WireLayoutCommand::DontRenderPrevious, WireLayoutCommand::Move((0.000, 0.000)), WireLayoutCommand::MoveTo((-1677.750, 180.000)), WireLayoutCommand::DontRenderPreviousVertical, WireLayoutCommand::AlignHorizontal]);
-	circuit.connect((c8, 2), (c1, 16), &[WireLayoutCommand::MoveTo((-1400.000, 150.000)), WireLayoutCommand::DontRenderPrevious, WireLayoutCommand::Move((0.000, 0.000)), WireLayoutCommand::MoveTo((-1400.000, 950.000)), WireLayoutCommand::DontRenderPrevious, WireLayoutCommand::Move((0.000, 0.000)), WireLayoutCommand::MoveTo((-650.000, 950.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
+	circuit.connect((c8, 2), (c1, 16), &[WireLayoutCommand::MoveTo((-1300.000, 150.000)), WireLayoutCommand::DontRenderPrevious, WireLayoutCommand::Move((0.000, 0.000)), WireLayoutCommand::MoveTo((-1300.000, 950.000)), WireLayoutCommand::DontRenderPrevious, WireLayoutCommand::Move((0.000, 0.000)), WireLayoutCommand::MoveTo((-650.000, 950.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
 	circuit.connect((c9, 0), (c0, 16), &[WireLayoutCommand::MoveTo((-1400.000, -250.000)), WireLayoutCommand::DontRenderPrevious, WireLayoutCommand::Move((0.000, 0.000)), WireLayoutCommand::MoveTo((-1400.000, -900.000)), WireLayoutCommand::DontRenderPrevious, WireLayoutCommand::Move((0.000, -0.000)), WireLayoutCommand::MoveTo((650.000, -900.000)), WireLayoutCommand::DontRenderPreviousHorizontal, WireLayoutCommand::AlignVertical]);
 	
 	circuit.pinify(&mut [c2, c3, c9, c4, c6]);
@@ -147,6 +147,10 @@ pub fn get_register_file_circuit(inner_scale: f64) -> Circuit {
 
 	let registers: Vec<_> = register_coords.iter()
 		.map(|x| add!(circuit, Register, (*x, 100.0 / inner_scale)))
+		.collect();
+
+	let multibulbs: Vec<_> = register_coords.iter()
+		.map(|x| add!(circuit, MultiBulb, (*x, 50.0 / inner_scale), 16))
 		.collect();
 
 	register_coords.pop();
@@ -204,7 +208,7 @@ pub fn get_register_file_circuit(inner_scale: f64) -> Circuit {
 	);
 
 	circuit.connect_groups(
-		&(33..33+16).rev().map(|i| (mult1, i)).collect::<Vec<_>>(),
+		&(33..33+16).map(|i| (mult1, i)).collect::<Vec<_>>(),
 		&registers.iter().map(|r| (*r, 0)).collect::<Vec<_>>(),
 		&[
 			BusLayoutCommand::MoveHorizontal(5000.0),
@@ -216,7 +220,7 @@ pub fn get_register_file_circuit(inner_scale: f64) -> Circuit {
 		],
 	);
 	circuit.connect_groups(
-		&(33..33+16).rev().map(|i| (mult2, i)).collect::<Vec<_>>(),
+		&(33..33+16).map(|i| (mult2, i)).collect::<Vec<_>>(),
 		&registers.iter().map(|r| (*r, 34)).collect::<Vec<_>>(),
 		&[
 			BusLayoutCommand::MoveHorizontal(4000.0),
@@ -227,6 +231,25 @@ pub fn get_register_file_circuit(inner_scale: f64) -> Circuit {
 			BusLayoutCommand::Individual(WireLayoutCommand::AlignHorizontal),
 		],
 	);
+
+	for i in 0..16 {
+		circuit.connect_groups(
+			&(0..8).map(|idx| (registers[i], idx + 1)).collect::<Vec<_>>(),
+			&(0..8).map(|idx| (multibulbs[i], idx)).collect::<Vec<_>>(),
+			&[
+				BusLayoutCommand::CenterVertical,
+				BusLayoutCommand::AlignVertical,
+			],
+		);
+		circuit.connect_groups(
+			&(8..16).map(|idx| (registers[i], idx + 1)).collect::<Vec<_>>(),
+			&(8..16).map(|idx| (multibulbs[i], idx)).collect::<Vec<_>>(),
+			&[
+				BusLayoutCommand::CenterVertical,
+				BusLayoutCommand::AlignVertical,
+			],
+		);
+	}
 	
 	circuit.connect_groups(
 		&(0..16).map(|i| (junctions[14], i * 3 + 1)).collect::<Vec<_>>(),

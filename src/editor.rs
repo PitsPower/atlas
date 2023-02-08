@@ -542,4 +542,9 @@ impl Editor {
 
 		code
 	}
+
+	/// Toggles a switch in the circuit.
+	pub fn toggle_switch(&mut self, idx: usize) {
+		self.circuit.toggle_switch(idx);
+	}
 }
