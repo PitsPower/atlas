@@ -1,6 +1,6 @@
 use wasm_bindgen::prelude::*;
 
-use crate::{editor_example, get_computer_circuit};
+use crate::get_computer_circuit;
 use crate::bus::{BusLayoutCommand, compute_wire_commands};
 use crate::core::{Circuit, ComponentOptions, ComponentType, ExternalPin, PinState};
 use crate::graphics::{BoundingBox, Renderer};
@@ -512,8 +512,7 @@ impl Editor {
 				has_set_switch = true;
 	
 				code += &format!(
-					"circuit.components[c{}].simulator.as_mut().unwrap().set_pin_state_external(0, PinState::On).unwrap();\n",
-					idx,
+					"circuit.components[c{idx}].simulator.as_mut().unwrap().set_pin_state_external(0, PinState::On).unwrap();\n",
 				);
 			}
 		}

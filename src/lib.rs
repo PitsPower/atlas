@@ -1,7 +1,3 @@
-#![feature(test)]
-
-extern crate test;
-
 pub mod adder;
 pub mod assembler;
 pub mod bus;

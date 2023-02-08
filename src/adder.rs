@@ -132,17 +132,17 @@ pub fn get_adder_circuit(size: usize) -> Circuit {
 		.collect();
 
 	for i in 0..size {
-		circuit.connect((input_group_1[i as usize], 0), (adders[i as usize], 0), &[
+		circuit.connect((input_group_1[i], 0), (adders[i], 0), &[
 			WireLayoutCommand::CenterHorizontal,
 			WireLayoutCommand::MoveHorizontal(i as f64 * 30.0),
 			WireLayoutCommand::AlignHorizontal,
 		]);
-		circuit.connect((input_group_2[i as usize], 0), (adders[i as usize], 1), &[
+		circuit.connect((input_group_2[i], 0), (adders[i], 1), &[
 			WireLayoutCommand::MoveHorizontal(10.0),
 			WireLayoutCommand::MoveHorizontal((size as f64 - i as f64) * 30.0),
 			WireLayoutCommand::AlignHorizontal,
 		]);
-		circuit.connect((adders[i as usize], 3), (output_group[i as usize], 0), &[
+		circuit.connect((adders[i], 3), (output_group[i], 0), &[
 			WireLayoutCommand::MoveHorizontal(30.0),
 			WireLayoutCommand::MoveHorizontal(((i as f64 - size as f64 * 0.5) * 30.0 + 15.0).abs()),
 			WireLayoutCommand::AlignHorizontal,
@@ -150,7 +150,7 @@ pub fn get_adder_circuit(size: usize) -> Circuit {
 	}
 
 	for i in 0..size-1 {
-		circuit.connect((adders[i as usize], 4), (adders[(i+1) as usize], 2), &[]);
+		circuit.connect((adders[i], 4), (adders[i+1], 2), &[]);
 	}
 
 	circuit

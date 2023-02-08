@@ -350,7 +350,10 @@ impl ComponentSimulator for RomSimulator {
 
 			for (i, state) in states.iter().enumerate() {
 				if *state == PinState::On {
-					circuit.update_component(&ExternalPin { component_idx: idx, pin_idx: i }, *state, true);
+					circuit.update_component_pin(&ExternalPin {
+						component_idx: idx,
+						pin_idx: i,
+					}, *state, true);
 				}
 			}
 		} else {

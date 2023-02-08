@@ -101,7 +101,7 @@ impl AtlasVM {
 			Err(err) => panic!("{}", err),
 		};
 
-		crate::log!("ASSEMBLED PROGRAM:\n\n{}", machine_code.iter().map(|byte| format!("{:02x}", byte)).collect::<Vec<_>>().join(" "));
+		crate::log!("ASSEMBLED PROGRAM:\n\n{}", machine_code.iter().map(|byte| format!("{byte:02x}")).collect::<Vec<_>>().join(" "));
 
 		for (addr, byte) in machine_code.iter().enumerate() {
 			self.memory.write_memory_byte(addr as u16, *byte);
@@ -586,7 +586,7 @@ impl LowLevelAtlasVM {
 			Err(err) => panic!("{}", err),
 		};
 
-		crate::log!("ASSEMBLED PROGRAM:\n\n{}", machine_code.iter().map(|byte| format!("{:02x}", byte)).collect::<Vec<_>>().join(" "));
+		crate::log!("ASSEMBLED PROGRAM:\n\n{}", machine_code.iter().map(|byte| format!("{byte:02x}")).collect::<Vec<_>>().join(" "));
 
 		for (addr, byte) in machine_code.iter().enumerate() {
 			self.memory.write_memory_byte(addr as u16, *byte);

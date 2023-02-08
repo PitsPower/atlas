@@ -22,12 +22,12 @@ enum AssembleErrorType {
 impl std::fmt::Display for AssembleErrorType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
-			Self::InvalidCharacter(char) => write!(f, "Unexpected character: '{}'", char),
+			Self::InvalidCharacter(char) => write!(f, "Unexpected character: '{char}'"),
 			Self::UnexpectedEOF => write!(f, "Unexpected end of file"),
-			Self::UnexpectedToken(token) => write!(f, "Unexpected token: {}", token),
-			Self::InvalidInstruction(instr) => write!(f, "Invalid instruction: {}", instr),
+			Self::UnexpectedToken(token) => write!(f, "Unexpected token: {token}"),
+			Self::InvalidInstruction(instr) => write!(f, "Invalid instruction: {instr}"),
 			Self::InvalidOperands => write!(f, "Invalid operands"),
-			Self::UndefinedLabel(label) => write!(f, "Undefined label: {}", label),
+			Self::UndefinedLabel(label) => write!(f, "Undefined label: {label}"),
 		}
     }
 }
@@ -82,10 +82,10 @@ impl std::fmt::Display for AssemblyTokenType {
 			Self::Comma => write!(f, ","),
 			Self::LSquare => write!(f, "["),
 			Self::RSquare => write!(f, "]"),
-			Self::Identifier(ident) => write!(f, "{}", ident),
-			Self::Number(num) => write!(f, "{}", num),
-			Self::Register(reg) => write!(f, "${}", reg),
-			Self::String(str) => write!(f, "\"{}\"", str),
+			Self::Identifier(ident) => write!(f, "{ident}"),
+			Self::Number(num) => write!(f, "{num}"),
+			Self::Register(reg) => write!(f, "${reg}"),
+			Self::String(str) => write!(f, "\"{str}\""),
 		}
     }
 }
@@ -556,7 +556,7 @@ impl AssemblyParser {
 					match (op1.otype, op2.otype) {
 						(AssemblyOperandType::Immediate(imm), AssemblyOperandType::Register(reg)) => {
 							result.push(Instruction {
-								itype: InstructionType::MoveImmToReg(imm as u16, reg),
+								itype: InstructionType::MoveImmToReg(imm, reg),
 								label,
 								line_no,
 							});

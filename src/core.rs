@@ -1034,7 +1034,7 @@ impl ComponentDrawer for MultiSwitchDrawer {
 		
 		let num = states_to_num(&states);
 
-		ctx.fill_text(format!("{}", num).as_str(), 0.0, -height * 0.1).unwrap();
+		ctx.fill_text(format!("{num}").as_str(), 0.0, -height * 0.1).unwrap();
 
 		for (i, state) in states.iter().enumerate().take(size) {
 			ctx.set_fill_style(&state.get_colour().into());
@@ -1195,7 +1195,7 @@ impl ComponentDrawer for MultiBulbDrawer {
 		
 		let num = states_to_num(&states);
 
-		ctx.fill_text(format!("{}", num).as_str(), 0.0, -height * 0.1).unwrap();
+		ctx.fill_text(format!("{num}").as_str(), 0.0, -height * 0.1).unwrap();
 
 		for (i, state) in states.iter().enumerate().take(size) {
 			ctx.set_fill_style(&state.get_colour().into());
@@ -1529,35 +1529,54 @@ impl Component {
 		}
 	}
 
-	/// Sets the state of a pin.
-	fn set_pin_state(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+	/// Sets the states of multiple pins.
+	fn set_pin_states(&mut self, indices: &[usize], states: &[PinState]) -> Result<(), PinError> {
 		let mode = self.get_mode();
 
 		if let ComponentInternals::Chip(circuit, _) = &mut self.internals {
 			match mode {
 				SimulationMode::Circuit => {
-					let maybe_component_idx = circuit.get_mut().components.iter_mut()
-						.enumerate()
-						.filter(|(_, c)| c.is_pin())
-						.nth(idx)
-						.map(|(i, _)| i);
+					let maybe_component_indices = indices.iter()
+						.map(|idx| {
+							circuit.get_mut().components.iter_mut()
+								.enumerate()
+								.filter(|(_, c)| c.is_pin())
+								.nth(*idx)
+								.map(|(i, _)| i)
+						})
+						.collect::<Option<Vec<_>>>();
 	
-					match maybe_component_idx {
-						Some(component_idx) => {
-							let connection = ExternalPin {
-								component_idx,
-								pin_idx: 0,
-							};
-							circuit.get_mut().update_component(&connection, state, true);
+					match maybe_component_indices {
+						Some(component_indices) => {
+							let cons = component_indices.iter()
+								.map(|idx| ExternalPin {
+									component_idx: *idx,
+									pin_idx: 0,
+								})
+								.collect::<Vec<_>>();
+
+							circuit.get_mut().update_components(&cons, states, true);
 							Ok(())
 						},
 						None => Err(PinError::OutOfRange),
 					}
 				},
-				SimulationMode::HighLevel => self.simulator.as_mut().unwrap().set_pin_state_high_level(idx, state),
+				SimulationMode::HighLevel => {
+					for (idx, state) in indices.iter().zip(states) {
+						self.simulator.as_mut()
+							.unwrap()
+							.set_pin_state_high_level(*idx, *state)?;
+					}
+					Ok(())
+				},
 			}
 		} else {
-			self.simulator.as_mut().unwrap().set_pin_state_high_level(idx, state)
+			for (idx, state) in indices.iter().zip(states) {
+				self.simulator.as_mut()
+					.unwrap()
+					.set_pin_state_high_level(*idx, *state)?;
+			}
+			Ok(())
 		}
 	}
 
@@ -1625,6 +1644,31 @@ pub struct ExternalPin {
 	pub pin_idx: usize,
 }
 
+impl ExternalPin {
+	/// Converts an `ExternalPin` struct to an `ExternalPins` struct.
+	fn to_pins(self) -> ExternalPins {
+		ExternalPins { component_idx: self.component_idx, pin_indices: vec![self.pin_idx] }
+	}
+}
+
+/// A struct for specifying a list of pins on a particular component.
+pub struct ExternalPins {
+	/// The index of the component.
+	pub component_idx: usize,
+	/// The list of pin indices.
+	pub pin_indices: Vec<usize>,
+}
+
+impl ExternalPins {
+	/// Converts an `ExternalPins` struct to a list of `ExternalPin` structs.
+	fn to_pin_vec(&self) -> Vec<ExternalPin> {
+		self.pin_indices.iter().map(|idx| ExternalPin {
+			component_idx: self.component_idx,
+			pin_idx: *idx,
+		}).collect()
+	}
+}
+
 /// A wire. Wires connect two external pins together.
 /// 
 /// A wire stores two states, one for each pin. This allows for wires to work
@@ -1672,7 +1716,7 @@ impl Circuit {
 			.nth(idx)
 			.unwrap().0;
 
-		self.update_component(&ExternalPin {
+		self.update_component_pin(&ExternalPin {
 			component_idx: true_idx,
 			pin_idx: 0,
 		}, state, true);
@@ -1732,10 +1776,10 @@ impl Circuit {
 		let end_con = ExternalPin { component_idx: comp2_idx, pin_idx: pin2_idx };
 
 		if start_state == PinState::Disconnected && end_state != PinState::Disconnected {
-			self.update_component(&start_con, end_state, false);
+			self.update_component_pin(&start_con, end_state, false);
 		}
 		else if end_state == PinState::Disconnected && start_state != PinState::Disconnected {
-			self.update_component(&end_con, start_state, false);
+			self.update_component_pin(&end_con, start_state, false);
 		}
 
 		self.wires.push(Wire {
@@ -1817,7 +1861,7 @@ impl Circuit {
 					pin_idx,
 				};
 
-				self.update_component(&con, PinState::Disconnected, true);
+				self.update_component_pin(&con, PinState::Disconnected, true);
 			}
 		}
 
@@ -1875,7 +1919,7 @@ impl Circuit {
 
 		for (con, state) in all_updates {
 			// false is used because we're updating a pin, so we want the change to propagate.
-			self.update_component(&con, state, false);
+			self.update_component_pin(&con, state, false);
 		}
 
 		for idx in indices {
@@ -1899,57 +1943,112 @@ impl Circuit {
 
 			for (i, state) in pin_states.iter().enumerate() {
 				if *state != PinState::Disconnected {
-					self.update_component(&ExternalPin { component_idx: cidx, pin_idx: i }, *state, true);
+					self.update_component_pin(&ExternalPin {
+						component_idx: cidx,
+						pin_idx: i,
+					}, *state, true);
 				}
 			}
 		}
 	}
 	
-	/// Updates a pin and then propagates the changes. This function is the main
+	/// Updates a list of pins and then propagates the changes. This function is the main
 	/// part of the circuit simulator.
-	pub fn update_component(&mut self, pin: &ExternalPin, state: PinState, set_manually: bool) {
-		let component = &mut self.components[pin.component_idx];
-
-		let old_pin_states: Vec<_> = (0..component.get_pin_count())
-			.map(|i| component.get_pin_state(i).unwrap())
-			.collect();
-
-		if set_manually {
-			component.simulator.as_mut().unwrap().set_pin_state_external(pin.pin_idx, state).unwrap();
-		} else {
-			component.set_pin_state(pin.pin_idx, state).unwrap();
-		}
-
-		let mut components_to_update = vec![];
+	pub fn update_components(&mut self, pins: &[ExternalPin], states: &[PinState], set_manually: bool) {
+		let mut components_to_update: Vec<(ExternalPins, Vec<PinState>)> = vec![];
 		let mut wire_starts_to_update = vec![];
 		let mut wire_ends_to_update = vec![];
 
-		for (i, old_pin_state) in old_pin_states.iter().enumerate().take(component.get_pin_count()) {
-			if i == pin.pin_idx && !set_manually && state != PinState::Disconnected {
-				continue;
+		let mut external_pin_groups: Vec<ExternalPins> = vec![];
+		let mut external_pin_group_states: Vec<Vec<PinState>> = vec![];
+
+		for (pin, state) in pins.iter().zip(states) {
+			let maybe_pins = external_pin_groups.iter_mut()
+				.zip(&mut external_pin_group_states)
+				.find(|(ps, _)| ps.component_idx == pin.component_idx);
+
+			if let Some((pins, states)) = maybe_pins {
+				pins.pin_indices.push(pin.pin_idx);
+				states.push(*state);
+			} else {
+				external_pin_groups.push(pin.to_pins());
+				external_pin_group_states.push(vec![*state]);
+			}
+		}
+
+		for (pins, states) in external_pin_groups.iter().zip(external_pin_group_states) {
+			let component = &mut self.components[pins.component_idx];
+
+			let old_pin_states: Vec<_> = (0..component.get_pin_count())
+				.map(|i| component.get_pin_state(i).unwrap())
+				.collect();
+
+			if set_manually {
+				for (idx, state) in pins.pin_indices.iter().zip(&states) {
+					component.simulator.as_mut()
+						.unwrap()
+						.set_pin_state_external(*idx, *state)
+						.unwrap();
+				}
+			} else {
+				component.set_pin_states(&pins.pin_indices, &states).unwrap();
 			}
 
-			let con = ExternalPin { component_idx: pin.component_idx, pin_idx: i };
-			let state = component.get_pin_state(i).unwrap();
+			for (i, old_pin_state) in old_pin_states.iter().enumerate().take(component.get_pin_count()) {
+				let idx = pins.pin_indices.iter().position(|idx| *idx == i);
 
-			if let Some((wire_idx, wire)) = self.wires.iter().enumerate()
-				.find(|(_, w)| w.pin1 == con || w.pin2 == con)
-			{
-				if wire.pin1 == con {
-					wire_starts_to_update.push((wire_idx, state));
-
-					if wire.state2 == PinState::Disconnected && wire.state1 != state {
-						components_to_update.push((wire.pin2, state));
-					} else if state == PinState::Disconnected && *old_pin_state != PinState::Disconnected {
-						components_to_update.push((wire.pin1, wire.state2));
+				if !set_manually {
+					if let Some(idx) = idx {
+						if states[idx] != PinState::Disconnected {
+							continue;
+						}
 					}
-				} else {
-					wire_ends_to_update.push((wire_idx, state));
-					
-					if wire.state1 == PinState::Disconnected && wire.state2 != state {
-						components_to_update.push((wire.pin1, state));
-					} else if state == PinState::Disconnected && *old_pin_state != PinState::Disconnected {
-						components_to_update.push((wire.pin2, wire.state1));
+				}
+
+				let con = ExternalPin { component_idx: pins.component_idx, pin_idx: i };
+				let state = component.get_pin_state(i).unwrap();
+
+				if let Some((wire_idx, wire)) = self.wires.iter().enumerate()
+					.find(|(_, w)| w.pin1 == con || w.pin2 == con)
+				{
+					let mut pin_state_pair = None;
+
+					if wire.pin1 == con {
+						wire_starts_to_update.push((wire_idx, state));
+
+						if wire.state2 == PinState::Disconnected && wire.state1 != state {
+							pin_state_pair = Some((wire.pin2, state));
+						} else if state == PinState::Disconnected && *old_pin_state != PinState::Disconnected {
+							pin_state_pair = Some((wire.pin1, wire.state2));
+						}
+					} else {
+						wire_ends_to_update.push((wire_idx, state));
+						
+						if wire.state1 == PinState::Disconnected && wire.state2 != state {
+							pin_state_pair = Some((wire.pin1, state));
+						} else if state == PinState::Disconnected && *old_pin_state != PinState::Disconnected {
+							pin_state_pair = Some((wire.pin2, wire.state1));
+						}
+					}
+
+					// components_to_update.push(pin_state_pair);
+
+					if let Some(pin_state_pair) = pin_state_pair {
+						let maybe_comp = components_to_update.iter_mut()
+							.find(|(ps, _)| ps.component_idx == pin_state_pair.0.component_idx);
+		
+						if let Some(comp) = maybe_comp {
+							comp.0.pin_indices.push(pin_state_pair.0.pin_idx);
+							comp.1.push(pin_state_pair.1);
+						} else {
+							components_to_update.push((
+								ExternalPins {
+									component_idx: pin_state_pair.0.component_idx,
+									pin_indices: vec![pin_state_pair.0.pin_idx],
+								},
+								vec![pin_state_pair.1],
+							));
+						}
 					}
 				}
 			}
@@ -1961,23 +2060,39 @@ impl Circuit {
 		for (idx, state) in wire_ends_to_update {
 			self.wires[idx].state2 = state;
 		}
-		for (con, state) in components_to_update {
-			let mut true_state = state;
-
-			if state == PinState::Disconnected {
-				if let Some(wire) = self.wires.iter()
-					.find(|w| w.pin1 == con || w.pin2 == con)
-				{
-					if wire.pin1 == con {
-						true_state = wire.state2;
+		for (cons, states) in components_to_update {
+			let true_states = cons.pin_indices.iter().zip(&states)
+				.map(|(pidx, state)| {
+					let con = ExternalPin {
+						component_idx: cons.component_idx,
+						pin_idx: *pidx,
+					};
+					
+					if *state == PinState::Disconnected {
+						if let Some(wire) = self.wires.iter()
+							.find(|w| w.pin1 == con || w.pin2 == con)
+						{
+							if wire.pin1 == con {
+								wire.state2
+							} else {
+								wire.state1
+							}
+						} else {
+							*state
+						}
 					} else {
-						true_state = wire.state1;
+						*state
 					}
-				}
-			}
+				})
+				.collect::<Vec<_>>();
 
-			self.update_component(&con, true_state, false);
+			self.update_components(&cons.to_pin_vec(), &true_states, false);
 		}
+	}
+
+	/// Updates a single pin on a component.
+	pub fn update_component_pin(&mut self, pin: &ExternalPin, state: PinState, set_manually: bool) {
+		self.update_components(&[*pin], &[state], set_manually);
 	}
 
 	/// Returns a component given a chip stack.
@@ -2024,7 +2139,10 @@ impl Circuit {
 				let component = &self.components[stack[0]];
 
 				if component.get_switch_count() > 0 {
-					self.update_component(&ExternalPin { component_idx: stack[0], pin_idx }, state, set_manually);
+					self.update_component_pin(&ExternalPin {
+						component_idx: stack[0],
+						pin_idx,
+					}, state, set_manually);
 				}
 			},
 			_ => {
@@ -2131,7 +2249,7 @@ impl Circuit {
 		}
 
 		let state = self.components[component_idx].get_pin_state(pin_idx).unwrap();
-		self.update_component(&ExternalPin { component_idx, pin_idx }, state.toggle(), true);
+		self.update_component_pin(&ExternalPin { component_idx, pin_idx }, state.toggle(), true);
 	}
 
 	/// Returns the coordinates of a component given the chip stack.
