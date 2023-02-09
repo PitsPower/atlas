@@ -74,9 +74,11 @@ window.addEventListener("keydown", (e) => {
 
 	switch (e.key.toLowerCase()) {
 		case " ": {
-			const time = Date.now();
-			editor.toggle_switch(0);
-			console.log(Date.now() - time);
+			setInterval(() => {
+				for (let i = 0; i < 1; i++) {
+					editor.toggle_switch(0);
+				}
+			}, 1);
 			break;
 		}
 
@@ -163,6 +165,7 @@ function render() {
 	requestAnimationFrame(render);
 
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	editor.toggle_switch(0);
 	editor.render();
 }
 

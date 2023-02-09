@@ -1,6 +1,6 @@
 use crate::add;
 use crate::bus::BusLayoutCommand;
-use crate::core::{Circuit, ComponentOptions, ComponentType};
+use crate::core::{Circuit, ComponentOptions, ComponentSimulator, ComponentType, PinError, PinState};
 use crate::graphics::WireLayoutCommand;
 use crate::utils::get_pin_coords;
 
@@ -122,6 +122,143 @@ pub fn get_register_circuit() -> Circuit {
 	circuit.pinify(&mut [c2, c3, c9, c4, c6]);
 
 	circuit
+}
+
+pub struct RegisterSimulator {
+	incoming_data: Vec<PinState>,
+
+	wtb: PinState,
+	rfb: PinState,
+	clock: PinState,
+	cc_out: PinState,
+
+	data: Vec<PinState>,
+}
+
+impl RegisterSimulator {
+	pub fn new() -> Self {
+		Self {
+			incoming_data: vec![PinState::Disconnected; 16],
+			wtb: PinState::Disconnected,
+			rfb: PinState::Disconnected,
+			clock: PinState::Disconnected,
+			cc_out: PinState::Off,
+			data: vec![PinState::Off; 16],
+		}
+	}
+}
+
+impl Default for RegisterSimulator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ComponentSimulator for RegisterSimulator {
+	fn set_mode_to_high_level(&mut self, circuit: &Circuit) {
+		let flipflop = circuit.components.iter()
+			.find(|c| c.get_type() == ComponentType::MultiDFlipFlop)
+			.unwrap();
+
+		self.data = (17..33).rev().map(|i| flipflop.get_pin_state(i).unwrap()).collect();
+
+		let controlled_clock = circuit.components.iter()
+			.find(|c| c.get_type() == ComponentType::ControlledClock)
+			.unwrap();
+
+		self.cc_out = controlled_clock.get_pin_state(2).unwrap();
+
+		for i in 0..35 {
+			let state = circuit.get_pin(i).unwrap().get_pin_state(0).unwrap();
+			self.set_pin_state_high_level(i, state).unwrap();
+		}
+	}
+
+	fn set_mode_to_circuit(&mut self, circuit: &mut Circuit) {
+		let flipflop = circuit.components.iter_mut()
+			.find(|c| c.get_type() == ComponentType::MultiDFlipFlop)
+			.unwrap();
+
+		let ff_circuit = flipflop.internals.get_circuit_mut().unwrap();
+
+		ff_circuit.set_pin(16, PinState::Off);
+		for i in 0..16 {
+			ff_circuit.set_pin(15 - i, self.data[i]);
+		}
+		ff_circuit.set_pin(16, PinState::On);
+
+		for i in 0..16 {
+			ff_circuit.set_pin(15 - i, self.incoming_data[i]);
+		}
+		ff_circuit.set_pin(16, self.cc_out);
+		
+		for i in 17..33 {
+			circuit.set_pin(i, self.incoming_data[i - 17]);
+		}
+
+		circuit.set_pin(0, self.wtb);
+		circuit.set_pin(33, self.clock);
+		circuit.set_pin(34, self.rfb);
+		
+		let flipflop = circuit.components.iter_mut()
+			.find(|c| c.get_type() == ComponentType::MultiDFlipFlop)
+			.unwrap();
+
+		let ff_circuit = flipflop.internals.get_circuit_mut().unwrap();
+		
+		for i in 0..17 {
+			let state = ff_circuit.get_pin(i).unwrap()
+				.simulator.as_ref().unwrap()
+				.get_pin_state_high_level(0).unwrap();
+			ff_circuit.set_pin(i, state);
+		}
+	}
+
+    fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+        match idx {
+			0 | 33 | 34 => Ok(PinState::Disconnected),
+			1..=16 => Ok(self.data[idx - 1]),
+			17..=32 => Ok(if self.wtb == PinState::On {
+				self.data[idx - 17]
+			} else {
+				PinState::Disconnected
+			}),
+			_ => Err(PinError::OutOfRange),
+		}
+    }
+
+    fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+        match idx {
+			0 => {
+				self.wtb = state;
+				Ok(())
+			},
+			1..=16 => Ok(()),
+			17..=32 => {
+				self.incoming_data[idx - 17] = state;
+				Ok(())
+			},
+			33 => {
+				if state == PinState::On && self.rfb == PinState::On {
+					if self.clock != PinState::On && self.wtb != PinState::On {
+						self.data = self.incoming_data.clone();
+					}
+
+					self.cc_out = PinState::On;
+				} else {
+					self.cc_out = PinState::Off;
+				}
+
+				self.clock = state;
+				Ok(())
+			},
+			34 => {
+				self.rfb = state;
+				Ok(())
+			},
+			_ => Err(PinError::OutOfRange),
+		}
+    }
 }
 
 pub fn get_register_file_circuit(inner_scale: f64) -> Circuit {

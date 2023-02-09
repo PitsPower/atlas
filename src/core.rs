@@ -547,6 +547,8 @@ impl ComponentType {
 			Self::MultiBulb => Some(Box::new(MultiBulbSimulator::new(options.size))),
 			Self::MultiJunction => Some(Box::new(MultiJunctionSimulator::new(options.size))),
 			Self::MultiSwitch => Some(Box::new(MultiSwitchSimulator::new(options.size))),
+
+			Self::Register => Some(Box::new(RegisterSimulator::new())),
 			
 			Self::Rom => Some(Box::new(RomSimulator::new(options.size))),
 			Self::Memory => Some(Box::new(MemorySimulator::new(options.size))),
@@ -809,14 +811,10 @@ pub trait ComponentSimulator {
 	}
 
 	/// Returns the state of a pin.
-	fn get_pin_state_high_level(&self, _idx: usize) -> Result<PinState, PinError> {
-		panic!("Unexpected get_pin_state_high_level");
-	}
+	fn get_pin_state_high_level(&self, _idx: usize) -> Result<PinState, PinError>;
 
 	/// Sets the state of a pin.
-	fn set_pin_state_high_level(&mut self, _idx: usize, _state: PinState) -> Result<(), PinError> {
-		panic!("Unexpected set_pin_state_high_level");
-	}
+	fn set_pin_state_high_level(&mut self, _idx: usize, _state: PinState) -> Result<(), PinError>;
 
 	/// Returns the state of a pin when accessed externally. This is used for accessing a pin from
 	/// the chip it's in.
