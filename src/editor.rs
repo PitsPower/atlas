@@ -89,7 +89,6 @@ impl Editor {
 	/// Updates the editor size to fit the window size.
 	pub fn update_size(&mut self) {
 		self.renderer.update_size();
-		self.renderer.update_sim_modes(&mut self.circuit);
 	}
 
 	/// Spawns a new component and returns the index of that component in the circuit.
@@ -451,11 +450,12 @@ impl Editor {
 	/// Zoom in or out.
 	pub fn zoom(&mut self, zoom: f64, x: f64, y: f64) {
 		self.renderer.zoom(zoom, x, y);
-		self.renderer.update_sim_modes(&mut self.circuit);
 	}
 
 	/// Render the editor.
 	pub fn render(&mut self) {
+		self.renderer.update_sim_modes(&mut self.circuit);
+
 		if self.is_selecting_end_pins {
 			self.renderer.render(&self.circuit, &self.selected_chip_stacks, &self.end_pins);
 		} else {

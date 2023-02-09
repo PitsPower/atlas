@@ -74,11 +74,7 @@ window.addEventListener("keydown", (e) => {
 
 	switch (e.key.toLowerCase()) {
 		case " ": {
-			setInterval(() => {
-				for (let i = 0; i < 1; i++) {
-					editor.toggle_switch(0);
-				}
-			}, 1);
+			editor.toggle_switch(0);
 			break;
 		}
 

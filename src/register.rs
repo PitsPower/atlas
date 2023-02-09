@@ -156,11 +156,17 @@ impl Default for RegisterSimulator {
 
 impl ComponentSimulator for RegisterSimulator {
 	fn set_mode_to_high_level(&mut self, circuit: &Circuit) {
-		let flipflop = circuit.components.iter()
-			.find(|c| c.get_type() == ComponentType::MultiDFlipFlop)
-			.unwrap();
-
-		self.data = (17..33).rev().map(|i| flipflop.get_pin_state(i).unwrap()).collect();
+		self.data = (1..17)
+			.map(|i| circuit
+				.get_pin(i)
+				.unwrap()
+				.simulator
+				.as_ref()
+				.unwrap()
+				.get_pin_state_external(0)
+				.unwrap()
+			)
+			.collect();
 
 		let controlled_clock = circuit.components.iter()
 			.find(|c| c.get_type() == ComponentType::ControlledClock)
@@ -175,43 +181,35 @@ impl ComponentSimulator for RegisterSimulator {
 	}
 
 	fn set_mode_to_circuit(&mut self, circuit: &mut Circuit) {
-		let flipflop = circuit.components.iter_mut()
-			.find(|c| c.get_type() == ComponentType::MultiDFlipFlop)
-			.unwrap();
-
-		let ff_circuit = flipflop.internals.get_circuit_mut().unwrap();
-
-		ff_circuit.set_pin(16, PinState::Off);
-		for i in 0..16 {
-			ff_circuit.set_pin(15 - i, self.data[i]);
-		}
-		ff_circuit.set_pin(16, PinState::On);
+		circuit.set_pin(0, PinState::Off);
+		circuit.set_pin(33, PinState::Off);
+		circuit.set_pin(34, PinState::On);
 
 		for i in 0..16 {
-			ff_circuit.set_pin(15 - i, self.incoming_data[i]);
+			circuit.set_pin(i + 17, self.data[i]);
 		}
-		ff_circuit.set_pin(16, self.cc_out);
-		
-		for i in 17..33 {
-			circuit.set_pin(i, self.incoming_data[i - 17]);
-		}
+
+		circuit.set_pin(33, PinState::On);
 
 		circuit.set_pin(0, self.wtb);
-		circuit.set_pin(33, self.clock);
-		circuit.set_pin(34, self.rfb);
 		
-		let flipflop = circuit.components.iter_mut()
-			.find(|c| c.get_type() == ComponentType::MultiDFlipFlop)
-			.unwrap();
-
-		let ff_circuit = flipflop.internals.get_circuit_mut().unwrap();
-		
-		for i in 0..17 {
-			let state = ff_circuit.get_pin(i).unwrap()
-				.simulator.as_ref().unwrap()
-				.get_pin_state_high_level(0).unwrap();
-			ff_circuit.set_pin(i, state);
+		if self.wtb != PinState::On {
+			for i in 0..16 {
+				circuit.set_pin(i + 17, self.incoming_data[i]);
+			}
+		} else {
+			for i in 0..16 {
+				circuit.set_pin(i + 17, PinState::Disconnected);
+			}
 		}
+
+		if self.cc_out != PinState::On {
+			circuit.set_pin(33, PinState::Off);
+			circuit.set_pin(34, PinState::Off);
+			circuit.set_pin(33, self.clock);
+		}
+		
+		circuit.set_pin(34, self.rfb);
 	}
 
     fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
