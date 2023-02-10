@@ -2126,24 +2126,6 @@ impl Circuit {
 					if let Some(pin_state_pair) = pin_state_pair {
 						pins_to_update.push(pin_state_pair);
 					}
-
-					// if let Some(pin_state_pair) = pin_state_pair {
-					// 	let maybe_comp = components_to_update.iter_mut()
-					// 		.find(|(ps, _)| ps.component_idx == pin_state_pair.0.component_idx);
-		
-					// 	if let Some(comp) = maybe_comp {
-					// 		comp.0.pin_indices.push(pin_state_pair.0.pin_idx);
-					// 		comp.1.push(pin_state_pair.1);
-					// 	} else {
-					// 		components_to_update.push((
-					// 			ExternalPins {
-					// 				component_idx: pin_state_pair.0.component_idx,
-					// 				pin_indices: vec![pin_state_pair.0.pin_idx],
-					// 			},
-					// 			vec![pin_state_pair.1],
-					// 		));
-					// 	}
-					// }
 				}
 			}
 		}
@@ -2195,35 +2177,6 @@ impl Circuit {
 				false,
 			);
 		}
-
-		// for (cons, states) in &components_to_update {
-		// 	let true_states: Vec<_> = cons.pin_indices.iter().zip(states)
-		// 		.map(|(pidx, state)| {
-		// 			let con = ExternalPin {
-		// 				component_idx: cons.component_idx,
-		// 				pin_idx: *pidx,
-		// 			};
-					
-		// 			if *state == PinState::Disconnected {
-		// 				if let Some(wire) = self.wires.iter()
-		// 					.find(|w| w.pin1 == con || w.pin2 == con)
-		// 				{
-		// 					if wire.pin1 == con {
-		// 						wire.state2
-		// 					} else {
-		// 						wire.state1
-		// 					}
-		// 				} else {
-		// 					*state
-		// 				}
-		// 			} else {
-		// 				*state
-		// 			}
-		// 		})
-		// 		.collect();
-
-		// 	self.update_components(&cons.to_pin_vec(), &true_states, false);
-		// }
 	}
 
 	/// Updates a single pin on a component.

@@ -1337,11 +1337,7 @@ pub fn get_computer_circuit() -> Circuit {
 }
 
 pub fn editor_example() -> Circuit {
-	let mut circuit = Circuit::new();
-
-	add!(circuit, Register, (0.000, 0.000));
-	
-	circuit
+	Circuit::new()
 }
 
 #[wasm_bindgen(start)]

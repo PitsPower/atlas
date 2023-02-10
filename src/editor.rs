@@ -1,6 +1,6 @@
 use wasm_bindgen::prelude::*;
 
-use crate::{editor_example, get_computer_circuit};
+use crate::*;
 use crate::bus::{BusLayoutCommand, compute_wire_commands};
 use crate::core::{Circuit, ComponentOptions, ComponentType, ExternalPin, PinState};
 use crate::graphics::{BoundingBox, Renderer};
@@ -56,7 +56,7 @@ impl Editor {
 	/// Creates a new editor instance.
 	#[wasm_bindgen(constructor)]
 	pub fn new(ctx: web_sys::CanvasRenderingContext2d) -> Self {
-		let mut circuit = get_computer_circuit();
+		let mut circuit = editor_example();
 		let mut renderer = Renderer::new(ctx);
 		
 		renderer.update_sim_modes(&mut circuit);
