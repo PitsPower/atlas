@@ -5,6 +5,8 @@
 use std::collections::HashMap;
 use std::f64::consts::PI;
 
+use arrayvec::ArrayVec;
+use itertools::Itertools;
 use wasm_bindgen::prelude::*;
 
 use crate::add;
@@ -1643,13 +1645,6 @@ pub struct ExternalPin {
 	pub pin_idx: usize,
 }
 
-impl ExternalPin {
-	/// Converts an `ExternalPin` struct to an `ExternalPins` struct.
-	fn to_pins(self) -> ExternalPins {
-		ExternalPins { component_idx: self.component_idx, pin_indices: vec![self.pin_idx] }
-	}
-}
-
 /// A struct for specifying a list of pins on a particular component.
 pub struct ExternalPins {
 	/// The index of the component.
@@ -2053,47 +2048,53 @@ impl Circuit {
 	/// Updates a list of pins and then propagates the changes. This function is the main
 	/// part of the circuit simulator.
 	pub fn update_components(&mut self, pins: &[ExternalPin], states: &[PinState], set_manually: bool) {
-		let mut components_to_update: Vec<(ExternalPins, Vec<PinState>)> = vec![];
-		let mut wire_starts_to_update = vec![];
-		let mut wire_ends_to_update = vec![];
-
-		let mut external_pin_groups: Vec<ExternalPins> = vec![];
-		let mut external_pin_group_states: Vec<Vec<PinState>> = vec![];
-
-		for (pin, state) in pins.iter().zip(states) {
-			let maybe_pins = external_pin_groups.iter_mut()
-				.zip(&mut external_pin_group_states)
-				.find(|(ps, _)| ps.component_idx == pin.component_idx);
-
-			if let Some((pins, states)) = maybe_pins {
-				pins.pin_indices.push(pin.pin_idx);
-				states.push(*state);
-			} else {
-				external_pin_groups.push(pin.to_pins());
-				external_pin_group_states.push(vec![*state]);
-			}
+		if pins.is_empty() {
+			return;
 		}
+		
+		let mut pins_to_update: ArrayVec<(ExternalPin, PinState), 128> = ArrayVec::new();
+		let mut wire_starts_to_update: ArrayVec<(usize, PinState), 128> = ArrayVec::new();
+		let mut wire_ends_to_update: ArrayVec<(usize, PinState), 128> = ArrayVec::new();
 
-		for (pins, states) in external_pin_groups.iter().zip(external_pin_group_states) {
-			let component = &mut self.components[pins.component_idx];
+		let component_indices = pins.iter().zip(states)
+			.map(|(pin, _)| pin.component_idx)
+			.unique();
 
-			let old_pin_states: Vec<_> = (0..component.get_pin_count())
+		for component_idx in component_indices {
+			let component = &mut self.components[component_idx];
+
+			let old_pin_states: ArrayVec<_, 128> = (0..component.get_pin_count())
 				.map(|i| component.get_pin_state(i).unwrap())
 				.collect();
 
+			let pin_indices = pins.iter()
+				.filter(|p| p.component_idx == component_idx)
+				.map(|p| p.pin_idx);
+
+			let pin_states = pins.iter().zip(states)
+				.filter(|(p, _)| p.component_idx == component_idx)
+				.map(|(_, s)| *s);
+			
 			if set_manually {
-				for (idx, state) in pins.pin_indices.iter().zip(&states) {
+				for (idx, state) in pin_indices.zip(pin_states) {
 					component.simulator.as_mut()
 						.unwrap()
-						.set_pin_state_external(*idx, *state)
+						.set_pin_state_external(idx, state)
 						.unwrap();
 				}
 			} else {
-				component.set_pin_states(&pins.pin_indices, &states).unwrap();
+				component.set_pin_states(
+					&pin_indices.collect::<ArrayVec<_, 64>>(),
+					&pin_states.collect::<ArrayVec<_, 64>>(),
+				).unwrap();
 			}
 
-			for (i, old_pin_state) in old_pin_states.iter().enumerate().take(component.get_pin_count()) {
-				let idx = pins.pin_indices.iter().position(|idx| *idx == i);
+			for (i, old_pin_state) in old_pin_states.iter().enumerate() {
+				let mut pin_indices = pins.iter()
+					.filter(|p| p.component_idx == component_idx)
+					.map(|p| p.pin_idx);
+
+				let idx = pin_indices.position(|idx| idx == i);
 
 				if !set_manually {
 					if let Some(idx) = idx {
@@ -2103,7 +2104,7 @@ impl Circuit {
 					}
 				}
 
-				let con = ExternalPin { component_idx: pins.component_idx, pin_idx: i };
+				let con = ExternalPin { component_idx, pin_idx: i };
 				let state = component.get_pin_state(i).unwrap();
 
 				if let Some(&wire_idx) = self.start_map.get(&con).or(self.end_map.get(&con)) {
@@ -2129,63 +2130,107 @@ impl Circuit {
 						}
 					}
 
-					// components_to_update.push(pin_state_pair);
-
 					if let Some(pin_state_pair) = pin_state_pair {
-						let maybe_comp = components_to_update.iter_mut()
-							.find(|(ps, _)| ps.component_idx == pin_state_pair.0.component_idx);
-		
-						if let Some(comp) = maybe_comp {
-							comp.0.pin_indices.push(pin_state_pair.0.pin_idx);
-							comp.1.push(pin_state_pair.1);
-						} else {
-							components_to_update.push((
-								ExternalPins {
-									component_idx: pin_state_pair.0.component_idx,
-									pin_indices: vec![pin_state_pair.0.pin_idx],
-								},
-								vec![pin_state_pair.1],
-							));
-						}
+						pins_to_update.push(pin_state_pair);
 					}
+
+					// if let Some(pin_state_pair) = pin_state_pair {
+					// 	let maybe_comp = components_to_update.iter_mut()
+					// 		.find(|(ps, _)| ps.component_idx == pin_state_pair.0.component_idx);
+		
+					// 	if let Some(comp) = maybe_comp {
+					// 		comp.0.pin_indices.push(pin_state_pair.0.pin_idx);
+					// 		comp.1.push(pin_state_pair.1);
+					// 	} else {
+					// 		components_to_update.push((
+					// 			ExternalPins {
+					// 				component_idx: pin_state_pair.0.component_idx,
+					// 				pin_indices: vec![pin_state_pair.0.pin_idx],
+					// 			},
+					// 			vec![pin_state_pair.1],
+					// 		));
+					// 	}
+					// }
 				}
 			}
 		}
 		
-		for (idx, state) in wire_starts_to_update {
-			self.wires[idx].state1 = state;
+		for (idx, state) in &wire_starts_to_update {
+			self.wires[*idx].state1 = *state;
 		}
-		for (idx, state) in wire_ends_to_update {
-			self.wires[idx].state2 = state;
+		for (idx, state) in &wire_ends_to_update {
+			self.wires[*idx].state2 = *state;
 		}
-		for (cons, states) in components_to_update {
-			let true_states: Vec<_> = cons.pin_indices.iter().zip(&states)
-				.map(|(pidx, state)| {
-					let con = ExternalPin {
-						component_idx: cons.component_idx,
-						pin_idx: *pidx,
-					};
-					
-					if *state == PinState::Disconnected {
+
+		let component_indices = pins_to_update.iter()
+			.map(|(pin, _)| pin.component_idx)
+			.unique();
+
+		for component_idx in component_indices {
+			let pins = pins_to_update.iter()
+				.filter(|(p, _)| p.component_idx == component_idx)
+				.map(|(p, _)| *p)
+				.collect::<ArrayVec<_, 64>>();
+
+			let states = pins_to_update.iter()
+				.filter(|(p, _)| p.component_idx == component_idx)
+				.map(|(_, s)| *s);
+
+			let true_states: ArrayVec<_, 64> = pins.iter().zip(states)
+				.map(|(pin, state)| {
+					if state == PinState::Disconnected {
 						if let Some(wire) = self.wires.iter()
-							.find(|w| w.pin1 == con || w.pin2 == con)
+							.find(|w| w.pin1 == *pin || w.pin2 == *pin)
 						{
-							if wire.pin1 == con {
+							if wire.pin1 == *pin {
 								wire.state2
 							} else {
 								wire.state1
 							}
 						} else {
-							*state
+							state
 						}
 					} else {
-						*state
+						state
 					}
 				})
 				.collect();
 
-			self.update_components(&cons.to_pin_vec(), &true_states, false);
+			self.update_components(
+				&pins,
+				&true_states,
+				false,
+			);
 		}
+
+		// for (cons, states) in &components_to_update {
+		// 	let true_states: Vec<_> = cons.pin_indices.iter().zip(states)
+		// 		.map(|(pidx, state)| {
+		// 			let con = ExternalPin {
+		// 				component_idx: cons.component_idx,
+		// 				pin_idx: *pidx,
+		// 			};
+					
+		// 			if *state == PinState::Disconnected {
+		// 				if let Some(wire) = self.wires.iter()
+		// 					.find(|w| w.pin1 == con || w.pin2 == con)
+		// 				{
+		// 					if wire.pin1 == con {
+		// 						wire.state2
+		// 					} else {
+		// 						wire.state1
+		// 					}
+		// 				} else {
+		// 					*state
+		// 				}
+		// 			} else {
+		// 				*state
+		// 			}
+		// 		})
+		// 		.collect();
+
+		// 	self.update_components(&cons.to_pin_vec(), &true_states, false);
+		// }
 	}
 
 	/// Updates a single pin on a component.
