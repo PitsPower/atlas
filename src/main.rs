@@ -1,9 +1,9 @@
-use atlas::add;
-use atlas::core::*;
-use atlas::graphics::*;
+use atlas::*;
 
 fn main() {
-	let mut circuit = Circuit::new();
-	add!(circuit, Memory, (0.000, 0.000), 16);
-	update_sim_modes_with_viewport(&mut circuit, BoundingBox::new(1920.0, 1080.0))
+	let mut circuit = get_computer_circuit();
+
+	loop {
+		circuit.toggle_switch(0);
+	}
 }

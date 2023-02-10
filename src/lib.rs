@@ -1069,11 +1069,11 @@ pub fn get_computer_circuit() -> Circuit {
 	let c16 = add!(circuit, Junction, (300.000, 1600.000), 3);
 	let c17 = add!(circuit, Junction, (-1050.000, 1600.000), 3);
 	
-	let code = assemble(include_str!("./aasm/test.aasm").to_string()).unwrap()
+	let code: Vec<_> = assemble(include_str!("./aasm/test.aasm").to_string()).unwrap()
 		.chunks(2)
 		.into_iter()
 		.map(|bs| u16::from_be_bytes([bs[0], bs[1]]))
-		.collect::<Vec<_>>();
+		.collect();
 
 	circuit.components[c1].internals
 		.get_circuit_mut()

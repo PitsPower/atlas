@@ -74,7 +74,11 @@ window.addEventListener("keydown", (e) => {
 
 	switch (e.key.toLowerCase()) {
 		case " ": {
-			editor.toggle_switch(0);
+			setInterval(() => {
+				for (let i = 0; i < 5; i++) {
+					editor.toggle_switch(0);
+				}
+			}, 1);
 			break;
 		}
 
@@ -161,7 +165,7 @@ function render() {
 	requestAnimationFrame(render);
 
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
-	editor.toggle_switch(0);
+	// editor.toggle_switch(0);
 	editor.render();
 }
 

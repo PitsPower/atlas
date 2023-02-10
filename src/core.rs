@@ -2,6 +2,7 @@
 //! 
 //! Provides core data structures such as [`Circuit`] and some basic components like switches, bulbs and junctions.
 
+use std::collections::HashMap;
 use std::f64::consts::PI;
 
 use wasm_bindgen::prelude::*;
@@ -1534,7 +1535,7 @@ impl Component {
 		if let ComponentInternals::Chip(circuit, _) = &mut self.internals {
 			match mode {
 				SimulationMode::Circuit => {
-					let maybe_component_indices = indices.iter()
+					let maybe_component_indices: Option<Vec<_>> = indices.iter()
 						.map(|idx| {
 							circuit.get_mut().components.iter_mut()
 								.enumerate()
@@ -1542,16 +1543,16 @@ impl Component {
 								.nth(*idx)
 								.map(|(i, _)| i)
 						})
-						.collect::<Option<Vec<_>>>();
+						.collect();
 	
 					match maybe_component_indices {
 						Some(component_indices) => {
-							let cons = component_indices.iter()
+							let cons: Vec<_> = component_indices.iter()
 								.map(|idx| ExternalPin {
 									component_idx: *idx,
 									pin_idx: 0,
 								})
-								.collect::<Vec<_>>();
+								.collect();
 
 							circuit.get_mut().update_components(&cons, states, true);
 							Ok(())
@@ -1634,7 +1635,7 @@ impl Drawable for Component {
 /// A specifier for a pin on a particular component. This differs from the pin component, which is an internal
 /// pin used in a [`Circuit`] within a chip.
 #[wasm_bindgen]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ExternalPin {
 	/// The index of the component.
 	pub component_idx: usize,
@@ -1696,9 +1697,99 @@ pub struct Circuit {
 	pub wires: Vec<Wire>,
 	/// The list of [`BusLayoutCommand`]s that need to be computed.
 	pub bus_commands: Vec<(Group, Group, Vec<BusLayoutCommand>)>,
+
+	pub start_map: HashMap<ExternalPin, usize>,
+	pub end_map: HashMap<ExternalPin, usize>,
 }
 
 impl Circuit {
+	/// Returns a blank [`Circuit`].
+	pub fn new() -> Self {
+		Self {
+			components: vec![],
+			wires: vec![],
+			bus_commands: vec![],
+			start_map: HashMap::new(),
+			end_map: HashMap::new(),
+		}
+	}
+
+	fn recalculate_hashmaps(&mut self) {
+		self.start_map.clear();
+		self.end_map.clear();
+
+		for (idx, wire) in self.wires.iter().enumerate() {
+			self.start_map.insert(wire.pin1, idx);
+			self.end_map.insert(wire.pin2, idx);
+		}
+	}
+
+	/// Toggles a switch in the circuit.
+	pub fn toggle_switch(&mut self, idx: usize) {
+		let mut component_idx = 0;
+		let mut pin_idx = idx;
+
+		loop {
+			let switch_count = match self.components.get(component_idx) {
+				Some(c) => c.get_switch_count(),
+				None => return,
+			};
+			
+			if pin_idx < switch_count {
+				break;
+			}
+
+			pin_idx -= switch_count;
+			component_idx += 1;
+		}
+
+		let state = self.components[component_idx].get_pin_state(pin_idx).unwrap();
+		self.update_component_pin(&ExternalPin { component_idx, pin_idx }, state.toggle(), true);
+	}
+
+	/// Returns the coordinates of a component given the chip stack.
+	pub fn get_pos_from_chip_stack(&mut self, stack: &[usize]) -> Option<(f64, f64)> {
+		let component = self.get_component_from_chip_stack(stack)?;
+		Some(component.position)
+	}
+
+	/// Sets the x coordinate of a component given the chip stack.
+	pub fn set_x_from_chip_stack(&mut self, stack: &[usize], x: f64) {
+		if let Some(component) = self.get_component_from_chip_stack(stack) {
+			component.position.0 = x;
+		}
+	}
+
+	/// Sets the y coordinate of a component given the chip stack.
+	pub fn set_y_from_chip_stack(&mut self, stack: &[usize], y: f64) {
+		if let Some(component) = self.get_component_from_chip_stack(stack) {
+			component.position.1 = y;
+		}
+	}
+
+	/// Toggles the switch referred to by the stack (if the component is a switch).
+	pub fn toggle_switch_from_chip_stack(&mut self, stack: &[usize], x: f64, y: f64) {
+		if let Some((pin_idx, state)) = self.get_pin_state_from_chip_stack(stack, x, y) {
+			self.set_switch_from_chip_stack(stack, pin_idx, state.toggle(), true);
+		}
+	}
+
+	/// Sets a component's position given a chip stack.
+	pub fn set_component_pos_from_chip_stack(&mut self, stack: &[usize], x: f64, y: f64) {
+		if let Some(component) = self.get_component_from_chip_stack(stack) {
+			component.position = (x, y);
+		}
+	}
+
+	/// Connects two components with a wire externally.
+	/// Used to connect wires from JavaScript.
+	pub fn connect_external(
+		&mut self, comp1_idx: usize, pin1_idx: usize,
+		comp2_idx: usize, pin2_idx: usize,
+	) {
+		self.connect((comp1_idx, pin1_idx), (comp2_idx, pin2_idx), &[]);
+	}
+
 	/// Returns the `i`th pin component in the circuit.
 	pub fn get_pin(&self, i: usize) -> Option<&Component> {
 		self.components.iter()
@@ -1741,6 +1832,8 @@ impl Circuit {
 		}
 
 		self.components.remove(component_idx);
+
+		self.recalculate_hashmaps();
 	}
 
 	/// Connects two components together with a wire where the layout of the wire
@@ -1787,6 +1880,9 @@ impl Circuit {
 			state1: start_state,
 			state2: end_state,
 		});
+
+		self.start_map.insert(start_con, self.wires.len() - 1);
+		self.end_map.insert(end_con, self.wires.len() - 1);
 	}
 
 	/// Connects two components together with a wire.
@@ -1881,6 +1977,8 @@ impl Circuit {
 							all_updates.push((wire.pin2, wire.state1));
 						}
 					}
+
+					self.recalculate_hashmaps();
 				},
 	
 				ComponentType::MultiBulb | ComponentType::MultiSwitch => {
@@ -1909,6 +2007,8 @@ impl Circuit {
 							all_updates.push((wire.pin2, wire.state1));
 						}
 					}
+
+					self.recalculate_hashmaps();
 				},
 	
 				_ => {},
@@ -2006,9 +2106,9 @@ impl Circuit {
 				let con = ExternalPin { component_idx: pins.component_idx, pin_idx: i };
 				let state = component.get_pin_state(i).unwrap();
 
-				if let Some((wire_idx, wire)) = self.wires.iter().enumerate()
-					.find(|(_, w)| w.pin1 == con || w.pin2 == con)
-				{
+				if let Some(&wire_idx) = self.start_map.get(&con).or(self.end_map.get(&con)) {
+					let wire = &self.wires[wire_idx];
+
 					let mut pin_state_pair = None;
 
 					if wire.pin1 == con {
@@ -2059,7 +2159,7 @@ impl Circuit {
 			self.wires[idx].state2 = state;
 		}
 		for (cons, states) in components_to_update {
-			let true_states = cons.pin_indices.iter().zip(&states)
+			let true_states: Vec<_> = cons.pin_indices.iter().zip(&states)
 				.map(|(pidx, state)| {
 					let con = ExternalPin {
 						component_idx: cons.component_idx,
@@ -2082,7 +2182,7 @@ impl Circuit {
 						*state
 					}
 				})
-				.collect::<Vec<_>>();
+				.collect();
 
 			self.update_components(&cons.to_pin_vec(), &true_states, false);
 		}
@@ -2214,83 +2314,6 @@ impl Circuit {
 			
 			ctx.restore();
 		}
-	}
-}
-
-impl Circuit {
-	/// Returns a blank [`Circuit`].
-	pub fn new() -> Self {
-		Self {
-			components: vec![],
-			wires: vec![],
-			bus_commands: vec![],
-		}
-	}
-
-	/// Toggles a switch in the circuit.
-	pub fn toggle_switch(&mut self, idx: usize) {
-		let mut component_idx = 0;
-		let mut pin_idx = idx;
-
-		loop {
-			let switch_count = match self.components.get(component_idx) {
-				Some(c) => c.get_switch_count(),
-				None => return,
-			};
-			
-			if pin_idx < switch_count {
-				break;
-			}
-
-			pin_idx -= switch_count;
-			component_idx += 1;
-		}
-
-		let state = self.components[component_idx].get_pin_state(pin_idx).unwrap();
-		self.update_component_pin(&ExternalPin { component_idx, pin_idx }, state.toggle(), true);
-	}
-
-	/// Returns the coordinates of a component given the chip stack.
-	pub fn get_pos_from_chip_stack(&mut self, stack: &[usize]) -> Option<(f64, f64)> {
-		let component = self.get_component_from_chip_stack(stack)?;
-		Some(component.position)
-	}
-
-	/// Sets the x coordinate of a component given the chip stack.
-	pub fn set_x_from_chip_stack(&mut self, stack: &[usize], x: f64) {
-		if let Some(component) = self.get_component_from_chip_stack(stack) {
-			component.position.0 = x;
-		}
-	}
-
-	/// Sets the y coordinate of a component given the chip stack.
-	pub fn set_y_from_chip_stack(&mut self, stack: &[usize], y: f64) {
-		if let Some(component) = self.get_component_from_chip_stack(stack) {
-			component.position.1 = y;
-		}
-	}
-
-	/// Toggles the switch referred to by the stack (if the component is a switch).
-	pub fn toggle_switch_from_chip_stack(&mut self, stack: &[usize], x: f64, y: f64) {
-		if let Some((pin_idx, state)) = self.get_pin_state_from_chip_stack(stack, x, y) {
-			self.set_switch_from_chip_stack(stack, pin_idx, state.toggle(), true);
-		}
-	}
-
-	/// Sets a component's position given a chip stack.
-	pub fn set_component_pos_from_chip_stack(&mut self, stack: &[usize], x: f64, y: f64) {
-		if let Some(component) = self.get_component_from_chip_stack(stack) {
-			component.position = (x, y);
-		}
-	}
-
-	/// Connects two components with a wire externally.
-	/// Used to connect wires from JavaScript.
-	pub fn connect_external(
-		&mut self, comp1_idx: usize, pin1_idx: usize,
-		comp2_idx: usize, pin2_idx: usize,
-	) {
-		self.connect((comp1_idx, pin1_idx), (comp2_idx, pin2_idx), &[]);
 	}
 }
 
