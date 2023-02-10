@@ -2,7 +2,7 @@
 
 use crate::add;
 use crate::bus::*;
-use crate::core::{Circuit, ComponentOptions, ComponentType};
+use crate::core::{Circuit, ComponentOptions, ComponentSimulator, ComponentType, PinError, PinState};
 use crate::graphics::WireLayoutCommand;
 use crate::utils::get_pin_coords;
 
@@ -156,6 +156,73 @@ pub fn get_multi_multiplexer_circuit(size: usize) -> Circuit {
 	]);
 
 	circuit
+}
+
+pub struct MultiMultiplexerSimulator {
+	size: usize,
+
+	input1: Vec<PinState>,
+	input2: Vec<PinState>,
+	enable: PinState,
+}
+
+impl MultiMultiplexerSimulator {
+	pub fn new(size: usize) -> Self {
+		Self {
+			size,
+			input1: vec![PinState::Disconnected; size],
+			input2: vec![PinState::Disconnected; size],
+			enable: PinState::Disconnected,
+		}
+	}
+}
+
+impl ComponentSimulator for MultiMultiplexerSimulator {
+	fn set_mode_to_high_level(&mut self, circuit: &Circuit) {
+		for i in 0..self.size*2+1 {
+			let state = circuit.get_pin(i).unwrap().get_pin_state(0).unwrap();
+			self.set_pin_state_high_level(i, state).unwrap();
+		}
+	}
+
+	fn set_mode_to_circuit(&mut self, circuit: &mut Circuit) {
+		for (i, state) in self.input1.iter().enumerate() {
+			circuit.set_pin(i, *state);
+		}
+		for (i, state) in self.input2.iter().enumerate() {
+			circuit.set_pin(i + self.size, *state);
+		}
+		circuit.set_pin(self.size * 2, self.enable);
+	}
+
+    fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+        if idx <= self.size * 2 {
+			Ok(PinState::Disconnected)
+		} else if idx > self.size * 3 {
+			Err(PinError::OutOfRange)
+		} else if self.enable == PinState::On {
+			Ok(self.input2[idx - self.size * 2 - 1].or(PinState::Off))
+		} else {
+			Ok(self.input1[idx - self.size * 2 - 1].or(PinState::Off))
+		}
+    }
+
+    fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+        if idx < self.size {
+			self.input1[idx] = state;
+			Ok(())
+		} else if idx < self.size * 2 {
+			self.input2[idx - self.size] = state;
+			Ok(())
+		} else if idx == self.size * 2 {
+			self.enable = state;
+			Ok(())
+		} else if idx <= self.size * 3 {
+			Ok(())
+		} else {
+			Err(PinError::OutOfRange)
+		}
+    }
 }
 
 pub fn get_four_way_circuit(size: usize) -> Circuit {

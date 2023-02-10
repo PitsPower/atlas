@@ -80,6 +80,15 @@ impl PinState {
 		if b { PinState::On } else { PinState::Off }
 	}
 
+	/// Returns the [`PinState`] unchanged, or the given [`PinState`] if the
+	/// current one is [`PinState::Disconnected`].
+	pub fn or(self, default: PinState) -> PinState {
+		match self {
+			PinState::Disconnected => default,
+			_ => self,
+		}
+	}
+
 	/// Returns the XOR of this signal with the given signal.
 	pub fn xor(&self, other: PinState) -> PinState {
 		match (self.to_bool(), other.to_bool()) {
@@ -550,6 +559,8 @@ impl ComponentType {
 			Self::MultiBulb => Some(Box::new(MultiBulbSimulator::new(options.size))),
 			Self::MultiJunction => Some(Box::new(MultiJunctionSimulator::new(options.size))),
 			Self::MultiSwitch => Some(Box::new(MultiSwitchSimulator::new(options.size))),
+
+			Self::MultiMultiplexer => Some(Box::new(MultiMultiplexerSimulator::new(options.size))),
 
 			Self::Register => Some(Box::new(RegisterSimulator::new())),
 			
