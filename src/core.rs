@@ -2,10 +2,10 @@
 //! 
 //! Provides core data structures such as [`Circuit`] and some basic components like switches, bulbs and junctions.
 
-use std::collections::HashMap;
 use std::f64::consts::PI;
 
 use arrayvec::ArrayVec;
+use fxhash::FxHashMap;
 use itertools::Itertools;
 use wasm_bindgen::prelude::*;
 
@@ -1645,24 +1645,6 @@ pub struct ExternalPin {
 	pub pin_idx: usize,
 }
 
-/// A struct for specifying a list of pins on a particular component.
-pub struct ExternalPins {
-	/// The index of the component.
-	pub component_idx: usize,
-	/// The list of pin indices.
-	pub pin_indices: Vec<usize>,
-}
-
-impl ExternalPins {
-	/// Converts an `ExternalPins` struct to a list of `ExternalPin` structs.
-	fn to_pin_vec(&self) -> Vec<ExternalPin> {
-		self.pin_indices.iter().map(|idx| ExternalPin {
-			component_idx: self.component_idx,
-			pin_idx: *idx,
-		}).collect()
-	}
-}
-
 /// A wire. Wires connect two external pins together.
 /// 
 /// A wire stores two states, one for each pin. This allows for wires to work
@@ -1693,8 +1675,8 @@ pub struct Circuit {
 	/// The list of [`BusLayoutCommand`]s that need to be computed.
 	pub bus_commands: Vec<(Group, Group, Vec<BusLayoutCommand>)>,
 
-	pub start_map: HashMap<ExternalPin, usize>,
-	pub end_map: HashMap<ExternalPin, usize>,
+	pub start_map: FxHashMap<ExternalPin, usize>,
+	pub end_map: FxHashMap<ExternalPin, usize>,
 }
 
 impl Circuit {
@@ -1704,8 +1686,8 @@ impl Circuit {
 			components: vec![],
 			wires: vec![],
 			bus_commands: vec![],
-			start_map: HashMap::new(),
-			end_map: HashMap::new(),
+			start_map: FxHashMap::default(),
+			end_map: FxHashMap::default(),
 		}
 	}
 
