@@ -11,6 +11,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::add;
 use crate::adder::*;
+use crate::alu::*;
 use crate::bus::{BusLayoutCommand, compute_wire_commands};
 use crate::control::*;
 use crate::gates::*;
@@ -186,6 +187,8 @@ pub enum ComponentType {
 
 	Counter,
 	ControlUnit,
+
+	ZeroTester,
 }
 
 macro_rules! chip {
@@ -243,6 +246,8 @@ impl ComponentType {
 			
 			Self::Counter => "Counter",
 			Self::ControlUnit => "ControlUnit",
+
+			Self::ZeroTester => "ZeroTester",
 		}
 	}
 
@@ -372,6 +377,8 @@ impl ComponentType {
 
 			Self::Counter => chip!(get_counter_circuit, 0.2),
 			Self::ControlUnit => chip!(get_control_unit_circuit, 0.2),
+			
+			Self::ZeroTester => chip!(get_zero_tester_circuit, 0.2),
 		};
 
 		let size = match self {
@@ -673,6 +680,11 @@ impl ComponentType {
 				text: String::from("Control Unit"),
 				size: 120,
 			})),
+			
+			Self::ZeroTester => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: String::from("=0?"),
+				size: 120,
+			})),
 		};
 
 		Component {
@@ -748,6 +760,8 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 		
 		ComponentType::Counter => String::from("Counter"),
 		ComponentType::ControlUnit => String::from("Control Unit"),
+		
+		ComponentType::ZeroTester => String::from("Zero Tester"),
 	}
 }
 
@@ -800,6 +814,7 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 		
 		ComponentType::Counter => String::from("counter"),
 		ComponentType::ControlUnit => String::from("controlunit"),
+		ComponentType::ZeroTester => String::from("zerotester"),
 	}
 }
 

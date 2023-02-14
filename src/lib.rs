@@ -1,4 +1,5 @@
 pub mod adder;
+pub mod alu;
 pub mod assembler;
 pub mod bus;
 pub mod control;
@@ -1337,7 +1338,11 @@ pub fn get_computer_circuit() -> Circuit {
 }
 
 pub fn editor_example() -> Circuit {
-	Circuit::new()
+	let mut circuit = Circuit::new();
+
+	add!(circuit, ZeroTester, (0.0, 0.0));
+
+	circuit
 }
 
 #[wasm_bindgen(start)]
