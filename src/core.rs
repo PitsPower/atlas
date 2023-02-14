@@ -6,7 +6,6 @@ use std::f64::consts::PI;
 
 use arrayvec::ArrayVec;
 use fxhash::FxHashMap;
-use itertools::Itertools;
 use wasm_bindgen::prelude::*;
 
 use crate::add;
@@ -681,7 +680,13 @@ impl ComponentType {
 			position,
 			size,
 			ctype: *self,
-			sim_mode: if simulator.is_none() { SimulationMode::Circuit } else { SimulationMode::HighLevel },
+			sim_mode: if simulator.is_none() {
+				SimulationMode::Circuit
+			} else {
+				SimulationMode::HighLevel
+			},
+			pin_count: None,
+			is_dirty: false,
 			simulator,
 			drawer,
 		}
@@ -1440,6 +1445,11 @@ pub struct Component {
 	/// The simulation mode of the component.
 	sim_mode: SimulationMode,
 
+	/// The number of pins (needs to be computed first).
+	pin_count: Option<usize>,
+	/// Whether the component has been updated or not (used in [`Circuit`]s).
+	is_dirty: bool,
+
 	/// A [`ComponentSimulator`] instance. Used to simulate the component's functionality.
 	/// If [`None`], the internal circuit is used exclusively.
 	pub simulator: Option<Box<dyn ComponentSimulator>>,
@@ -1480,13 +1490,21 @@ impl Component {
 	}
 
 	/// Returns how many pins the component has.
-	fn get_pin_count(&self) -> usize {
-		// Some components have hard-coded calculations to prevent
-		// excessive recursion (e.g. memory chips).
+	fn get_pin_count(&mut self) -> usize {
+		if let Some(pin_count) = self.pin_count {
+			pin_count
+		} else {
+			// Some components have hard-coded calculations to prevent
+			// excessive recursion (e.g. memory chips).
+	
+			let pin_count = match self.get_type() {
+				ComponentType::Memory => 16 + 16 + 1 + self.options.size,
+				_ => self.get_pin_positions().len(),
+			};
 
-		match self.get_type() {
-			ComponentType::Memory => 16 + 16 + 1 + self.options.size,
-			_ => self.get_pin_positions().len(),
+			self.pin_count = Some(pin_count);
+
+			pin_count
 		}
 	}
 
@@ -1929,7 +1947,7 @@ impl Circuit {
 
 		// Disconnect all the switches and bulbs first
 		for idx in indices.iter() {
-			let component = &self.components[*idx];
+			let component = &mut self.components[*idx];
 
 			if !matches!(component.ctype, ComponentType::Switch | ComponentType::MultiSwitch) {
 				continue;
@@ -2049,12 +2067,20 @@ impl Circuit {
 		let mut wire_starts_to_update: ArrayVec<(usize, PinState), 128> = ArrayVec::new();
 		let mut wire_ends_to_update: ArrayVec<(usize, PinState), 128> = ArrayVec::new();
 
+		for component in &mut self.components {
+			component.is_dirty = true;
+		}
+
 		let component_indices = pins.iter().zip(states)
-			.map(|(pin, _)| pin.component_idx)
-			.unique();
+			.map(|(pin, _)| pin.component_idx);
 
 		for component_idx in component_indices {
 			let component = &mut self.components[component_idx];
+
+			if !component.is_dirty {
+				continue;
+			}
+			component.is_dirty = false;
 
 			let old_pin_states: ArrayVec<_, 128> = (0..component.get_pin_count())
 				.map(|i| component.get_pin_state(i).unwrap())
@@ -2137,11 +2163,21 @@ impl Circuit {
 			self.wires[*idx].state2 = *state;
 		}
 
+		for component in &mut self.components {
+			component.is_dirty = true;
+		}
+
 		let component_indices = pins_to_update.iter()
-			.map(|(pin, _)| pin.component_idx)
-			.unique();
+			.map(|(pin, _)| pin.component_idx);
 
 		for component_idx in component_indices {
+			let component = &mut self.components[component_idx];
+
+			if !component.is_dirty {
+				continue;
+			}
+			component.is_dirty = false;
+
 			let pins = pins_to_update.iter()
 				.filter(|(p, _)| p.component_idx == component_idx)
 				.map(|(p, _)| *p)
