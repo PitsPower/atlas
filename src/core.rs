@@ -685,6 +685,7 @@ impl ComponentType {
 			} else {
 				SimulationMode::HighLevel
 			},
+			pin_positions: Lazy::empty(),
 			pin_count: None,
 			is_dirty: false,
 			simulator,
@@ -1445,6 +1446,8 @@ pub struct Component {
 	/// The simulation mode of the component.
 	sim_mode: SimulationMode,
 
+	/// The pin positions (needs to be computed first).
+	pin_positions: Lazy<Vec<(f64, f64)>>,
 	/// The number of pins (needs to be computed first).
 	pin_count: Option<usize>,
 	/// Whether the component has been updated or not (used in [`Circuit`]s).
@@ -1478,14 +1481,21 @@ impl Component {
 	}
 
 	/// Returns the list of pin positions.
-	pub fn get_pin_positions(&self) -> Vec<(f64, f64)> {
-		match &self.internals {
-			ComponentInternals::Atomic(pin_positions) => pin_positions.clone(),
-			ComponentInternals::Chip(circuit, inner_scale) => {
-				circuit.get().get_pin_positions().iter()
-					.map(|(x, y)| (x * inner_scale, y * inner_scale))
-					.collect()
-			},
+	pub fn get_pin_positions(&self) -> &[(f64, f64)] {
+		if let Some(pin_positions) = self.pin_positions.try_get() {
+			pin_positions
+		} else {
+			let pin_positions = match &self.internals {
+				ComponentInternals::Atomic(pin_positions) => pin_positions.clone(),
+				ComponentInternals::Chip(circuit, inner_scale) => {
+					circuit.get().get_pin_positions().iter()
+						.map(|(x, y)| (x * inner_scale, y * inner_scale))
+						.collect()
+				},
+			};
+
+			self.pin_positions.set(pin_positions);
+			self.pin_positions.get()
 		}
 	}
 
@@ -2178,10 +2188,10 @@ impl Circuit {
 			}
 			component.is_dirty = false;
 
-			let pins = pins_to_update.iter()
+			let pins: ArrayVec<_, 64> = pins_to_update.iter()
 				.filter(|(p, _)| p.component_idx == component_idx)
 				.map(|(p, _)| *p)
-				.collect::<ArrayVec<_, 64>>();
+				.collect();
 
 			let states = pins_to_update.iter()
 				.filter(|(p, _)| p.component_idx == component_idx)
