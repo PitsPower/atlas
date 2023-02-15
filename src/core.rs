@@ -2200,9 +2200,9 @@ impl Circuit {
 			let true_states: ArrayVec<_, 64> = pins.iter().zip(states)
 				.map(|(pin, state)| {
 					if state == PinState::Disconnected {
-						if let Some(wire) = self.wires.iter()
-							.find(|w| w.pin1 == *pin || w.pin2 == *pin)
-						{
+						if let Some(&wire_idx) = self.start_map.get(pin).or(self.end_map.get(pin)) {
+							let wire = &self.wires[wire_idx];
+
 							if wire.pin1 == *pin {
 								wire.state2
 							} else {
