@@ -276,6 +276,7 @@ impl ComponentType {
 	fn get_pad_size(&self) -> f64 {
 		match self {
 			Self::Counter => 1000.0,
+			Self::ZeroTester => 500.0,
 			_ => 100.0,
 		}
 	}
