@@ -58,7 +58,7 @@ impl Memory {
 
 	/// Returns the screen contents as a string.
 	pub fn read_screen(&self) -> String {
-		let screen_addr = 0x5e00;
+		let screen_addr = 0xfc00;
 
 		let screen_width = 64;
 		let screen_height = 16;
@@ -452,6 +452,24 @@ pub fn generate_control_rom_data() -> [u16; 256 * CONTROL_ROM_MAX_STEPS] {
 		cntrl!(Mdr => BrAddr),
 		cntrl!(Pc+6 => Pc),
 		cntrl!(Branch => Pc, Minus),
+	]);
+
+	// MoveByteRegToRegAddr
+	add_steps_to_rom_data(&mut result, 0x13, vec![
+		cntrl!(Pc+2 => Mar),
+		cntrl!(Mdr => Ir2),
+		cntrl!(Gpr3 => Mar),
+		cntrl!(Gpr2 => Mdr, Minus),
+		cntrl!(Pc+4 => Pc),
+	]);
+	
+	// MoveByteRegAddrToReg
+	add_steps_to_rom_data(&mut result, 0x14, vec![
+		cntrl!(Pc+2 => Mar),
+		cntrl!(Mdr => Ir2),
+		cntrl!(Gpr2 => Mar),
+		cntrl!(Mdr => Gpr3, Minus),
+		cntrl!(Pc+4 => Pc),
 	]);
 
 	result
