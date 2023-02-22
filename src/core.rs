@@ -273,7 +273,12 @@ impl ComponentType {
 
 	/// Whether the circuit should be padded horizontally instead of vertically.
 	fn should_pad_horizontally(&self) -> bool {
-		matches!(self, Self::Register | Self::Ram | Self::Counter | Self::ControlUnit | Self::Alu)
+		matches!(self, Self::Register | Self::Ram | Self::Counter | Self::ControlUnit)
+	}
+
+	/// Whether the circuit should be padded vertically.
+	fn should_pad_vertically(&self) -> bool {
+		!matches!(self, Self::Alu)
 	}
 
 	/// The top/bottom padding size.
@@ -494,7 +499,7 @@ impl ComponentType {
 					if left_pad == 0.0 && right_pad == 0.0 {
 						chip_size.0 += self.get_pad_size();
 					}
-				} else {
+				} else if self.should_pad_vertically() {
 					let mut min_side_y = f64::INFINITY;
 					let mut max_side_y = f64::NEG_INFINITY;
 

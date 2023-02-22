@@ -258,8 +258,8 @@ enum ControlRegister {
 	AluA = 9,
 	AluB = 10,
 	AluO = 11,
-	Branch = 12,
-	BrAddr = 13,
+	BrAddr = 12,
+	Branch = 13,
 }
 
 impl std::convert::TryFrom<u8> for ControlRegister {
@@ -279,8 +279,8 @@ impl std::convert::TryFrom<u8> for ControlRegister {
 			9 =>  Ok(ControlRegister::AluA),
 			10 =>  Ok(ControlRegister::AluB),
 			11 => Ok(ControlRegister::AluO),
-			12 => Ok(ControlRegister::Branch),
-			13 => Ok(ControlRegister::BrAddr),
+			12 => Ok(ControlRegister::BrAddr),
+			13 => Ok(ControlRegister::Branch),
 			_ => Err(()),
 		}
     }
@@ -444,15 +444,15 @@ pub fn generate_control_rom_data() -> [u16; 256 * CONTROL_ROM_MAX_STEPS] {
 	]);
 	
 	// BranchIfEqual
-	// add_steps_to_rom_data(&mut result, 0x09, vec![
-	// 	cntrl!(Gpr1 => AluA),
-	// 	cntrl!(Pc+2 => Mar),
-	// 	cntrl!(Mdr => AluB),
-	// 	cntrl!(Pc+4 => Mar),
-	// 	cntrl!(Mdr => BrAddr),
-	// 	cntrl!(Pc+6 => Pc),
-	// 	cntrl!(Branch => Pc, Eq),
-	// ]);
+	add_steps_to_rom_data(&mut result, 0x09, vec![
+		cntrl!(Gpr1 => AluA),
+		cntrl!(Pc+2 => Mar),
+		cntrl!(Mdr => AluB),
+		cntrl!(Pc+4 => Mar),
+		cntrl!(Mdr => BrAddr),
+		cntrl!(Pc+6 => Pc),
+		cntrl!(Branch => Pc, Minus),
+	]);
 
 	result
 }
@@ -524,7 +524,13 @@ impl LowLevelAtlasVM {
 					}
 				},
 				
-				ControlRegister::Branch => todo!(),
+				ControlRegister::Branch => {
+					if self.alu_register_a == self.alu_register_b {
+						self.branch_address_register
+					} else {
+						self.program_counter
+					}
+				},
 				ControlRegister::BrAddr => self.branch_address_register,
 			})
 		} else {
