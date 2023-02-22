@@ -189,6 +189,7 @@ pub enum ComponentType {
 	ControlUnit,
 
 	ZeroTester,
+	ConditionalInverter,
 }
 
 macro_rules! chip {
@@ -248,6 +249,7 @@ impl ComponentType {
 			Self::ControlUnit => "ControlUnit",
 
 			Self::ZeroTester => "ZeroTester",
+			Self::ConditionalInverter => "ConditionalInverter",
 		}
 	}
 
@@ -380,6 +382,7 @@ impl ComponentType {
 			Self::ControlUnit => chip!(get_control_unit_circuit, 0.2),
 			
 			Self::ZeroTester => chip!(get_zero_tester_circuit, 0.2),
+			Self::ConditionalInverter => chip!(move || get_conditional_inverter_circuit(options.size), 0.2),
 		};
 
 		let size = match self {
@@ -686,6 +689,10 @@ impl ComponentType {
 				text: String::from("=0?"),
 				size: 120,
 			})),
+			Self::ConditionalInverter => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: String::from("Conditional Inverter"),
+				size: 40,
+			})),
 		};
 
 		Component {
@@ -763,6 +770,7 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 		ComponentType::ControlUnit => String::from("Control Unit"),
 		
 		ComponentType::ZeroTester => String::from("Zero Tester"),
+		ComponentType::ConditionalInverter => String::from("Conditional Inverter"),
 	}
 }
 
@@ -815,7 +823,9 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 		
 		ComponentType::Counter => String::from("counter"),
 		ComponentType::ControlUnit => String::from("controlunit"),
+
 		ComponentType::ZeroTester => String::from("zerotester"),
+		ComponentType::ConditionalInverter => String::from("conditionalinverter"),
 	}
 }
 

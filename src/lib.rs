@@ -1340,7 +1340,7 @@ pub fn get_computer_circuit() -> Circuit {
 pub fn editor_example() -> Circuit {
 	let mut circuit = Circuit::new();
 
-	add!(circuit, ZeroTester, (0.0, 0.0));
+	add!(circuit, ConditionalInverter, (0.0, 0.0), 16);
 
 	circuit
 }

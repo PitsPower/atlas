@@ -1,5 +1,7 @@
 //! Component used in the ALU.
 
+use itertools::Itertools;
+
 use crate::add;
 use crate::bus::BusLayoutCommand;
 use crate::core::{Circuit, ComponentOptions, ComponentType};
@@ -86,6 +88,85 @@ pub fn get_zero_tester_circuit() -> Circuit {
 		WireLayoutCommand::AlignHorizontal,
 	]);
 	circuit.connect((layer4[0], 2), (output, 0), &[]);
+
+	circuit
+}
+
+pub fn get_conditional_inverter_circuit(size: usize) -> Circuit {
+	let mut circuit = Circuit::new();
+
+	let input: Vec<_> = get_pin_coords(0.0, size, 50.0).iter()
+		.map(|y| add!(circuit, Pin, (-1500.0, *y)))
+		.collect();
+
+	let enable = add!(circuit, Pin, (0.0, 2500.0));
+
+	let xors: Vec<_> = get_pin_coords(0.0, size, 250.0).iter()
+		.map(|y| add!(circuit, XorGate, (0.0, *y)))
+		.collect();
+
+	let junctions: Vec<_> = xors[1..].iter()
+		.map(|c| {
+			let pos = (
+				circuit.components[*c].position.0 + circuit.components[*c].get_pin_positions()[1].0,
+				circuit.components[*c].position.1 + circuit.components[*c].get_pin_positions()[1].1,
+			);
+			add!(circuit, Junction, (pos.0 - 150.0, pos.1), 3)
+		})
+		.collect();
+
+	let output: Vec<_> = get_pin_coords(0.0, size, 50.0).iter()
+		.map(|y| add!(circuit, Pin, (1500.0, *y)))
+		.collect();
+
+	circuit.connect_groups(
+		&input[..8].iter().map(|c| (*c, 0)).collect::<Vec<_>>(),
+		&xors[..8].iter().map(|c| (*c, 0)).collect::<Vec<_>>(),
+		&[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		],
+	);
+	circuit.connect_groups(
+		&input[8..].iter().map(|c| (*c, 0)).collect::<Vec<_>>(),
+		&xors[8..].iter().map(|c| (*c, 0)).collect::<Vec<_>>(),
+		&[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		],
+	);
+
+	for i in 0..size-1 {
+		circuit.connect((junctions[i], 2), (xors[i+1], 1), &[]);
+	}
+	for i in 0..size-2 {
+		circuit.connect((junctions[i], 1), (junctions[i+1], 0), &[]);
+	}
+
+	circuit.connect((enable, 0), (junctions[size-2], 1), &[
+		WireLayoutCommand::CenterVertical,
+		WireLayoutCommand::AlignVertical,
+	]);
+	circuit.connect((junctions[0], 0), (xors[0], 1), &[
+		WireLayoutCommand::AlignHorizontal,
+	]);
+	
+	circuit.connect_groups(
+		&output[..8].iter().map(|c| (*c, 0)).collect::<Vec<_>>(),
+		&xors[..8].iter().map(|c| (*c, 2)).collect::<Vec<_>>(),
+		&[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		],
+	);
+	circuit.connect_groups(
+		&output[8..].iter().map(|c| (*c, 0)).collect::<Vec<_>>(),
+		&xors[8..].iter().map(|c| (*c, 2)).collect::<Vec<_>>(),
+		&[
+			BusLayoutCommand::CenterHorizontal,
+			BusLayoutCommand::AlignHorizontal,
+		],
+	);
 
 	circuit
 }
