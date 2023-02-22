@@ -23,6 +23,7 @@ use crate::memory::*;
 use crate::multiplexer::*;
 use crate::register::*;
 use crate::transistor::*;
+use crate::utils::get_pin_coords;
 use crate::utils::{Lazy, states_to_num};
 
 /// A pin state.
@@ -161,6 +162,8 @@ pub enum ComponentType {
 	/// A collection of switches that can be turned on and off.	
 	MultiSwitch,
 
+	Screen,
+
 	MultiTriStateBuffer,
 
 	HalfAdder,
@@ -221,6 +224,8 @@ impl ComponentType {
 			Self::MultiBulb => "MultiBulb",
 			Self::MultiJunction => "MultiJunction",
 			Self::MultiSwitch => "MultiSwitch",
+			
+			Self::Screen => "Screen",
 			
 			Self::MultiTriStateBuffer => "MultiTriStateBuffer",
 
@@ -355,6 +360,27 @@ impl ComponentType {
 				ComponentInternals::Atomic(pin_positions)
 			},
 
+			Self::Screen => {
+				let spacing = 15.0;
+				
+				let mut address_positions: Vec<_> = get_pin_coords(-300.0, 10, spacing).iter()
+					.map(|y| (-1000.0, *y))
+					.collect();
+				
+				let mut data_positions: Vec<_> = get_pin_coords(0.0, 8, spacing).iter()
+					.map(|y| (-1000.0, *y))
+					.collect();
+
+				let clock_position = (-1000.0, 300.0);
+
+				let mut positions = Vec::new();
+				positions.append(&mut address_positions);
+				positions.append(&mut data_positions);
+				positions.push(clock_position);
+
+				ComponentInternals::Atomic(positions)
+			},
+
 			Self::MultiTriStateBuffer => chip!(move || get_multi_tri_state_buffer_circuit(options.size), 0.3),
 
 			Self::HalfAdder => chip!(get_half_adder_circuit, 0.4),
@@ -422,6 +448,8 @@ impl ComponentType {
 				let size = 30.0 * options.size as f64;
 				(size, size)
 			},
+
+			Self::Screen => (2000.0, 1000.0),
 
 			Self::Rom => (700.0, 500.0),
 			Self::Memory => (900.0, 700.0),
@@ -578,6 +606,8 @@ impl ComponentType {
 			Self::MultiJunction => Some(Box::new(MultiJunctionSimulator::new(options.size))),
 			Self::MultiSwitch => Some(Box::new(MultiSwitchSimulator::new(options.size))),
 
+			Self::Screen => Some(Box::new(ScreenSimulator::new())),
+
 			Self::MultiMultiplexer => Some(Box::new(MultiMultiplexerSimulator::new(options.size))),
 
 			Self::Register => Some(Box::new(RegisterSimulator::new())),
@@ -608,6 +638,8 @@ impl ComponentType {
 			Self::MultiBulb => Box::new(MultiBulbDrawer::new()),
 			Self::MultiJunction => Box::new(MultiJunctionDrawer::new()),
 			Self::MultiSwitch => Box::new(MultiSwitchDrawer::new()),
+			
+			Self::Screen => Box::new(ScreenDrawer::new()),
 			
 			Self::MultiTriStateBuffer => Box::new(RectangleChipDrawer::new(TextInfo {
 				text: format!("{}-bit Tri-State Buffer", options.size),
@@ -760,6 +792,8 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 		ComponentType::MultiBulb => String::from("Multi Bulb"),
 		ComponentType::MultiJunction => String::from("Multi Junction"),
 		ComponentType::MultiSwitch => String::from("Multi Switch"),
+		
+		ComponentType::Screen => String::from("Screen"),
 			
 		ComponentType::MultiTriStateBuffer => String::from("Multi Tri-State Buffer"),
 
@@ -816,6 +850,8 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 		ComponentType::MultiBulb => String::from("multibulb"),
 		ComponentType::MultiJunction => String::from("multijunction"),
 		ComponentType::MultiSwitch => String::from("multiswitch"),
+		
+		ComponentType::Screen => String::from("screen"),
 			
 		ComponentType::MultiTriStateBuffer => String::from("multitristatebuffer"),
 
@@ -1432,6 +1468,111 @@ impl ComponentDrawer for MultiJunctionDrawer {
 				2.0 * PI,
 			).unwrap();
 			ctx.fill();
+		}
+	}
+}
+
+/// A [`ComponentSimulator`] for a screen.
+struct ScreenSimulator {
+	address: [PinState; 10],
+	character: [PinState; 8],
+	clock: PinState,
+
+	text: [u16; 64*16],
+}
+
+impl ScreenSimulator {
+	/// Returns a new [`ScreenSimulator`].
+	fn new() -> Self {
+		Self {
+			address: [PinState::Disconnected; 10],
+			character: [PinState::Disconnected; 8],
+			clock: PinState::Disconnected,
+			text: [0; 64*16],
+		}
+	}
+}
+
+impl ComponentSimulator for ScreenSimulator {
+	fn take_memory(&self) -> &[u16] {
+		&self.text
+	}
+
+	fn get_pin_state_high_level(&self, idx: usize) -> Result<PinState, PinError> {
+		if idx <= 19 {
+			Ok(PinState::Disconnected)
+		} else {
+			Err(PinError::OutOfRange)
+		}
+	}
+
+	fn set_pin_state_high_level(&mut self, idx: usize, state: PinState) -> Result<(), PinError> {
+		match idx {
+			0..=9 => {
+				self.address[idx] = state;
+				Ok(())
+			},
+			10..=17 => {
+				self.character[idx - 10] = state;
+				Ok(())
+			},
+			18 => {
+				if self.clock != PinState::On && state == PinState::On {
+					let address = states_to_num(&self.address.to_vec());
+					let character = states_to_num(&self.character.to_vec());
+					self.text[address as usize] = character as u16;
+				}
+
+				self.clock = state;
+				Ok(())
+			},
+			_ => Err(PinError::OutOfRange),
+		}
+	}
+}
+
+/// A [`ComponentDrawer`] that draws a screen.
+struct ScreenDrawer;
+
+impl ScreenDrawer {
+	/// Returns a new [`ScreenDrawer`].
+	fn new() -> Self {
+		Self
+	}
+}
+
+impl ComponentDrawer for ScreenDrawer {
+	fn draw(&self, ctx: &web_sys::CanvasRenderingContext2d, _viewport: BoundingBox, component: &Component) {
+		let size = component.size;
+
+		ctx.set_line_width(10.0);
+		ctx.set_stroke_style(&"#fff".into());
+		ctx.set_fill_style(&"#013e79".into());
+
+		ctx.begin_path();
+		ctx.rect(-size.0 * 0.5, -size.1 * 0.5, size.0, size.1);
+		ctx.fill();
+		ctx.stroke();
+
+		let font_height = 53.0;
+
+		ctx.set_fill_style(&"#fff".into());
+		ctx.set_font(format!("bold {font_height}px monospace").as_str());
+		ctx.set_text_baseline("top");
+
+		let font_width = ctx.measure_text("a").unwrap().width();
+
+		let text_width = font_width * 64.0;
+		let text_height = font_height * 16.0;
+
+		let text = component.simulator.as_ref().unwrap().take_memory();
+
+		for i in 0..16 {
+			ctx.fill_text(
+				(0..64).map(|j| (text[i * 64 + j] as u8) as char).collect::<String>().as_str(),
+				-text_width * 0.5,
+				-text_height * 0.5 + i as f64 * font_height,
+			).unwrap();
 		}
 	}
 }
