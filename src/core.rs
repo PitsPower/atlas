@@ -10,6 +10,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::add;
 use crate::adder::*;
+use crate::alu::*;
 use crate::bus::{BusLayoutCommand, compute_wire_commands};
 use crate::control::*;
 use crate::gates::*;
@@ -185,6 +186,10 @@ pub enum ComponentType {
 
 	Counter,
 	ControlUnit,
+
+	ZeroTester,
+	ConditionalInverter,
+	Alu,
 }
 
 macro_rules! chip {
@@ -242,6 +247,10 @@ impl ComponentType {
 			
 			Self::Counter => "Counter",
 			Self::ControlUnit => "ControlUnit",
+
+			Self::ZeroTester => "ZeroTester",
+			Self::ConditionalInverter => "ConditionalInverter",
+			Self::Alu => "Alu",
 		}
 	}
 
@@ -266,10 +275,16 @@ impl ComponentType {
 		matches!(self, Self::Register | Self::Ram | Self::Counter | Self::ControlUnit)
 	}
 
+	/// Whether the circuit should be padded vertically.
+	fn should_pad_vertically(&self) -> bool {
+		!matches!(self, Self::Alu)
+	}
+
 	/// The top/bottom padding size.
 	fn get_pad_size(&self) -> f64 {
 		match self {
 			Self::Counter => 1000.0,
+			Self::ZeroTester => 500.0,
 			_ => 100.0,
 		}
 	}
@@ -371,6 +386,10 @@ impl ComponentType {
 
 			Self::Counter => chip!(get_counter_circuit, 0.2),
 			Self::ControlUnit => chip!(get_control_unit_circuit, 0.2),
+			
+			Self::ZeroTester => chip!(get_zero_tester_circuit, 0.2),
+			Self::ConditionalInverter => chip!(move || get_conditional_inverter_circuit(options.size), 0.2),
+			Self::Alu => chip!(get_alu_circuit, 0.2),
 		};
 
 		let size = match self {
@@ -479,7 +498,7 @@ impl ComponentType {
 					if left_pad == 0.0 && right_pad == 0.0 {
 						chip_size.0 += self.get_pad_size();
 					}
-				} else {
+				} else if self.should_pad_vertically() {
 					let mut min_side_y = f64::INFINITY;
 					let mut max_side_y = f64::NEG_INFINITY;
 
@@ -672,6 +691,19 @@ impl ComponentType {
 				text: String::from("Control Unit"),
 				size: 120,
 			})),
+			
+			Self::ZeroTester => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: String::from("=0?"),
+				size: 120,
+			})),
+			Self::ConditionalInverter => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: String::from("Conditional Inverter"),
+				size: 40,
+			})),
+			Self::Alu => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: String::from("ALU"),
+				size: 120,
+			})),
 		};
 
 		Component {
@@ -754,6 +786,10 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 		
 		ComponentType::Counter => String::from("Counter"),
 		ComponentType::ControlUnit => String::from("Control Unit"),
+		
+		ComponentType::ZeroTester => String::from("Zero Tester"),
+		ComponentType::ConditionalInverter => String::from("Conditional Inverter"),
+		ComponentType::Alu => String::from("ALU"),
 	}
 }
 
@@ -806,6 +842,10 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 		
 		ComponentType::Counter => String::from("counter"),
 		ComponentType::ControlUnit => String::from("controlunit"),
+
+		ComponentType::ZeroTester => String::from("zerotester"),
+		ComponentType::ConditionalInverter => String::from("conditionalinverter"),
+		ComponentType::Alu => String::from("alu"),
 	}
 }
 
