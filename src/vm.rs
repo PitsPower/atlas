@@ -289,8 +289,7 @@ impl std::convert::TryFrom<u8> for ControlRegister {
 #[derive(Clone, Copy)]
 enum ControlFunc {
 	Plus = 0,
-	Eq = 1,
-	Leq = 2,
+	Minus = 1,
 }
 
 impl std::convert::TryFrom<u8> for ControlFunc {
@@ -299,8 +298,7 @@ impl std::convert::TryFrom<u8> for ControlFunc {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
 			0 => Ok(ControlFunc::Plus),
-			1 => Ok(ControlFunc::Eq),
-			2 => Ok(ControlFunc::Leq),
+			1 => Ok(ControlFunc::Minus),
 			_ => Err(()),
 		}
     }
@@ -418,6 +416,16 @@ pub fn generate_control_rom_data() -> [u16; 256 * CONTROL_ROM_MAX_STEPS] {
 		cntrl!(Pc+4 => Pc),
 	]);
 	
+	// AddRegToReg
+	add_steps_to_rom_data(&mut result, 0x06, vec![
+		cntrl!(Pc+2 => Mar),
+		cntrl!(Mdr => Ir2),
+		cntrl!(Gpr1 => AluA),
+		cntrl!(Gpr2 => AluB),
+		cntrl!(AluO => Gpr3),
+		cntrl!(Pc+4 => Pc),
+	]);
+	
 	// AddImmToReg
 	add_steps_to_rom_data(&mut result, 0x07, vec![
 		cntrl!(Pc+4 => Mar),
@@ -436,15 +444,15 @@ pub fn generate_control_rom_data() -> [u16; 256 * CONTROL_ROM_MAX_STEPS] {
 	]);
 	
 	// BranchIfEqual
-	add_steps_to_rom_data(&mut result, 0x09, vec![
-		cntrl!(Gpr1 => AluA),
-		cntrl!(Pc+2 => Mar),
-		cntrl!(Mdr => AluB),
-		cntrl!(Pc+4 => Mar),
-		cntrl!(Mdr => BrAddr),
-		cntrl!(Pc+6 => Pc),
-		cntrl!(Branch => Pc, Eq),
-	]);
+	// add_steps_to_rom_data(&mut result, 0x09, vec![
+	// 	cntrl!(Gpr1 => AluA),
+	// 	cntrl!(Pc+2 => Mar),
+	// 	cntrl!(Mdr => AluB),
+	// 	cntrl!(Pc+4 => Mar),
+	// 	cntrl!(Mdr => BrAddr),
+	// 	cntrl!(Pc+6 => Pc),
+	// 	cntrl!(Branch => Pc, Eq),
+	// ]);
 
 	result
 }
@@ -512,28 +520,11 @@ impl LowLevelAtlasVM {
 				ControlRegister::AluO => {
 					match ControlFunc::try_from(func).unwrap() {
 						ControlFunc::Plus => self.alu_register_a.wrapping_add(self.alu_register_b),
-						ControlFunc::Eq => u16::from(self.alu_register_a == self.alu_register_b),
-						ControlFunc::Leq => u16::from(self.alu_register_a <= self.alu_register_b),
+						ControlFunc::Minus => self.alu_register_a.wrapping_sub(self.alu_register_b),
 					}
 				},
 				
-				ControlRegister::Branch => {
-					if let Ok(func) = ControlFunc::try_from(func) {
-						let should_branch = match func {
-							ControlFunc::Plus => false,
-							ControlFunc::Eq => self.alu_register_a == self.alu_register_b,
-							ControlFunc::Leq => self.alu_register_a <= self.alu_register_b,
-						};
-
-						if should_branch {
-							self.branch_address_register
-						} else {
-							self.program_counter
-						}
-					} else {
-						self.program_counter
-					}
-				},
+				ControlRegister::Branch => todo!(),
 				ControlRegister::BrAddr => self.branch_address_register,
 			})
 		} else {

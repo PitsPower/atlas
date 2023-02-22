@@ -190,6 +190,7 @@ pub enum ComponentType {
 
 	ZeroTester,
 	ConditionalInverter,
+	Alu,
 }
 
 macro_rules! chip {
@@ -250,6 +251,7 @@ impl ComponentType {
 
 			Self::ZeroTester => "ZeroTester",
 			Self::ConditionalInverter => "ConditionalInverter",
+			Self::Alu => "Alu",
 		}
 	}
 
@@ -271,7 +273,7 @@ impl ComponentType {
 
 	/// Whether the circuit should be padded horizontally instead of vertically.
 	fn should_pad_horizontally(&self) -> bool {
-		matches!(self, Self::Register | Self::Ram | Self::Counter | Self::ControlUnit)
+		matches!(self, Self::Register | Self::Ram | Self::Counter | Self::ControlUnit | Self::Alu)
 	}
 
 	/// The top/bottom padding size.
@@ -383,6 +385,7 @@ impl ComponentType {
 			
 			Self::ZeroTester => chip!(get_zero_tester_circuit, 0.2),
 			Self::ConditionalInverter => chip!(move || get_conditional_inverter_circuit(options.size), 0.2),
+			Self::Alu => chip!(get_alu_circuit, 0.2),
 		};
 
 		let size = match self {
@@ -693,6 +696,10 @@ impl ComponentType {
 				text: String::from("Conditional Inverter"),
 				size: 40,
 			})),
+			Self::Alu => Box::new(RectangleChipDrawer::new(TextInfo {
+				text: String::from("ALU"),
+				size: 120,
+			})),
 		};
 
 		Component {
@@ -771,6 +778,7 @@ pub fn get_ct_name(ct: ComponentType) -> String {
 		
 		ComponentType::ZeroTester => String::from("Zero Tester"),
 		ComponentType::ConditionalInverter => String::from("Conditional Inverter"),
+		ComponentType::Alu => String::from("ALU"),
 	}
 }
 
@@ -826,6 +834,7 @@ pub fn get_ct_slug(ct: ComponentType) -> String {
 
 		ComponentType::ZeroTester => String::from("zerotester"),
 		ComponentType::ConditionalInverter => String::from("conditionalinverter"),
+		ComponentType::Alu => String::from("alu"),
 	}
 }
 
