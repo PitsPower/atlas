@@ -131,6 +131,9 @@ pub fn get_adder_circuit(size: usize) -> Circuit {
 		.map(|i| add!(circuit, Pin, (chip_width * 0.5 / scale, -(i as f64 - (size as f64) * 0.5) * 50.0 - 25.0)))
 		.collect();
 
+	let carry_in = add!(circuit, Pin, (0.0, size as f64 * 50.0 / scale));
+	let carry_out = add!(circuit, Pin, (0.0, size as f64 * -50.0 / scale));
+
 	for i in 0..size {
 		circuit.connect((input_group_1[i], 0), (adders[i], 0), &[
 			WireLayoutCommand::CenterHorizontal,
@@ -152,6 +155,15 @@ pub fn get_adder_circuit(size: usize) -> Circuit {
 	for i in 0..size-1 {
 		circuit.connect((adders[i], 4), (adders[i+1], 2), &[]);
 	}
+
+	circuit.connect((carry_in, 0), (adders[0], 2), &[
+		WireLayoutCommand::CenterVertical,
+		WireLayoutCommand::AlignVertical,
+	]);
+	circuit.connect((carry_out, 0), (adders[size-1], 4), &[
+		WireLayoutCommand::CenterVertical,
+		WireLayoutCommand::AlignVertical,
+	]);
 
 	circuit
 }
