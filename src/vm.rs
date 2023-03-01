@@ -436,6 +436,27 @@ pub fn generate_control_rom_data() -> [u16; 256 * CONTROL_ROM_MAX_STEPS] {
 		cntrl!(AluO => Gpr3),
 		cntrl!(Pc+6 => Pc),
 	]);
+	
+	// SubRegFromReg
+	add_steps_to_rom_data(&mut result, 0x26, vec![
+		cntrl!(Pc+2 => Mar),
+		cntrl!(Mdr => Ir2),
+		cntrl!(Gpr1 => AluA),
+		cntrl!(Gpr2 => AluB),
+		cntrl!(AluO => Gpr3, Minus),
+		cntrl!(Pc+4 => Pc),
+	]);
+	
+	// SubImmFromReg
+	add_steps_to_rom_data(&mut result, 0x27, vec![
+		cntrl!(Pc+4 => Mar),
+		cntrl!(Mdr => AluB),
+		cntrl!(Pc+2 => Mar),
+		cntrl!(Mdr => Ir2),
+		cntrl!(Gpr2 => AluA),
+		cntrl!(AluO => Gpr3, Minus),
+		cntrl!(Pc+6 => Pc),
+	]);
 
 	// Branch
 	add_steps_to_rom_data(&mut result, 0x08, vec![

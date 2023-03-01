@@ -116,6 +116,11 @@ enum InstructionType {
 	/// Adds the immediate value to the first register and stores the result in the second register.
 	AddImmToReg(usize, u16, usize),
 
+	/// Subtracts the second register from the first register and stores the result in the third register.
+	SubRegFromReg(usize, usize, usize),
+	/// Subtracts the immediate value from the first register and stores the result in the second register.
+	SubImmFromReg(usize, u16, usize),
+
 	/// Branches to a given address.
 	Branch(u16),
 	/// Branches to a given address if the register's value is equal to the immediate.
@@ -175,6 +180,14 @@ impl InstructionType {
 			Self::AddImmToReg(r1, imm, r2) => {
 				let immb = imm.to_be_bytes();
 				vec![0x07, 0xff, *r1 as u8, *r2 as u8, immb[0], immb[1]]
+			},
+
+			Self::SubRegFromReg(r1, r2, r3) => {
+				vec![0x26, *r1 as u8, *r2 as u8, *r3 as u8]
+			},
+			Self::SubImmFromReg(r1, imm, r2) => {
+				let immb = imm.to_be_bytes();
+				vec![0x27, 0xff, *r1 as u8, *r2 as u8, immb[0], immb[1]]
 			},
 
 			Self::Branch(addr) => {
@@ -652,6 +665,44 @@ impl AssemblyParser {
 						) => {
 							result.push(Instruction {
 								itype: InstructionType::AddRegToReg(r1, r2, r3),
+								label,
+								line_no,
+							});
+						},
+	
+						_ => return Err(AssembleError {
+							etype: AssembleErrorType::InvalidOperands,
+							line_no,
+						}),
+					}
+				},
+				"sub" => {
+					let op1 = self.eat_operand()?;
+					self.eat_token_of_type(AssemblyTokenType::Comma)?;
+					let op2 = self.eat_operand()?;
+					self.eat_token_of_type(AssemblyTokenType::Comma)?;
+					let op3 = self.eat_operand()?;
+
+					match (op1.otype, op2.otype, op3.otype) {
+						(
+							AssemblyOperandType::Register(r1),
+							AssemblyOperandType::Immediate(imm),
+							AssemblyOperandType::Register(r2),
+						) => {
+							result.push(Instruction {
+								itype: InstructionType::SubImmFromReg(r1, imm, r2),
+								label,
+								line_no,
+							});
+						},
+
+						(
+							AssemblyOperandType::Register(r1),
+							AssemblyOperandType::Register(r2),
+							AssemblyOperandType::Register(r3),
+						) => {
+							result.push(Instruction {
+								itype: InstructionType::SubRegFromReg(r1, r2, r3),
 								label,
 								line_no,
 							});

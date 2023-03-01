@@ -1099,7 +1099,7 @@ pub fn get_computer_circuit() -> Circuit {
 	let c45 = add!(circuit, ControlledClock, (8700.000, 2200.000));
 	let c46 = add!(circuit, AndGate, (8300.000, 2100.000));
 	
-	let code: Vec<_> = assemble(include_str!("./aasm/helloworld.aasm").to_string()).unwrap()
+	let code: Vec<_> = assemble(include_str!("./aasm/test.aasm").to_string()).unwrap()
 		.chunks(2)
 		.into_iter()
 		.map(|bs| u16::from_be_bytes([bs[0], bs[1]]))
