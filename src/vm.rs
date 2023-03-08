@@ -492,6 +492,18 @@ pub fn generate_control_rom_data() -> [u16; 256 * CONTROL_ROM_MAX_STEPS] {
 		cntrl!(Mdr => Gpr3, Minus),
 		cntrl!(Pc+4 => Pc),
 	]);
+	
+	// Call
+	add_steps_to_rom_data(&mut result, 0x16, vec![
+		cntrl!(Pc+2 => Mar),
+		cntrl!(Pc+4 => Gpr1),
+		cntrl!(Mdr => Pc),
+	]);
+	
+	// Call
+	add_steps_to_rom_data(&mut result, 0x17, vec![
+		cntrl!(Gpr1 => Pc),
+	]);
 
 	result
 }

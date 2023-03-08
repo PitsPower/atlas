@@ -128,6 +128,11 @@ enum InstructionType {
 	/// Branches to a given address if the register's value is less than or equal to the immediate.
 	BranchIfLessThanOrEqual(usize, u16, u16),
 
+	/// Jumps to an address and saves the next instruction address in $15.
+	Call(u16),
+	/// Jumps to the address in $15.
+	Ret,
+
 	// Assembly directives. Not exactly instructions but whatever.
 
 	/// Writes some data to the binary output.
@@ -146,6 +151,9 @@ enum InstructionType {
 	BranchToLabelIfEqual(usize, u16, String),
 	/// BranchIfLessThanOrEqual, but branches to a label.
 	BranchToLabelIfLessThanOrEqual(usize, u16, String),
+
+	/// Call, but calls a label.
+	CallLabel(String),
 }
 
 impl InstructionType {
@@ -216,6 +224,14 @@ impl InstructionType {
 			// 	vec![0x15, *reg as u8, immb[0], immb[1]]
 			// },
 
+			Self::Call(addr) => {
+				let addrb = addr.to_be_bytes();
+				vec![0x16, 0x0f, addrb[0], addrb[1]]
+			},
+			Self::Ret => {
+				vec![0x17, 0x0f]
+			},
+
 			Self::DataDirective(data) => data.clone(),
 
 			_ => unreachable!(),
@@ -229,6 +245,7 @@ impl InstructionType {
 			Self::BranchToLabel(_) => 4,
 			Self::BranchToLabelIfEqual(_, _, _) => 6,
 			Self::BranchToLabelIfLessThanOrEqual(_, _, _) => 6,
+			Self::CallLabel(_) => 4,
 			_ => self.as_machine_code().len(),
 		}
 	}
@@ -785,6 +802,30 @@ impl AssemblyParser {
 						}),
 					}
 				},
+
+				"call" => {
+					let op = self.eat_operand()?;
+
+					if let AssemblyOperandType::Label(label_str) = op.otype {
+						result.push(Instruction {
+							itype: InstructionType::CallLabel(label_str),
+							label,
+							line_no,
+						});
+					} else {
+						return Err(AssembleError {
+							etype: AssembleErrorType::InvalidOperands,
+							line_no,
+						});
+					}
+				},
+				"ret" => {
+					result.push(Instruction {
+						itype: InstructionType::Ret,
+						label,
+						line_no,
+					});
+				},
 	
 				".db" => {
 					let mut bytes = vec![];
@@ -887,6 +928,17 @@ pub fn assemble(assembly: String) -> Result<Vec<u8>, AssembleError> {
 			InstructionType::BranchToLabelIfLessThanOrEqual(reg, imm, label) => {
 				if let Some(address) = label_map.get(label) {
 					instr.itype = InstructionType::BranchIfLessThanOrEqual(*reg, *imm, *address as u16);
+				} else {
+					return Err(AssembleError {
+						etype: AssembleErrorType::UndefinedLabel(label.clone()),
+						line_no: instr.line_no,
+					});
+				}
+			},
+			
+			InstructionType::CallLabel(label) => {
+				if let Some(address) = label_map.get(label) {
+					instr.itype = InstructionType::Call(*address as u16);
 				} else {
 					return Err(AssembleError {
 						etype: AssembleErrorType::UndefinedLabel(label.clone()),
